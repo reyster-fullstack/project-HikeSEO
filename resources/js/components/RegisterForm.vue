@@ -1,14 +1,28 @@
 <template>
-    <div>
+  <div class="w-100 d-flex justify-content-center mt-5">
+    <div class="w-50 border p-5">
       <form @submit.prevent="register">
-        <input v-model="form.name" type="text" placeholder="Name">
-        <input v-model="form.email" type="email" placeholder="Email">
-        <input v-model="form.password" type="password" placeholder="Password">
-        <input v-model="form.password_confirmation" type="password" placeholder="Confirm Password">
-        <button type="submit">Register</button>
+        <div class="mb-3">
+          <label for="name" class="form-label">Name</label>
+          <input v-model="form.name" class="form-control" type="text" placeholder="Name">
+        </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">Email</label>
+          <input v-model="form.email" class="form-control" type="email" placeholder="Email">
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input v-model="form.password" class="form-control" type="password" placeholder="Password">
+        </div>
+        <div class="mb-3">
+          <label for="confirmpasssword" class="form-label">Email address</label>
+          <input v-model="form.password_confirmation" class="form-control" type="password" placeholder="Confirm Password">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
       </form>
     </div>
-  </template>
+  </div>
+</template>
   
   <script>
   import { ref } from 'vue';
@@ -16,6 +30,7 @@
   export default {
     name: 'RegistrationForm',
     setup() {
+      
       const form = ref({
         name: '',
         email: '',
@@ -37,6 +52,8 @@
         if (response.ok) {
           // Handle success
           console.log('User registered successfully');
+          alert('Registration successful'); // Notify user of success
+          //window.location.href = '/dashboard'; // Redirect on success
         } else {
           // Handle error
           console.error('Registration failed');

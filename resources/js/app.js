@@ -5,6 +5,10 @@
  */
 
 import './bootstrap.js';
+import VCalendar from 'v-calendar';
+import 'v-calendar/dist/style.css';
+
+
 import { createApp } from 'vue';
 
 /**
@@ -18,6 +22,26 @@ const app = createApp({});
 
 import RegisterForm from './components/RegisterForm.vue';
 app.component('register-form', RegisterForm);
+
+import Dashboard from './components/Dashboard.vue';
+app.component('dashboard', Dashboard);
+
+import LoginComponent from './components/LoginComponent.vue';
+app.component('login-component', LoginComponent);
+
+import BookingComponent from './components/BookingComponent.vue';
+app.component('booking-component', BookingComponent);
+
+import AppComponent from './components/AppComponent.vue';
+app.component('app-component', AppComponent);
+import router from './router/index.js'; 
+
+app.use(VCalendar, {});
+
+
+
+
+app.use(router);
 
 
 /**
