@@ -24,12 +24,17 @@
           </select>
         </div>
         <div class="mb-3">
-          <label for="phone" class="form-label">Date</label>
-          <v-date-picker v-model="booking.date" :attributes="attrs" :min-date="today" is-inline></v-date-picker>
+          <label for="Date" class="form-label">Date</label>
+          <input type="text" id="Date" @click="toggleCalendar" v-model="booking.booked_date" readonly>
+          <div v-if="showCalendar">
+            
+            <v-date-picker v-model="booking.booked_date" :attributes="attrs" :min-date="today" :format="dateFormat" is-inline></v-date-picker>
+          </div>
+          
         </div>
         <div class="mb-3">
           <label for="phone" class="form-label">Time</label>
-          <select name="time" id="time" class="form-select">
+          <select name="time" id="time" class="form-select" v-model="booking.booked_time">
             <option value="09:00">09:00</option>
             <option value="09:30">09:30</option>
             <option value="10:00">10:00</option>
@@ -59,6 +64,9 @@
   
   <script>
   import axios from 'axios';
+  import { Calendar, DatePicker as VDatePicker } from 'v-calendar';
+  import 'v-calendar/dist/style.css';
+  import { ref, watch } from 'vue';
   
   export default {
     data() {
@@ -69,8 +77,15 @@
           email: '',
           phone: '',
           vehicle_model: '',
+          booked_date: '',
+          booked_time: '',
           booking_date: '',
         },
+
+      components: {
+        Calendar,
+        VDatePicker,
+      },
         vehicles: [],
       };
       
@@ -80,6 +95,29 @@
 
       this.fetchUserData();
 
+    },
+    setup() {
+      const booking = ref({
+        booked_date: null,
+      });
+      const dateFormat = 'YYYY-MM-DD';
+      const showCalendar = ref(false);
+      const today = new Date().toISOString().split('T')[0];
+
+      const toggleCalendar = () => {
+        showCalendar.value = !showCalendar.value;
+      };
+
+      // Use a watcher to format the date whenever it changes
+      watch(() => booking.value.booked_date, (newValue) => {
+        if (newValue) {
+          // Assuming newValue is the date object or ISO string from the picker
+          const formattedDate = new Date(newValue).toISOString().split('T')[0];
+          booking.value.booked_date = formattedDate;
+        }
+      });
+
+      return { booking, showCalendar, toggleCalendar, dateFormat, today };
     },
     methods: {
         fetchVehicles() {
@@ -96,8 +134,6 @@
 
       if (userData) {
             this.user = JSON.parse(userData);
-
-            console.log(userData);
         }
     },
     getCurrentDateTime() {

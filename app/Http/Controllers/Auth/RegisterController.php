@@ -18,6 +18,7 @@ class RegisterController extends Controller
                 'name' => 'required|max:255',
                 'email' => 'required|email|unique:users',
                 'password' => 'required|min:6',
+                'role' => 'required|max:10',
             ]);
 
     if ($validator->fails()) {
@@ -32,6 +33,7 @@ class RegisterController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => bcrypt($request->password),
+            'role' => $request->role,
         ]);
 
         // Optionally, log the user in and return a suitable response

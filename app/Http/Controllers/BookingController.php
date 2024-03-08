@@ -27,12 +27,27 @@ class BookingController extends Controller
             'email' => 'required|email',
             'phone' => 'required',
             'vehicle_model' => 'required',
+            'booked_date' => 'required',
+            'booked_time' => 'required',
             'booking_date' => 'required|date',
         ]);
 
         // Create and save the booking
         $booking = new Booking($validated);
         $booking->save();
+
+        \Log::debug('Sending email', [
+            'email' => $request->email,
+            // Any other relevant data here
+        ]);
+        try{
+            Mail::to('reysterjoshua@fullstack.php')->send(new BookingConfirmation($booking));
+        }catch(\Exception $e){
+            \Log::debug('e', [
+                'e'=> $e
+            ]);
+        }
+        
 
         return response()->json(['message' => 'Booking successfully created'], 201);
     }

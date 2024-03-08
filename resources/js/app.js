@@ -32,6 +32,9 @@ app.component('login-component', LoginComponent);
 import BookingComponent from './components/BookingComponent.vue';
 app.component('booking-component', BookingComponent);
 
+import AdminDashboard from './components/AdminDashboard.vue';
+app.component('admin-dashboard', AdminDashboard);
+
 import AppComponent from './components/AppComponent.vue';
 app.component('app-component', AppComponent);
 import router from './router/index.js'; 

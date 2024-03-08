@@ -15,8 +15,11 @@
           <input v-model="form.password" class="form-control" type="password" placeholder="Password">
         </div>
         <div class="mb-3">
-          <label for="confirmpasssword" class="form-label">Email address</label>
+          <label for="confirmpasssword" class="form-label">Confirm Password</label>
           <input v-model="form.password_confirmation" class="form-control" type="password" placeholder="Confirm Password">
+        </div>
+        <div class="mb-3">
+          <input v-model="form.role" class="form-control" type="hidden">
         </div>
         <button type="submit" class="btn btn-primary">Submit</button>
       </form>
@@ -36,6 +39,7 @@
         email: '',
         password: '',
         password_confirmation: '',
+        role: 'User',
       });
   
       const register = async () => {
@@ -44,7 +48,7 @@
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') // Add this line
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') 
           },
           body: JSON.stringify(form.value),
         });
@@ -52,8 +56,8 @@
         if (response.ok) {
           // Handle success
           console.log('User registered successfully');
-          alert('Registration successful'); // Notify user of success
-          //window.location.href = '/dashboard'; // Redirect on success
+          alert('Registration successful'); 
+          window.location.href = '/dashboard'; 
         } else {
           // Handle error
           console.error('Registration failed');

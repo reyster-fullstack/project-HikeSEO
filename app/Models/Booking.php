@@ -12,6 +12,8 @@ class Booking extends Model
         'name',
         'phone',
         'vehicle_model',
+        'booked_date',
+        'booked_time',
         'booking_date',
     ];
 

@@ -21693,6 +21693,64 @@ const stringifySymbol = (v, i = "") => {
 
 /***/ }),
 
+/***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js":
+/*!********************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js ***!
+  \********************************************************************************************************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+/* harmony import */ var v_calendar__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! v-calendar */ "./node_modules/v-calendar/dist/es/index.js");
+/* harmony import */ var v_calendar_dist_style_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! v-calendar/dist/style.css */ "./node_modules/v-calendar/dist/style.css");
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  components: {
+    Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_1__.Calendar,
+    VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_1__.DatePicker
+  },
+  setup: function setup() {
+    var booking = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)({
+      booked_date: null,
+      booked_time: null
+    });
+    var showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
+    var today = new Date().toISOString().split('T')[0];
+    var toggleCalendar = function toggleCalendar() {
+      showCalendar.value = !showCalendar.value;
+    };
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(function () {
+      return booking.value.booked_date;
+    }, function (newValue) {
+      if (newValue) {
+        // Format the date or handle changes as needed
+      }
+    });
+
+    // Define any additional functions here and return them
+    var getCurrentDateTime = function getCurrentDateTime() {
+      var now = new Date();
+      // Formatting logic
+      return "".concat(now.getFullYear(), "-").concat(String(now.getMonth() + 1).padStart(2, '0'), "-").concat(String(now.getDate()).padStart(2, '0'), "T").concat(String(now.getHours()).padStart(2, '0'), ":").concat(String(now.getMinutes()).padStart(2, '0'), ":").concat(String(now.getSeconds()).padStart(2, '0'));
+    };
+    return {
+      booking: booking,
+      showCalendar: showCalendar,
+      toggleCalendar: toggleCalendar,
+      today: today,
+      getCurrentDateTime: getCurrentDateTime
+    };
+  }
+});
+
+/***/ }),
+
 /***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AppComponent.vue?vue&type=script&lang=js":
 /*!******************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AppComponent.vue?vue&type=script&lang=js ***!
@@ -21725,7 +21783,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+/* harmony import */ var v_calendar__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! v-calendar */ "./node_modules/v-calendar/dist/es/index.js");
+/* harmony import */ var v_calendar_dist_style_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! v-calendar/dist/style.css */ "./node_modules/v-calendar/dist/style.css");
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+
+
+
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   data: function data() {
@@ -21737,7 +21801,13 @@ __webpack_require__.r(__webpack_exports__);
         email: '',
         phone: '',
         vehicle_model: '',
+        booked_date: '',
+        booked_time: '',
         booking_date: ''
+      },
+      components: {
+        Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_0__.Calendar,
+        VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_0__.DatePicker
       },
       vehicles: []
     };
@@ -21746,10 +21816,39 @@ __webpack_require__.r(__webpack_exports__);
     this.fetchVehicles();
     this.fetchUserData();
   },
+  setup: function setup() {
+    var booking = (0,vue__WEBPACK_IMPORTED_MODULE_2__.ref)({
+      booked_date: null
+    });
+    var dateFormat = 'YYYY-MM-DD';
+    var showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_2__.ref)(false);
+    var today = new Date().toISOString().split('T')[0];
+    var toggleCalendar = function toggleCalendar() {
+      showCalendar.value = !showCalendar.value;
+    };
+
+    // Use a watcher to format the date whenever it changes
+    (0,vue__WEBPACK_IMPORTED_MODULE_2__.watch)(function () {
+      return booking.value.booked_date;
+    }, function (newValue) {
+      if (newValue) {
+        // Assuming newValue is the date object or ISO string from the picker
+        var formattedDate = new Date(newValue).toISOString().split('T')[0];
+        booking.value.booked_date = formattedDate;
+      }
+    });
+    return {
+      booking: booking,
+      showCalendar: showCalendar,
+      toggleCalendar: toggleCalendar,
+      dateFormat: dateFormat,
+      today: today
+    };
+  },
   methods: {
     fetchVehicles: function fetchVehicles() {
       var _this = this;
-      axios__WEBPACK_IMPORTED_MODULE_0__["default"].get('/api/vehicles').then(function (response) {
+      axios__WEBPACK_IMPORTED_MODULE_3__["default"].get('/api/vehicles').then(function (response) {
         _this.vehicles = response.data;
       })["catch"](function (error) {
         console.error("There was an error fetching the vehicles: ", error);
@@ -21759,7 +21858,6 @@ __webpack_require__.r(__webpack_exports__);
       var userData = localStorage.getItem('user');
       if (userData) {
         this.user = JSON.parse(userData);
-        console.log(userData);
       }
     },
     getCurrentDateTime: function getCurrentDateTime() {
@@ -21778,7 +21876,7 @@ __webpack_require__.r(__webpack_exports__);
       this.booking.email = this.user.email;
       this.booking.name = this.user.name;
       this.booking.booking_date = this.getCurrentDateTime();
-      axios__WEBPACK_IMPORTED_MODULE_0__["default"].post('http://localhost:8000/api/booking', this.booking).then(function (response) {
+      axios__WEBPACK_IMPORTED_MODULE_3__["default"].post('http://localhost:8000/api/booking', this.booking).then(function (response) {
         alert('Booking submitted successfully!');
         _this2.resetForm(); // Clear the form after successful submission
       })["catch"](function (error) {
@@ -21847,20 +21945,27 @@ axios__WEBPACK_IMPORTED_MODULE_0__["default"].defaults.headers.common['X-CSRF-TO
     login: function login() {
       axios__WEBPACK_IMPORTED_MODULE_0__["default"].post('/login', {
         email: this.form.email,
-        // Corrected from this.email to this.form.email
-        password: this.form.password // Corrected from this.password to this.form.password
+        // Using the corrected references to form data
+        password: this.form.password
       }).then(function (response) {
-        // Storing user data in local storage or handling it as needed.
-        localStorage.setItem('user', JSON.stringify(response.data));
-
-        // Redirecting to another page or component upon successful login.
-        // Ensure you have 'home' route defined in your Vue router
-        window.location.href = '/booking';
+        var user = response.data;
+        console.log(response.data.role);
+        localStorage.setItem('user', JSON.stringify(user));
+        switch (response.data.role) {
+          case 'Admin':
+            window.location.href = '/admin';
+            break;
+          case 'User':
+            window.location.href = '/booking';
+            break;
+          default:
+            window.location.href = '/';
+            break;
+        }
       })["catch"](function (error) {
         var errorMessage = "An error occurred";
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
+          // Handle errors based on the response from the server
           console.log(error.response.data);
           console.log(error.response.status);
           console.log(error.response.headers);
@@ -21870,7 +21975,7 @@ axios__WEBPACK_IMPORTED_MODULE_0__["default"].defaults.headers.common['X-CSRF-TO
           console.log(error.request);
           errorMessage = "No response was received";
         } else {
-          // Something happened in setting up the request that triggered an Error
+          // An error occurred in setting up the request
           console.log('Error', error.message);
           errorMessage = error.message;
         }
@@ -21933,7 +22038,8 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
       name: '',
       email: '',
       password: '',
-      password_confirmation: ''
+      password_confirmation: '',
+      role: 'User'
     });
     var register = /*#__PURE__*/function () {
       var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
@@ -21947,7 +22053,7 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
                 headers: {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') // Add this line
+                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify(form.value)
               });
@@ -21956,8 +22062,8 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
               if (response.ok) {
                 // Handle success
                 console.log('User registered successfully');
-                alert('Registration successful'); // Notify user of success
-                //window.location.href = '/dashboard'; // Redirect on success
+                alert('Registration successful');
+                window.location.href = '/dashboard';
               } else {
                 // Handle error
                 console.error('Registration failed');
@@ -21978,6 +22084,58 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
     };
   }
 });
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0":
+/*!************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0 ***!
+  \************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* binding */ render)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+
+var _hoisted_1 = {
+  "class": "mb-3"
+};
+var _hoisted_2 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "Date",
+  "class": "form-label"
+}, "Date", -1 /* HOISTED */);
+var _hoisted_3 = {
+  key: 0
+};
+var _hoisted_4 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<div class=\"mb-3\"><label for=\"time\" class=\"form-label\">Time</label><select name=\"time\" id=\"time\" class=\"form-select\"><option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option></select></div>", 1);
+function render(_ctx, _cache, $props, $setup, $data, $options) {
+  var _component_v_date_picker = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("v-date-picker");
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[3] || (_cache[3] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {}, ["prevent"]))
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1, [_hoisted_2, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "text",
+    id: "Date",
+    onClick: _cache[0] || (_cache[0] = function () {
+      return $setup.toggleCalendar && $setup.toggleCalendar.apply($setup, arguments);
+    }),
+    readonly: "",
+    "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
+      return $setup.booking.booked_date = $event;
+    })
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_3, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+    modelValue: $setup.booking.booked_date,
+    "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
+      return $setup.booking.booked_date = $event;
+    }),
+    attributes: _ctx.attrs,
+    "min-date": $setup.today,
+    "is-inline": true,
+    onInput: $setup.toggleCalendar
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "onInput"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), _hoisted_4], 32 /* NEED_HYDRATION */)])]);
+}
 
 /***/ }),
 
@@ -22050,19 +22208,30 @@ var _hoisted_11 = {
   "class": "mb-3"
 };
 var _hoisted_12 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
-  "for": "phone",
+  "for": "Date",
   "class": "form-label"
 }, "Date", -1 /* HOISTED */);
-var _hoisted_13 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<div class=\"mb-3\"><label for=\"phone\" class=\"form-label\">Time</label><select name=\"time\" id=\"time\" class=\"form-select\"><option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option></select></div>", 1);
-var _hoisted_14 = ["value"];
-var _hoisted_15 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+var _hoisted_13 = {
+  key: 0
+};
+var _hoisted_14 = {
+  "class": "mb-3"
+};
+var _hoisted_15 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "phone",
+  "class": "form-label"
+}, "Time", -1 /* HOISTED */);
+var _hoisted_16 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
+var _hoisted_34 = [_hoisted_16];
+var _hoisted_35 = ["value"];
+var _hoisted_36 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
   type: "submit",
   "class": "btn btn-primary"
 }, "Submit", -1 /* HOISTED */);
 function render(_ctx, _cache, $props, $setup, $data, $options) {
   var _component_v_date_picker = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("v-date-picker");
   return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
-    onSubmit: _cache[5] || (_cache[5] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+    onSubmit: _cache[8] || (_cache[8] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
       return $options.submitBooking && $options.submitBooking.apply($options, arguments);
     }, ["prevent"]))
   }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [_hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
@@ -22086,14 +22255,14 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
     "class": "form-control",
     id: "phone",
     "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
-      return $data.booking.phone = $event;
+      return $setup.booking.phone = $event;
     }),
     required: ""
-  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $data.booking.phone]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_8, [_hoisted_9, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.phone]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_8, [_hoisted_9, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
     "class": "form-select",
     "aria-label": "Select Vehicle",
     "onUpdate:modelValue": _cache[3] || (_cache[3] = function ($event) {
-      return $data.booking.vehicle_model = $event;
+      return $setup.booking.vehicle_model = $event;
     }),
     required: ""
   }, [((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($data.vehicles, function (vehicle) {
@@ -22101,18 +22270,36 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
       key: vehicle.id,
       value: vehicle.id
     }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Make) + " - " + (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Model), 9 /* TEXT, PROPS */, _hoisted_10);
-  }), 128 /* KEYED_FRAGMENT */))], 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $data.booking.vehicle_model]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [_hoisted_12, (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
-    modelValue: $data.booking.date,
-    "onUpdate:modelValue": _cache[4] || (_cache[4] = function ($event) {
-      return $data.booking.date = $event;
+  }), 128 /* KEYED_FRAGMENT */))], 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.vehicle_model]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [_hoisted_12, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "text",
+    id: "Date",
+    onClick: _cache[4] || (_cache[4] = function () {
+      return $setup.toggleCalendar && $setup.toggleCalendar.apply($setup, arguments);
+    }),
+    "onUpdate:modelValue": _cache[5] || (_cache[5] = function ($event) {
+      return $setup.booking.booked_date = $event;
+    }),
+    readonly: ""
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_13, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+    modelValue: $setup.booking.booked_date,
+    "onUpdate:modelValue": _cache[6] || (_cache[6] = function ($event) {
+      return $setup.booking.booked_date = $event;
     }),
     attributes: _ctx.attrs,
-    "min-date": _ctx.today,
+    "min-date": $setup.today,
+    format: $setup.dateFormat,
     "is-inline": ""
-  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date"])]), _hoisted_13, (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "format"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_14, [_hoisted_15, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+    name: "time",
+    id: "time",
+    "class": "form-select",
+    "onUpdate:modelValue": _cache[7] || (_cache[7] = function ($event) {
+      return $setup.booking.booked_time = $event;
+    })
+  }, [].concat(_hoisted_34), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.booked_time]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
     type: "hidden",
-    value: $data.booking.booking_date
-  }, null, 8 /* PROPS */, _hoisted_14), _hoisted_15], 32 /* NEED_HYDRATION */)]);
+    value: $setup.booking.booking_date
+  }, null, 8 /* PROPS */, _hoisted_35), _hoisted_36], 32 /* NEED_HYDRATION */)]);
 }
 
 /***/ }),
@@ -22245,14 +22432,17 @@ var _hoisted_9 = {
 var _hoisted_10 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
   "for": "confirmpasssword",
   "class": "form-label"
-}, "Email address", -1 /* HOISTED */);
-var _hoisted_11 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+}, "Confirm Password", -1 /* HOISTED */);
+var _hoisted_11 = {
+  "class": "mb-3"
+};
+var _hoisted_12 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
   type: "submit",
   "class": "btn btn-primary"
 }, "Submit", -1 /* HOISTED */);
 function render(_ctx, _cache, $props, $setup, $data, $options) {
   return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
-    onSubmit: _cache[4] || (_cache[4] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+    onSubmit: _cache[5] || (_cache[5] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
       return $setup.register && $setup.register.apply($setup, arguments);
     }, ["prevent"]))
   }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_3, [_hoisted_4, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
@@ -22283,7 +22473,13 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
     "class": "form-control",
     type: "password",
     placeholder: "Confirm Password"
-  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.password_confirmation]])]), _hoisted_11], 32 /* NEED_HYDRATION */)])]);
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.password_confirmation]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[4] || (_cache[4] = function ($event) {
+      return $setup.form.role = $event;
+    }),
+    "class": "form-control",
+    type: "hidden"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.role]])]), _hoisted_12], 32 /* NEED_HYDRATION */)])]);
 }
 
 /***/ }),
@@ -30283,6 +30479,34 @@ exports["default"] = (sfc, props) => {
 
 /***/ }),
 
+/***/ "./resources/js/components/AdminDashboard.vue":
+/*!****************************************************!*\
+  !*** ./resources/js/components/AdminDashboard.vue ***!
+  \****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./AdminDashboard.vue?vue&type=template&id=1d9b30b0 */ "./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0");
+/* harmony import */ var _AdminDashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./AdminDashboard.vue?vue&type=script&lang=js */ "./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js");
+/* harmony import */ var _node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../node_modules/vue-loader/dist/exportHelper.js */ "./node_modules/vue-loader/dist/exportHelper.js");
+
+
+
+
+;
+const __exports__ = /*#__PURE__*/(0,_node_modules_vue_loader_dist_exportHelper_js__WEBPACK_IMPORTED_MODULE_2__["default"])(_AdminDashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_1__["default"], [['render',_AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__.render],['__file',"resources/js/components/AdminDashboard.vue"]])
+/* hot reload */
+if (false) {}
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (__exports__);
+
+/***/ }),
+
 /***/ "./resources/js/components/AppComponent.vue":
 /*!**************************************************!*\
   !*** ./resources/js/components/AppComponent.vue ***!
@@ -30423,6 +30647,22 @@ if (false) {}
 
 /***/ }),
 
+/***/ "./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js":
+/*!****************************************************************************!*\
+  !*** ./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js ***!
+  \****************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./AdminDashboard.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=script&lang=js");
+ 
+
+/***/ }),
+
 /***/ "./resources/js/components/AppComponent.vue?vue&type=script&lang=js":
 /*!**************************************************************************!*\
   !*** ./resources/js/components/AppComponent.vue?vue&type=script&lang=js ***!
@@ -30500,6 +30740,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_RegisterForm_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./RegisterForm.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/RegisterForm.vue?vue&type=script&lang=js");
  
+
+/***/ }),
+
+/***/ "./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0":
+/*!**********************************************************************************!*\
+  !*** ./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0 ***!
+  \**********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./AdminDashboard.vue?vue&type=template&id=1d9b30b0 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0");
+
 
 /***/ }),
 
@@ -35013,8 +35269,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _components_Dashboard_vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/Dashboard.vue */ "./resources/js/components/Dashboard.vue");
 /* harmony import */ var _components_LoginComponent_vue__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/LoginComponent.vue */ "./resources/js/components/LoginComponent.vue");
 /* harmony import */ var _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/BookingComponent.vue */ "./resources/js/components/BookingComponent.vue");
-/* harmony import */ var _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/AppComponent.vue */ "./resources/js/components/AppComponent.vue");
-/* harmony import */ var _router_index_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./router/index.js */ "./resources/js/router/index.js");
+/* harmony import */ var _components_AdminDashboard_vue__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/AdminDashboard.vue */ "./resources/js/components/AdminDashboard.vue");
+/* harmony import */ var _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./components/AppComponent.vue */ "./resources/js/components/AppComponent.vue");
+/* harmony import */ var _router_index_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./router/index.js */ "./resources/js/router/index.js");
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
@@ -35042,10 +35299,12 @@ app.component('login-component', _components_LoginComponent_vue__WEBPACK_IMPORTE
 
 app.component('booking-component', _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_7__["default"]);
 
-app.component('app-component', _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_8__["default"]);
+app.component('admin-dashboard', _components_AdminDashboard_vue__WEBPACK_IMPORTED_MODULE_8__["default"]);
+
+app.component('app-component', _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_9__["default"]);
 
 app.use(v_calendar__WEBPACK_IMPORTED_MODULE_1__["default"], {});
-app.use(_router_index_js__WEBPACK_IMPORTED_MODULE_9__["default"]);
+app.use(_router_index_js__WEBPACK_IMPORTED_MODULE_10__["default"]);
 
 /**
  * The following block of code may be used to automatically register your

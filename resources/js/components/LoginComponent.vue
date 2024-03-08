@@ -32,39 +32,52 @@ export default {
   },
   methods: {
     login() {
-    axios.post('/login', {
-        email: this.form.email, // Corrected from this.email to this.form.email
-        password: this.form.password // Corrected from this.password to this.form.password
-    })
-    .then(response => {
-        // Storing user data in local storage or handling it as needed.
-        localStorage.setItem('user', JSON.stringify(response.data));
+        axios.post('/login', {
+            email: this.form.email, // Using the corrected references to form data
+            password: this.form.password
+        })
+        .then(response => {
+            
+            const user = response.data; 
+            console.log(response.data.role);
 
-        // Redirecting to another page or component upon successful login.
-        // Ensure you have 'home' route defined in your Vue router
-        window.location.href = '/booking';
-    })
-    .catch(error => {
-    let errorMessage = "An error occurred";
-    if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.log(error.response.data);
-        console.log(error.response.status);
-        console.log(error.response.headers);
-        errorMessage = error.response.data.message || `Request failed with status code ${error.response.status}`;
-    } else if (error.request) {
-        // The request was made but no response was received
-        console.log(error.request);
-        errorMessage = "No response was received";
-    } else {
-        // Something happened in setting up the request that triggered an Error
-        console.log('Error', error.message);
-        errorMessage = error.message;
-    }
-    console.error("Login failed: ", errorMessage);
-});
+            
+            localStorage.setItem('user', JSON.stringify(user));
 
+        
+            switch(response.data.role) {
+                case 'Admin':
+                    window.location.href = '/admin'; 
+                    break;
+                case 'User':
+                    window.location.href = '/booking'; 
+                    break;
+                default:
+                    window.location.href = '/'; 
+                    break;
+            }
+        
+        })
+        .catch(error => {
+            let errorMessage = "An error occurred";
+            if (error.response) {
+                // Handle errors based on the response from the server
+                console.log(error.response.data);
+                console.log(error.response.status);
+                console.log(error.response.headers);
+                errorMessage = error.response.data.message || `Request failed with status code ${error.response.status}`;
+            } else if (error.request) {
+                // The request was made but no response was received
+                console.log(error.request);
+                errorMessage = "No response was received";
+            } else {
+                // An error occurred in setting up the request
+                console.log('Error', error.message);
+                errorMessage = error.message;
+            }
+            console.error("Login failed: ", errorMessage);
+        });
+      
 },
     async fetchUserData() {
       try {

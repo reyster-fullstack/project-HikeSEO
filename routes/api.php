@@ -26,3 +26,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user-data', [UserDataController::class, 'fetch']); // Ensure UserDataController exists
     Route::get('/user', [UserController::class, 'show']); // Ensure UserController exists
 });
+
+
+
+Route::get('/send-mail-test', function () {
+    Mail::raw('This is a test email.', function ($message) {
+        $message->to('reysterjoshua@fullstack.ph')->subject('Test Email');
+    });
+
+    return 'Test email sent.';
+});
