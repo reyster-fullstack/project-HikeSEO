@@ -18,7 +18,7 @@
           <label for="vehicleMakeModel" class="form-label">Vehicle</label>
           
           <select class="form-select" aria-label="Select Vehicle" v-model="booking.vehicle_model" required>
-            <option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id" >
+            <option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.Make + ' - ' + vehicle.Model" >
                 {{ vehicle.Make }} - {{ vehicle.Model }}
             </option>
           </select>
@@ -26,10 +26,10 @@
         <div class="mb-3">
           <label for="Date" class="form-label">Date</label>
           <input type="text" id="Date" @click="toggleCalendar" v-model="booking.booked_date" readonly>
-          <div v-if="showCalendar">
+          
             
             <v-date-picker v-model="booking.booked_date" :attributes="attrs" :min-date="today" :format="dateFormat" is-inline></v-date-picker>
-          </div>
+         
           
         </div>
         <div class="mb-3">
@@ -120,10 +120,17 @@
       return { booking, showCalendar, toggleCalendar, dateFormat, today };
     },
     methods: {
+      isWeekend(date) {
+        const day = new Date(date).getDay();
+        return day === 0 || day === 6; // 0 for Sunday, 6 for Saturday
+      },
+      
         fetchVehicles() {
         axios.get('/api/vehicles')
             .then(response => {
             this.vehicles = response.data;
+            const vehicle = response.data;
+            localStorage.setItem('vehicleMakeModels', JSON.stringify(vehicle));
             })
             .catch(error => {
             console.error("There was an error fetching the vehicles: ", error);

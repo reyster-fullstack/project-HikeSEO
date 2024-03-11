@@ -21711,40 +21711,48 @@ __webpack_require__.r(__webpack_exports__);
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  components: {
-    Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_1__.Calendar,
-    VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_1__.DatePicker
+  data: function data() {
+    return {
+      user: {},
+      // Initialize user
+      prevent: {
+        name: '',
+        email: ''
+      },
+      components: {
+        Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_1__.Calendar,
+        VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_1__.DatePicker
+      },
+      vehicles: []
+    };
   },
   setup: function setup() {
     var booking = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)({
-      booked_date: null,
-      booked_time: null
+      prevent_date: null
     });
+    var dateFormat = 'YYYY-MM-DD';
     var showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
     var today = new Date().toISOString().split('T')[0];
     var toggleCalendar = function toggleCalendar() {
       showCalendar.value = !showCalendar.value;
     };
+
+    // Use a watcher to format the date whenever it changes
     (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(function () {
-      return booking.value.booked_date;
+      return booking.value.prevent_date;
     }, function (newValue) {
       if (newValue) {
-        // Format the date or handle changes as needed
+        // Assuming newValue is the date object or ISO string from the picker
+        var formattedDate = new Date(newValue).toISOString().split('T')[0];
+        booking.value.prevent_date = formattedDate;
       }
     });
-
-    // Define any additional functions here and return them
-    var getCurrentDateTime = function getCurrentDateTime() {
-      var now = new Date();
-      // Formatting logic
-      return "".concat(now.getFullYear(), "-").concat(String(now.getMonth() + 1).padStart(2, '0'), "-").concat(String(now.getDate()).padStart(2, '0'), "T").concat(String(now.getHours()).padStart(2, '0'), ":").concat(String(now.getMinutes()).padStart(2, '0'), ":").concat(String(now.getSeconds()).padStart(2, '0'));
-    };
     return {
       booking: booking,
       showCalendar: showCalendar,
       toggleCalendar: toggleCalendar,
-      today: today,
-      getCurrentDateTime: getCurrentDateTime
+      dateFormat: dateFormat,
+      today: today
     };
   }
 });
@@ -21846,10 +21854,16 @@ __webpack_require__.r(__webpack_exports__);
     };
   },
   methods: {
+    isWeekend: function isWeekend(date) {
+      var day = new Date(date).getDay();
+      return day === 0 || day === 6; // 0 for Sunday, 6 for Saturday
+    },
     fetchVehicles: function fetchVehicles() {
       var _this = this;
       axios__WEBPACK_IMPORTED_MODULE_3__["default"].get('/api/vehicles').then(function (response) {
         _this.vehicles = response.data;
+        var vehicle = response.data;
+        localStorage.setItem('vehicleMakeModels', JSON.stringify(vehicle));
       })["catch"](function (error) {
         console.error("There was an error fetching the vehicles: ", error);
       });
@@ -22101,21 +22115,34 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
 
 var _hoisted_1 = {
+  "class": "container"
+};
+var _hoisted_2 = {
   "class": "mb-3"
 };
-var _hoisted_2 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+var _hoisted_3 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
   "for": "Date",
   "class": "form-label"
 }, "Date", -1 /* HOISTED */);
-var _hoisted_3 = {
+var _hoisted_4 = {
   key: 0
 };
-var _hoisted_4 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<div class=\"mb-3\"><label for=\"time\" class=\"form-label\">Time</label><select name=\"time\" id=\"time\" class=\"form-select\"><option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option></select></div>", 1);
+var _hoisted_5 = {
+  "class": "mb-3"
+};
+var _hoisted_6 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "time",
+  "class": "form-label"
+}, "Time", -1 /* HOISTED */);
+var _hoisted_7 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
+var _hoisted_25 = [_hoisted_7];
 function render(_ctx, _cache, $props, $setup, $data, $options) {
   var _component_v_date_picker = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("v-date-picker");
-  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
-    onSubmit: _cache[3] || (_cache[3] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {}, ["prevent"]))
-  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1, [_hoisted_2, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[4] || (_cache[4] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+      return _ctx.submitPrevent && _ctx.submitPrevent.apply(_ctx, arguments);
+    }, ["prevent"]))
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [_hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
     type: "text",
     id: "Date",
     onClick: _cache[0] || (_cache[0] = function () {
@@ -22125,16 +22152,23 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
     "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
       return $setup.booking.booked_date = $event;
     })
-  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_3, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
-    modelValue: $setup.booking.booked_date,
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_4, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+    modelValue: $data.prevent.prevent_date,
     "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
-      return $setup.booking.booked_date = $event;
+      return $data.prevent.prevent_date = $event;
     }),
     attributes: _ctx.attrs,
     "min-date": $setup.today,
     "is-inline": true,
     onInput: $setup.toggleCalendar
-  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "onInput"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), _hoisted_4], 32 /* NEED_HYDRATION */)])]);
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "onInput"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_5, [_hoisted_6, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+    name: "time",
+    id: "time",
+    "onUpdate:modelValue": _cache[3] || (_cache[3] = function ($event) {
+      return $data.prevent.prevent_time = $event;
+    }),
+    "class": "form-select"
+  }, [].concat(_hoisted_25), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $data.prevent.prevent_time]])])], 32 /* NEED_HYDRATION */)])]);
 }
 
 /***/ }),
@@ -22212,19 +22246,16 @@ var _hoisted_12 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElement
   "class": "form-label"
 }, "Date", -1 /* HOISTED */);
 var _hoisted_13 = {
-  key: 0
-};
-var _hoisted_14 = {
   "class": "mb-3"
 };
-var _hoisted_15 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+var _hoisted_14 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
   "for": "phone",
   "class": "form-label"
 }, "Time", -1 /* HOISTED */);
-var _hoisted_16 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
-var _hoisted_34 = [_hoisted_16];
-var _hoisted_35 = ["value"];
-var _hoisted_36 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+var _hoisted_15 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
+var _hoisted_33 = [_hoisted_15];
+var _hoisted_34 = ["value"];
+var _hoisted_35 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
   type: "submit",
   "class": "btn btn-primary"
 }, "Submit", -1 /* HOISTED */);
@@ -22268,7 +22299,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
   }, [((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($data.vehicles, function (vehicle) {
     return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("option", {
       key: vehicle.id,
-      value: vehicle.id
+      value: vehicle.Make + ' - ' + vehicle.Model
     }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Make) + " - " + (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Model), 9 /* TEXT, PROPS */, _hoisted_10);
   }), 128 /* KEYED_FRAGMENT */))], 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.vehicle_model]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [_hoisted_12, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
     type: "text",
@@ -22280,7 +22311,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
       return $setup.booking.booked_date = $event;
     }),
     readonly: ""
-  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_13, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
     modelValue: $setup.booking.booked_date,
     "onUpdate:modelValue": _cache[6] || (_cache[6] = function ($event) {
       return $setup.booking.booked_date = $event;
@@ -22289,17 +22320,17 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
     "min-date": $setup.today,
     format: $setup.dateFormat,
     "is-inline": ""
-  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "format"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_14, [_hoisted_15, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "format"])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_13, [_hoisted_14, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
     name: "time",
     id: "time",
     "class": "form-select",
     "onUpdate:modelValue": _cache[7] || (_cache[7] = function ($event) {
       return $setup.booking.booked_time = $event;
     })
-  }, [].concat(_hoisted_34), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.booked_time]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+  }, [].concat(_hoisted_33), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.booked_time]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
     type: "hidden",
     value: $setup.booking.booking_date
-  }, null, 8 /* PROPS */, _hoisted_35), _hoisted_36], 32 /* NEED_HYDRATION */)]);
+  }, null, 8 /* PROPS */, _hoisted_34), _hoisted_35], 32 /* NEED_HYDRATION */)]);
 }
 
 /***/ }),

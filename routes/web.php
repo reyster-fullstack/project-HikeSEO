@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TestController;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\TestEmail;
 
@@ -41,9 +42,3 @@ Route::post('/bookings', [BookingController::class, 'store']);
 
 Route::post('/register', [RegisterController::class, 'register']);
 
-Route::get('/send-test-email', function () {
-    $recipient = 'reysterjoshua@fullstack.ph'; // Change this to your test recipient
-    Mail::to($recipient)->send(new TestEmail());
-
-    return 'Test email sent.';
-});

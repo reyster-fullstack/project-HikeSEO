@@ -1,80 +1,67 @@
 <template>
-    <div>
-      <div>
-        <form @submit.prevent>
-          <div class="mb-3">
-            <label for="Date" class="form-label">Date</label>
-            <input type="text" id="Date" @click="toggleCalendar" readonly v-model="booking.booked_date">
-            <div v-if="showCalendar">
-              <v-date-picker v-model="booking.booked_date" :attributes="attrs" :min-date="today" :is-inline="true" @input="toggleCalendar"/>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="time" class="form-label">Time</label>
-            <select name="time" id="time" class="form-select">
-                <option value="09:00">09:00</option>
-                <option value="09:30">09:30</option>
-                <option value="10:00">10:00</option>
-                <option value="10:30">10:30</option>
-                <option value="11:00">11:00</option>
-                <option value="11:30">11:30</option>
-                <option value="12:00">12:00</option>
-                <option value="12:30">12:30</option>
-                <option value="01:00">01:00</option>
-                <option value="01:30">01:30</option>
-                <option value="02:00">02:00</option>
-                <option value="02:30">02:30</option>
-                <option value="03:00">03:00</option>
-                <option value="03:30">03:30</option>
-                <option value="04:00">04:00</option>
-                <option value="04:30">04:30</option>
-                <option value="05:00">05:00</option>
-                <option value="05:30">05:30</option>
-          
-            </select>
-          </div>
-        </form>
+  <div class="container">
+    <form @submit.prevent="submitPrevent">
+      <div class="mb-3">
+        <label for="Date" class="form-label">Date</label>
+        <input type="text" id="Date" @click="toggleCalendar" readonly v-model="prevent.prevent_date">
+        <div v-if="showCalendar">
+          <v-date-picker v-model="prevent.prevent_date" :attributes="attrs" :min-date="today" :is-inline="true" @input="toggleCalendar"/>
+        </div>
       </div>
-    </div>
-  </template>
-  
-  <script>
-  import { ref, watch } from 'vue';
-  import { Calendar, DatePicker as VDatePicker } from 'v-calendar';
-  import 'v-calendar/dist/style.css';
-  
-  export default {
-    components: {
-      Calendar,
-      VDatePicker,
-    },
-    setup() {
-      const booking = ref({
-        booked_date: null,
-        booked_time: null,
-      });
-      const showCalendar = ref(false);
-      const today = new Date().toISOString().split('T')[0];
-  
-      const toggleCalendar = () => {
-        showCalendar.value = !showCalendar.value;
-      };
-  
-      watch(() => booking.value.booked_date, (newValue) => {
-        if (newValue) {
-          // Format the date or handle changes as needed
-        }
-      });
-  
-      // Define any additional functions here and return them
-      const getCurrentDateTime = () => {
-        const now = new Date();
-        // Formatting logic
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-      };
-  
-      return { booking, showCalendar, toggleCalendar, today, getCurrentDateTime };
-    },
-  };
-  </script>
-  
+      <div class="mb-3">
+        <label for="time" class="form-label">Time</label>
+        <select name="time" id="time" v-model="prevent.prevent_time" class="form-select">
+          <!-- Time options -->
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  </div>
+</template>
+
+<script>
+import { ref, watch } from 'vue';
+import { Calendar, DatePicker as VDatePicker } from 'v-calendar';
+import 'v-calendar/dist/style.css';
+import axios from 'axios';
+
+export default {
+  components: {
+    Calendar,
+    VDatePicker,
+  },
+  setup() {
+    const prevent = ref({
+      prevent_date: null,
+      prevent_time: null,
+    });
+    const showCalendar = ref(false);
+    const today = new Date().toISOString().split('T')[0];
+    const toggleCalendar = () => showCalendar.value = !showCalendar.value;
+
+    // Watcher to format the date
+    watch(() => prevent.value.prevent_date, (newValue) => {
+      if (newValue) {
+        const formattedDate = new Date(newValue).toISOString().split('T')[0];
+        prevent.value.prevent_date = formattedDate;
+      }
+    });
+
+    const submitPrevent = () => {
+      // Use axios to send prevent data to your backend
+      axios.post('YOUR_BACKEND_ENDPOINT', prevent.value)
+        .then(response => {
+          console.log(response);
+          alert('Submission successful!');
+          // Reset form or perform other actions as needed
+        })
+        .catch(error => {
+          console.error(error);
+          alert('An error occurred.');
+        });
+    };
+
+    return { prevent, showCalendar, toggleCalendar, today, submitPrevent };
+  },
+}
+</script>

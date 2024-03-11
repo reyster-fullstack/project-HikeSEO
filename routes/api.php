@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logo
 // Other routes
 Route::get('/vehicles', [VehicleMakeModelController::class, 'index']);
 Route::post('/booking', [BookingController::class, 'store']);
+Route::post('/prevent', [PreventController::class, 'preventtimedate']);
 
 // Example user data routes (ensure controllers exist and are implemented)
 Route::middleware('auth:sanctum')->group(function () {
