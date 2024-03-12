@@ -9513,6 +9513,264 @@ function parse(template, options = {}) {
 
 /***/ }),
 
+/***/ "./node_modules/@vue/devtools-api/lib/esm/const.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/@vue/devtools-api/lib/esm/const.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   HOOK_PLUGIN_SETTINGS_SET: () => (/* binding */ HOOK_PLUGIN_SETTINGS_SET),
+/* harmony export */   HOOK_SETUP: () => (/* binding */ HOOK_SETUP)
+/* harmony export */ });
+const HOOK_SETUP = 'devtools-plugin:setup';
+const HOOK_PLUGIN_SETTINGS_SET = 'plugin:settings:set';
+
+
+/***/ }),
+
+/***/ "./node_modules/@vue/devtools-api/lib/esm/env.js":
+/*!*******************************************************!*\
+  !*** ./node_modules/@vue/devtools-api/lib/esm/env.js ***!
+  \*******************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   getDevtoolsGlobalHook: () => (/* binding */ getDevtoolsGlobalHook),
+/* harmony export */   getTarget: () => (/* binding */ getTarget),
+/* harmony export */   isProxyAvailable: () => (/* binding */ isProxyAvailable)
+/* harmony export */ });
+function getDevtoolsGlobalHook() {
+    return getTarget().__VUE_DEVTOOLS_GLOBAL_HOOK__;
+}
+function getTarget() {
+    // @ts-expect-error navigator and windows are not available in all environments
+    return (typeof navigator !== 'undefined' && typeof window !== 'undefined')
+        ? window
+        : typeof globalThis !== 'undefined'
+            ? globalThis
+            : {};
+}
+const isProxyAvailable = typeof Proxy === 'function';
+
+
+/***/ }),
+
+/***/ "./node_modules/@vue/devtools-api/lib/esm/index.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/@vue/devtools-api/lib/esm/index.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   isPerformanceSupported: () => (/* reexport safe */ _time_js__WEBPACK_IMPORTED_MODULE_0__.isPerformanceSupported),
+/* harmony export */   now: () => (/* reexport safe */ _time_js__WEBPACK_IMPORTED_MODULE_0__.now),
+/* harmony export */   setupDevtoolsPlugin: () => (/* binding */ setupDevtoolsPlugin)
+/* harmony export */ });
+/* harmony import */ var _env_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./env.js */ "./node_modules/@vue/devtools-api/lib/esm/env.js");
+/* harmony import */ var _const_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./const.js */ "./node_modules/@vue/devtools-api/lib/esm/const.js");
+/* harmony import */ var _proxy_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./proxy.js */ "./node_modules/@vue/devtools-api/lib/esm/proxy.js");
+/* harmony import */ var _time_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./time.js */ "./node_modules/@vue/devtools-api/lib/esm/time.js");
+
+
+
+
+
+
+function setupDevtoolsPlugin(pluginDescriptor, setupFn) {
+    const descriptor = pluginDescriptor;
+    const target = (0,_env_js__WEBPACK_IMPORTED_MODULE_1__.getTarget)();
+    const hook = (0,_env_js__WEBPACK_IMPORTED_MODULE_1__.getDevtoolsGlobalHook)();
+    const enableProxy = _env_js__WEBPACK_IMPORTED_MODULE_1__.isProxyAvailable && descriptor.enableEarlyProxy;
+    if (hook && (target.__VUE_DEVTOOLS_PLUGIN_API_AVAILABLE__ || !enableProxy)) {
+        hook.emit(_const_js__WEBPACK_IMPORTED_MODULE_2__.HOOK_SETUP, pluginDescriptor, setupFn);
+    }
+    else {
+        const proxy = enableProxy ? new _proxy_js__WEBPACK_IMPORTED_MODULE_3__.ApiProxy(descriptor, hook) : null;
+        const list = target.__VUE_DEVTOOLS_PLUGINS__ = target.__VUE_DEVTOOLS_PLUGINS__ || [];
+        list.push({
+            pluginDescriptor: descriptor,
+            setupFn,
+            proxy,
+        });
+        if (proxy) {
+            setupFn(proxy.proxiedTarget);
+        }
+    }
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@vue/devtools-api/lib/esm/proxy.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/@vue/devtools-api/lib/esm/proxy.js ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ApiProxy: () => (/* binding */ ApiProxy)
+/* harmony export */ });
+/* harmony import */ var _const_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./const.js */ "./node_modules/@vue/devtools-api/lib/esm/const.js");
+/* harmony import */ var _time_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./time.js */ "./node_modules/@vue/devtools-api/lib/esm/time.js");
+
+
+class ApiProxy {
+    constructor(plugin, hook) {
+        this.target = null;
+        this.targetQueue = [];
+        this.onQueue = [];
+        this.plugin = plugin;
+        this.hook = hook;
+        const defaultSettings = {};
+        if (plugin.settings) {
+            for (const id in plugin.settings) {
+                const item = plugin.settings[id];
+                defaultSettings[id] = item.defaultValue;
+            }
+        }
+        const localSettingsSaveId = `__vue-devtools-plugin-settings__${plugin.id}`;
+        let currentSettings = Object.assign({}, defaultSettings);
+        try {
+            const raw = localStorage.getItem(localSettingsSaveId);
+            const data = JSON.parse(raw);
+            Object.assign(currentSettings, data);
+        }
+        catch (e) {
+            // noop
+        }
+        this.fallbacks = {
+            getSettings() {
+                return currentSettings;
+            },
+            setSettings(value) {
+                try {
+                    localStorage.setItem(localSettingsSaveId, JSON.stringify(value));
+                }
+                catch (e) {
+                    // noop
+                }
+                currentSettings = value;
+            },
+            now() {
+                return (0,_time_js__WEBPACK_IMPORTED_MODULE_0__.now)();
+            },
+        };
+        if (hook) {
+            hook.on(_const_js__WEBPACK_IMPORTED_MODULE_1__.HOOK_PLUGIN_SETTINGS_SET, (pluginId, value) => {
+                if (pluginId === this.plugin.id) {
+                    this.fallbacks.setSettings(value);
+                }
+            });
+        }
+        this.proxiedOn = new Proxy({}, {
+            get: (_target, prop) => {
+                if (this.target) {
+                    return this.target.on[prop];
+                }
+                else {
+                    return (...args) => {
+                        this.onQueue.push({
+                            method: prop,
+                            args,
+                        });
+                    };
+                }
+            },
+        });
+        this.proxiedTarget = new Proxy({}, {
+            get: (_target, prop) => {
+                if (this.target) {
+                    return this.target[prop];
+                }
+                else if (prop === 'on') {
+                    return this.proxiedOn;
+                }
+                else if (Object.keys(this.fallbacks).includes(prop)) {
+                    return (...args) => {
+                        this.targetQueue.push({
+                            method: prop,
+                            args,
+                            resolve: () => { },
+                        });
+                        return this.fallbacks[prop](...args);
+                    };
+                }
+                else {
+                    return (...args) => {
+                        return new Promise((resolve) => {
+                            this.targetQueue.push({
+                                method: prop,
+                                args,
+                                resolve,
+                            });
+                        });
+                    };
+                }
+            },
+        });
+    }
+    async setRealTarget(target) {
+        this.target = target;
+        for (const item of this.onQueue) {
+            this.target.on[item.method](...item.args);
+        }
+        for (const item of this.targetQueue) {
+            item.resolve(await this.target[item.method](...item.args));
+        }
+    }
+}
+
+
+/***/ }),
+
+/***/ "./node_modules/@vue/devtools-api/lib/esm/time.js":
+/*!********************************************************!*\
+  !*** ./node_modules/@vue/devtools-api/lib/esm/time.js ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   isPerformanceSupported: () => (/* binding */ isPerformanceSupported),
+/* harmony export */   now: () => (/* binding */ now)
+/* harmony export */ });
+let supported;
+let perf;
+function isPerformanceSupported() {
+    var _a;
+    if (supported !== undefined) {
+        return supported;
+    }
+    if (typeof window !== 'undefined' && window.performance) {
+        supported = true;
+        perf = window.performance;
+    }
+    else if (typeof globalThis !== 'undefined' && ((_a = globalThis.perf_hooks) === null || _a === void 0 ? void 0 : _a.performance)) {
+        supported = true;
+        perf = globalThis.perf_hooks.performance;
+    }
+    else {
+        supported = false;
+    }
+    return supported;
+}
+function now() {
+    return isPerformanceSupported() ? perf.now() : Date.now();
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js":
 /*!*********************************************************************!*\
   !*** ./node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js ***!
@@ -21449,52 +21707,73 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
 /* harmony import */ var v_calendar__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! v-calendar */ "./node_modules/v-calendar/dist/es/index.js");
 /* harmony import */ var v_calendar_dist_style_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! v-calendar/dist/style.css */ "./node_modules/v-calendar/dist/style.css");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+
 
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  data: function data() {
-    return {
-      user: {},
-      // Initialize user
-      prevent: {
-        name: '',
-        email: ''
-      },
-      components: {
-        Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_1__.Calendar,
-        VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_1__.DatePicker
-      },
-      vehicles: []
-    };
+  components: {
+    Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_1__.Calendar,
+    VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_1__.DatePicker
   },
   setup: function setup() {
-    var booking = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)({
-      prevent_date: null
+    var prevent = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)({
+      prevent_date: null,
+      prevent_time: null
     });
-    var dateFormat = 'YYYY-MM-DD';
     var showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
     var today = new Date().toISOString().split('T')[0];
     var toggleCalendar = function toggleCalendar() {
-      showCalendar.value = !showCalendar.value;
+      return showCalendar.value = !showCalendar.value;
     };
-
-    // Use a watcher to format the date whenever it changes
-    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(function () {
-      return booking.value.prevent_date;
-    }, function (newValue) {
-      if (newValue) {
-        // Assuming newValue is the date object or ISO string from the picker
-        var formattedDate = new Date(newValue).toISOString().split('T')[0];
-        booking.value.prevent_date = formattedDate;
+    var formattedDate = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(function () {
+      if (prevent.value.prevent_date) {
+        var date = new Date(prevent.value.prevent_date);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
       }
+      return '';
     });
+    var availableTimes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)([]);
+    var submitPrevent = function submitPrevent() {
+      if (prevent.value.prevent_date) {
+        // Create a new date object for the selected date
+        var date = new Date(prevent.value.prevent_date);
+
+        // Adjust the date object for the timezone offset
+        date = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+
+        // Format the date as 'Y-M-D'
+        var formattedPreventDate = date.toISOString().split('T')[0];
+        var formData = {
+          prevent_date: formattedPreventDate,
+          prevent_time: prevent.value.prevent_time
+        };
+        axios__WEBPACK_IMPORTED_MODULE_3__["default"].post('/prevent-date-time', formData).then(function (response) {
+          console.log(response);
+          alert('Submission successful!');
+        })["catch"](function (error) {
+          console.error(error);
+          if (error.response) {
+            // Provides more detailed information about the error
+            console.log(error.response.data);
+          }
+          alert('An error occurred.');
+        });
+      }
+    };
     return {
-      booking: booking,
+      prevent: prevent,
       showCalendar: showCalendar,
       toggleCalendar: toggleCalendar,
-      dateFormat: dateFormat,
-      today: today
+      today: today,
+      submitPrevent: submitPrevent,
+      availableTimes: availableTimes,
+      formattedDate: formattedDate
     };
   }
 });
@@ -21524,7 +21803,7 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=script&lang=js":
 /*!**********************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/ExampleComponent.vue?vue&type=script&lang=js ***!
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=script&lang=js ***!
   \**********************************************************************************************************************************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
@@ -21533,9 +21812,195 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+/* harmony import */ var v_calendar__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! v-calendar */ "./node_modules/v-calendar/dist/es/index.js");
+/* harmony import */ var v_calendar_dist_style_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! v-calendar/dist/style.css */ "./node_modules/v-calendar/dist/style.css");
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return e; }; var t, e = {}, r = Object.prototype, n = r.hasOwnProperty, o = Object.defineProperty || function (t, e, r) { t[e] = r.value; }, i = "function" == typeof Symbol ? Symbol : {}, a = i.iterator || "@@iterator", c = i.asyncIterator || "@@asyncIterator", u = i.toStringTag || "@@toStringTag"; function define(t, e, r) { return Object.defineProperty(t, e, { value: r, enumerable: !0, configurable: !0, writable: !0 }), t[e]; } try { define({}, ""); } catch (t) { define = function define(t, e, r) { return t[e] = r; }; } function wrap(t, e, r, n) { var i = e && e.prototype instanceof Generator ? e : Generator, a = Object.create(i.prototype), c = new Context(n || []); return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a; } function tryCatch(t, e, r) { try { return { type: "normal", arg: t.call(e, r) }; } catch (t) { return { type: "throw", arg: t }; } } e.wrap = wrap; var h = "suspendedStart", l = "suspendedYield", f = "executing", s = "completed", y = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var p = {}; define(p, a, function () { return this; }); var d = Object.getPrototypeOf, v = d && d(d(values([]))); v && v !== r && n.call(v, a) && (p = v); var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p); function defineIteratorMethods(t) { ["next", "throw", "return"].forEach(function (e) { define(t, e, function (t) { return this._invoke(e, t); }); }); } function AsyncIterator(t, e) { function invoke(r, o, i, a) { var c = tryCatch(t[r], t, o); if ("throw" !== c.type) { var u = c.arg, h = u.value; return h && "object" == _typeof(h) && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) { invoke("next", t, i, a); }, function (t) { invoke("throw", t, i, a); }) : e.resolve(h).then(function (t) { u.value = t, i(u); }, function (t) { return invoke("throw", t, i, a); }); } a(c.arg); } var r; o(this, "_invoke", { value: function value(t, n) { function callInvokeWithMethodAndArg() { return new e(function (e, r) { invoke(t, n, e, r); }); } return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(e, r, n) { var o = h; return function (i, a) { if (o === f) throw new Error("Generator is already running"); if (o === s) { if ("throw" === i) throw a; return { value: t, done: !0 }; } for (n.method = i, n.arg = a;;) { var c = n.delegate; if (c) { var u = maybeInvokeDelegate(c, n); if (u) { if (u === y) continue; return u; } } if ("next" === n.method) n.sent = n._sent = n.arg;else if ("throw" === n.method) { if (o === h) throw o = s, n.arg; n.dispatchException(n.arg); } else "return" === n.method && n.abrupt("return", n.arg); o = f; var p = tryCatch(e, r, n); if ("normal" === p.type) { if (o = n.done ? s : l, p.arg === y) continue; return { value: p.arg, done: n.done }; } "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg); } }; } function maybeInvokeDelegate(e, r) { var n = r.method, o = e.iterator[n]; if (o === t) return r.delegate = null, "throw" === n && e.iterator["return"] && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("The iterator does not provide a '" + n + "' method")), y; var i = tryCatch(o, e.iterator, r.arg); if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y; var a = i.arg; return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("iterator result is not an object"), r.delegate = null, y); } function pushTryEntry(t) { var e = { tryLoc: t[0] }; 1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e); } function resetTryEntry(t) { var e = t.completion || {}; e.type = "normal", delete e.arg, t.completion = e; } function Context(t) { this.tryEntries = [{ tryLoc: "root" }], t.forEach(pushTryEntry, this), this.reset(!0); } function values(e) { if (e || "" === e) { var r = e[a]; if (r) return r.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) { var o = -1, i = function next() { for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next; return next.value = t, next.done = !0, next; }; return i.next = i; } } throw new TypeError(_typeof(e) + " is not iterable"); } return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), o(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) { var e = "function" == typeof t && t.constructor; return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name)); }, e.mark = function (t) { return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t; }, e.awrap = function (t) { return { __await: t }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () { return this; }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) { void 0 === i && (i = Promise); var a = new AsyncIterator(wrap(t, r, n, o), i); return e.isGeneratorFunction(r) ? a : a.next().then(function (t) { return t.done ? t.value : a.next(); }); }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () { return this; }), define(g, "toString", function () { return "[object Generator]"; }), e.keys = function (t) { var e = Object(t), r = []; for (var n in e) r.push(n); return r.reverse(), function next() { for (; r.length;) { var t = r.pop(); if (t in e) return next.value = t, next.done = !1, next; } return next.done = !0, next; }; }, e.values = values, Context.prototype = { constructor: Context, reset: function reset(e) { if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t); }, stop: function stop() { this.done = !0; var t = this.tryEntries[0].completion; if ("throw" === t.type) throw t.arg; return this.rval; }, dispatchException: function dispatchException(e) { if (this.done) throw e; var r = this; function handle(n, o) { return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o; } for (var o = this.tryEntries.length - 1; o >= 0; --o) { var i = this.tryEntries[o], a = i.completion; if ("root" === i.tryLoc) return handle("end"); if (i.tryLoc <= this.prev) { var c = n.call(i, "catchLoc"), u = n.call(i, "finallyLoc"); if (c && u) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } else if (c) { if (this.prev < i.catchLoc) return handle(i.catchLoc, !0); } else { if (!u) throw new Error("try statement without catch or finally"); if (this.prev < i.finallyLoc) return handle(i.finallyLoc); } } } }, abrupt: function abrupt(t, e) { for (var r = this.tryEntries.length - 1; r >= 0; --r) { var o = this.tryEntries[r]; if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) { var i = o; break; } } i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null); var a = i ? i.completion : {}; return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a); }, complete: function complete(t, e) { if ("throw" === t.type) throw t.arg; return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y; }, finish: function finish(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y; } }, "catch": function _catch(t) { for (var e = this.tryEntries.length - 1; e >= 0; --e) { var r = this.tryEntries[e]; if (r.tryLoc === t) { var n = r.completion; if ("throw" === n.type) { var o = n.arg; resetTryEntry(r); } return o; } } throw new Error("illegal catch attempt"); }, delegateYield: function delegateYield(e, r, n) { return this.delegate = { iterator: values(e), resultName: r, nextLoc: n }, "next" === this.method && (this.arg = t), y; } }, e; }
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
+
+
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
-  mounted: function mounted() {
-    console.log('Component mounted.');
+  data: function data() {
+    return {
+      user: {},
+      // Initialize user
+      booking: {
+        name: '',
+        email: '',
+        phone: '',
+        vehicle_model: '',
+        booked_date: '',
+        booked_time: '',
+        booking_date: ''
+      },
+      components: {
+        Calendar: v_calendar__WEBPACK_IMPORTED_MODULE_0__.Calendar,
+        VDatePicker: v_calendar__WEBPACK_IMPORTED_MODULE_0__.DatePicker
+      },
+      vehicles: [],
+      bookings: []
+    };
+  },
+  created: function created() {
+    this.fetchVehicles();
+    this.fetchBookings();
+    this.fetchUserData();
+  },
+  setup: function setup() {
+    var _this = this;
+    var booking = (0,vue__WEBPACK_IMPORTED_MODULE_2__.ref)({
+      booked_date: null
+    });
+    var user = (0,vue__WEBPACK_IMPORTED_MODULE_2__.ref)({
+      name: '',
+      email: ''
+    });
+
+    // Define getCurrentDateTime and resetForm here if they are not already defined
+    // Assuming these functions are defined somewhere within setup()
+
+    // Moved fetchUserData function definition here so it's defined before being called
+    var fetchUserData = function fetchUserData() {
+      var userData = localStorage.getItem('user');
+      if (userData) {
+        user.value = JSON.parse(userData);
+      }
+    };
+
+    // Now that fetchUserData is defined, it can be called.
+
+    var getCurrentDateTime = function getCurrentDateTime() {
+      var now = new Date();
+      var year = now.getFullYear();
+      var month = (now.getMonth() + 1).toString().padStart(2, '0'); // JS months are 0-based
+      var day = now.getDate().toString().padStart(2, '0');
+      var hours = now.getHours().toString().padStart(2, '0');
+      var minutes = now.getMinutes().toString().padStart(2, '0');
+      var seconds = now.getSeconds().toString().padStart(2, '0');
+      return "".concat(year, "-").concat(month, "-").concat(day, "T").concat(hours, ":").concat(minutes, ":").concat(seconds);
+    };
+    var dateFormat = 'YYYY-MM-DD';
+    var showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_2__.ref)(false);
+    var today = new Date().toISOString().split('T')[0];
+    var toggleCalendar = function toggleCalendar() {
+      return showCalendar.value = !showCalendar.value;
+    };
+    var formattedDate = (0,vue__WEBPACK_IMPORTED_MODULE_2__.computed)(function () {
+      if (booking.value.booked_date) {
+        var date = new Date(booking.value.booked_date);
+        // This assumes you have a booked_date in the correct format.
+        return date.toLocaleDateString('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+      return '';
+    });
+    var submitBooking = function submitBooking() {
+      // Ensure booking.value is used to access and modify its properties
+      if (booking.value.booked_date) {
+        var date = new Date(booking.value.booked_date);
+
+        // Adjust for the timezone offset
+        date = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+
+        // Format the date
+        var formattedPreventDate = date.toISOString().split('T')[0];
+        booking.value.booked_date = formattedPreventDate; // Use booking.value to set the date
+        booking.value.email = user.value.email; // Assuming user is also a ref, use user.value
+        booking.value.name = user.value.name; // Assuming user is also a ref, use user.value
+        booking.value.booking_date = getCurrentDateTime(); // Assuming getCurrentDateTime() is accessible
+
+        axios__WEBPACK_IMPORTED_MODULE_3__["default"].post('http://localhost:8000/api/booking', booking.value).then(function (response) {
+          alert('Booking submitted successfully!');
+          resetForm(); // Assuming resetForm is a function you've defined that resets booking.value's properties
+        })["catch"](function (error) {
+          console.error("There was an error submitting the booking: ", error);
+        });
+      }
+    };
+    var resetForm = function resetForm() {
+      _this.booking = {
+        email: '',
+        phone: '',
+        vehicle_model: '',
+        booking_date: ''
+      };
+    };
+    return {
+      booking: booking,
+      user: user,
+      showCalendar: showCalendar,
+      toggleCalendar: toggleCalendar,
+      dateFormat: dateFormat,
+      today: today,
+      formattedDate: formattedDate,
+      submitBooking: submitBooking
+    };
+  },
+  methods: {
+    fetchBookings: function fetchBookings() {
+      var _arguments = arguments,
+        _this2 = this;
+      return _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+        var date, url, response, booking;
+        return _regeneratorRuntime().wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              date = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : null;
+              _context.prev = 1;
+              // Build the URL with a query parameter if a date is provided
+              url = 'http://localhost:8000/api/booking';
+              if (date) {
+                url += "?date=".concat(date);
+              }
+              _context.next = 6;
+              return axios__WEBPACK_IMPORTED_MODULE_3__["default"].get(url);
+            case 6:
+              response = _context.sent;
+              _this2.bookings = response.data;
+              booking = response.data;
+              console.log(booking);
+              //localStorage.setItem('booking', JSON.stringify(response.data));
+              _context.next = 15;
+              break;
+            case 12:
+              _context.prev = 12;
+              _context.t0 = _context["catch"](1);
+              console.error("There was an error fetching the bookings: ", _context.t0);
+            case 15:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, null, [[1, 12]]);
+      }))();
+    },
+    isWeekend: function isWeekend(date) {
+      var day = new Date(date).getDay();
+      return day === 0 || day === 6; // 0 for Sunday, 6 for Saturday
+    },
+    fetchVehicles: function fetchVehicles() {
+      var _this3 = this;
+      axios__WEBPACK_IMPORTED_MODULE_3__["default"].get('/api/vehicles').then(function (response) {
+        _this3.vehicles = response.data;
+        var vehicle = response.data;
+        localStorage.setItem('vehicleMakeModels', JSON.stringify(vehicle));
+      })["catch"](function (error) {
+        console.error("There was an error fetching the vehicles: ", error);
+      });
+    },
+    fetchUserData: function fetchUserData() {
+      var userData = localStorage.getItem('user');
+      if (userData) {
+        this.user = JSON.parse(userData);
+      }
+    }
   }
 });
 
@@ -21755,51 +22220,54 @@ var _hoisted_3 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementV
   "for": "Date",
   "class": "form-label"
 }, "Date", -1 /* HOISTED */);
-var _hoisted_4 = {
+var _hoisted_4 = ["value"];
+var _hoisted_5 = {
   key: 0
 };
-var _hoisted_5 = {
+var _hoisted_6 = {
   "class": "mb-3"
 };
-var _hoisted_6 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+var _hoisted_7 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
   "for": "time",
   "class": "form-label"
 }, "Time", -1 /* HOISTED */);
-var _hoisted_7 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
-var _hoisted_25 = [_hoisted_7];
+var _hoisted_8 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
+var _hoisted_26 = [_hoisted_8];
+var _hoisted_27 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+  type: "submit",
+  "class": "btn btn-primary"
+}, "Submit", -1 /* HOISTED */);
 function render(_ctx, _cache, $props, $setup, $data, $options) {
   var _component_v_date_picker = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("v-date-picker");
-  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", null, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
-    onSubmit: _cache[4] || (_cache[4] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
-      return _ctx.submitPrevent && _ctx.submitPrevent.apply(_ctx, arguments);
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[3] || (_cache[3] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+      return $setup.submitPrevent && $setup.submitPrevent.apply($setup, arguments);
     }, ["prevent"]))
-  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [_hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [_hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
     type: "text",
     id: "Date",
     onClick: _cache[0] || (_cache[0] = function () {
       return $setup.toggleCalendar && $setup.toggleCalendar.apply($setup, arguments);
     }),
     readonly: "",
+    value: $setup.formattedDate
+  }, null, 8 /* PROPS */, _hoisted_4), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_5, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+    modelValue: $setup.prevent.prevent_date,
     "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
-      return $setup.booking.booked_date = $event;
-    })
-  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.booked_date]]), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_4, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
-    modelValue: $data.prevent.prevent_date,
-    "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
-      return $data.prevent.prevent_date = $event;
+      return $setup.prevent.prevent_date = $event;
     }),
     attributes: _ctx.attrs,
     "min-date": $setup.today,
     "is-inline": true,
     onInput: $setup.toggleCalendar
-  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "onInput"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_5, [_hoisted_6, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "onInput"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_6, [_hoisted_7, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
     name: "time",
     id: "time",
-    "onUpdate:modelValue": _cache[3] || (_cache[3] = function ($event) {
-      return $data.prevent.prevent_time = $event;
+    "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
+      return $setup.prevent.prevent_time = $event;
     }),
     "class": "form-select"
-  }, [].concat(_hoisted_25), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $data.prevent.prevent_time]])])], 32 /* NEED_HYDRATION */)])]);
+  }, [].concat(_hoisted_26), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.prevent.prevent_time]])]), _hoisted_27], 32 /* NEED_HYDRATION */)]);
 }
 
 /***/ }),
@@ -21826,7 +22294,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
 
 /***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=template&id=ba51ade2":
 /*!**************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/ExampleComponent.vue?vue&type=template&id=299e239e ***!
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=template&id=ba51ade2 ***!
   \**************************************************************************************************************************************************************************************************************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
@@ -21840,10 +22308,313 @@ __webpack_require__.r(__webpack_exports__);
 var _hoisted_1 = {
   "class": "container"
 };
-var _hoisted_2 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<div class=\"row justify-content-center\"><div class=\"col-md-8\"><div class=\"card\"><div class=\"card-header\">Example Component</div><div class=\"card-body\"> I&#39;m an example component. </div></div></div></div>", 1);
-var _hoisted_3 = [_hoisted_2];
+var _hoisted_2 = {
+  "class": "mb-3"
+};
+var _hoisted_3 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "name",
+  "class": "form-label"
+}, "Name", -1 /* HOISTED */);
+var _hoisted_4 = {
+  "class": "mb-3"
+};
+var _hoisted_5 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "email",
+  "class": "form-label"
+}, "Email", -1 /* HOISTED */);
+var _hoisted_6 = {
+  "class": "mb-3"
+};
+var _hoisted_7 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "phone",
+  "class": "form-label"
+}, "Phone Number", -1 /* HOISTED */);
+var _hoisted_8 = {
+  "class": "mb-3"
+};
+var _hoisted_9 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "vehicleMakeModel",
+  "class": "form-label"
+}, "Vehicle", -1 /* HOISTED */);
+var _hoisted_10 = ["value"];
+var _hoisted_11 = {
+  "class": "mb-3"
+};
+var _hoisted_12 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "Date",
+  "class": "form-label"
+}, "Date", -1 /* HOISTED */);
+var _hoisted_13 = ["value"];
+var _hoisted_14 = {
+  key: 0
+};
+var _hoisted_15 = {
+  "class": "mb-3"
+};
+var _hoisted_16 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "phone",
+  "class": "form-label"
+}, "Time", -1 /* HOISTED */);
+var _hoisted_17 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createStaticVNode)("<option value=\"09:00\">09:00</option><option value=\"09:30\">09:30</option><option value=\"10:00\">10:00</option><option value=\"10:30\">10:30</option><option value=\"11:00\">11:00</option><option value=\"11:30\">11:30</option><option value=\"12:00\">12:00</option><option value=\"12:30\">12:30</option><option value=\"01:00\">01:00</option><option value=\"01:30\">01:30</option><option value=\"02:00\">02:00</option><option value=\"02:30\">02:30</option><option value=\"03:00\">03:00</option><option value=\"03:30\">03:30</option><option value=\"04:00\">04:00</option><option value=\"04:30\">04:30</option><option value=\"05:00\">05:00</option><option value=\"05:30\">05:30</option>", 18);
+var _hoisted_35 = [_hoisted_17];
+var _hoisted_36 = ["value"];
+var _hoisted_37 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+  type: "submit",
+  "class": "btn btn-primary"
+}, "Submit", -1 /* HOISTED */);
 function render(_ctx, _cache, $props, $setup, $data, $options) {
-  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [].concat(_hoisted_3));
+  var _component_v_date_picker = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("v-date-picker");
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[7] || (_cache[7] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+      return $setup.submitBooking && $setup.submitBooking.apply($setup, arguments);
+    }, ["prevent"]))
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [_hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "text",
+    "class": "form-control",
+    id: "name",
+    "onUpdate:modelValue": _cache[0] || (_cache[0] = function ($event) {
+      return $setup.user.name = $event;
+    }),
+    readonly: ""
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.user.name]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_4, [_hoisted_5, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "email",
+    "class": "form-control",
+    id: "email",
+    "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
+      return $setup.user.email = $event;
+    }),
+    readonly: ""
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.user.email]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_6, [_hoisted_7, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "text",
+    "class": "form-control",
+    id: "phone",
+    "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
+      return $setup.booking.phone = $event;
+    }),
+    required: ""
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.booking.phone]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_8, [_hoisted_9, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+    "class": "form-select",
+    "aria-label": "Select Vehicle",
+    "onUpdate:modelValue": _cache[3] || (_cache[3] = function ($event) {
+      return $setup.booking.vehicle_model = $event;
+    }),
+    required: ""
+  }, [((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)($data.vehicles, function (vehicle) {
+    return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("option", {
+      key: vehicle.id,
+      value: vehicle.Make + ' - ' + vehicle.Model
+    }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Make) + " - " + (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(vehicle.Model), 9 /* TEXT, PROPS */, _hoisted_10);
+  }), 128 /* KEYED_FRAGMENT */))], 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.vehicle_model]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [_hoisted_12, (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "text",
+    id: "Date",
+    onClick: _cache[4] || (_cache[4] = function () {
+      return $setup.toggleCalendar && $setup.toggleCalendar.apply($setup, arguments);
+    }),
+    readonly: "",
+    value: $setup.formattedDate
+  }, null, 8 /* PROPS */, _hoisted_13), $setup.showCalendar ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_14, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_v_date_picker, {
+    modelValue: $setup.booking.booked_date,
+    "onUpdate:modelValue": _cache[5] || (_cache[5] = function ($event) {
+      return $setup.booking.booked_date = $event;
+    }),
+    attributes: _ctx.attrs,
+    "min-date": $setup.today,
+    format: $setup.dateFormat,
+    "is-inline": ""
+  }, null, 8 /* PROPS */, ["modelValue", "attributes", "min-date", "format"])])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("v-if", true)]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_15, [_hoisted_16, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", {
+    name: "time",
+    id: "time",
+    "class": "form-select",
+    "onUpdate:modelValue": _cache[6] || (_cache[6] = function ($event) {
+      return $setup.booking.booked_time = $event;
+    })
+  }, [].concat(_hoisted_35), 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelSelect, $setup.booking.booked_time]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    type: "hidden",
+    value: $setup.booking.booking_date
+  }, null, 8 /* PROPS */, _hoisted_36), _hoisted_37], 32 /* NEED_HYDRATION */)]);
+}
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/Dashboard.vue?vue&type=template&id=040e2ab9":
+/*!*******************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/Dashboard.vue?vue&type=template&id=040e2ab9 ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* binding */ render)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+
+var _hoisted_1 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", null, " Dashboard ", -1 /* HOISTED */);
+var _hoisted_2 = [_hoisted_1];
+function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", null, [].concat(_hoisted_2));
+}
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/LoginComponent.vue?vue&type=template&id=4d2414bf":
+/*!************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/LoginComponent.vue?vue&type=template&id=4d2414bf ***!
+  \************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* binding */ render)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+
+var _hoisted_1 = {
+  "class": "w-100 d-flex justify-content-center mt-5"
+};
+var _hoisted_2 = {
+  "class": "w-50 border p-5"
+};
+var _hoisted_3 = {
+  "class": "mb-3"
+};
+var _hoisted_4 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "email",
+  "class": "form-label"
+}, "Email", -1 /* HOISTED */);
+var _hoisted_5 = {
+  "class": "mb-3"
+};
+var _hoisted_6 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "password",
+  "class": "form-label"
+}, "Password", -1 /* HOISTED */);
+var _hoisted_7 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+  type: "submit",
+  "class": "btn btn-primary"
+}, "Submit", -1 /* HOISTED */);
+var _hoisted_8 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("a", {
+  href: "/registration"
+}, "registration", -1 /* HOISTED */);
+function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[2] || (_cache[2] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+      return $options.login && $options.login.apply($options, arguments);
+    }, ["prevent"]))
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_3, [_hoisted_4, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[0] || (_cache[0] = function ($event) {
+      return $data.form.email = $event;
+    }),
+    "class": "form-control",
+    type: "email",
+    placeholder: "Email"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $data.form.email]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_5, [_hoisted_6, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
+      return $data.form.password = $event;
+    }),
+    "class": "form-control",
+    type: "password",
+    placeholder: "Password"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $data.form.password]])]), _hoisted_7, _hoisted_8], 32 /* NEED_HYDRATION */)])]);
+}
+
+/***/ }),
+
+/***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/RegisterForm.vue?vue&type=template&id=7942be72":
+/*!**********************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/RegisterForm.vue?vue&type=template&id=7942be72 ***!
+  \**********************************************************************************************************************************************************************************************************************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* binding */ render)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+
+var _hoisted_1 = {
+  "class": "w-100 d-flex justify-content-center mt-5"
+};
+var _hoisted_2 = {
+  "class": "w-50 border p-5"
+};
+var _hoisted_3 = {
+  "class": "mb-3"
+};
+var _hoisted_4 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "name",
+  "class": "form-label"
+}, "Name", -1 /* HOISTED */);
+var _hoisted_5 = {
+  "class": "mb-3"
+};
+var _hoisted_6 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "email",
+  "class": "form-label"
+}, "Email", -1 /* HOISTED */);
+var _hoisted_7 = {
+  "class": "mb-3"
+};
+var _hoisted_8 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "password",
+  "class": "form-label"
+}, "Password", -1 /* HOISTED */);
+var _hoisted_9 = {
+  "class": "mb-3"
+};
+var _hoisted_10 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("label", {
+  "for": "confirmpasssword",
+  "class": "form-label"
+}, "Confirm Password", -1 /* HOISTED */);
+var _hoisted_11 = {
+  "class": "mb-3"
+};
+var _hoisted_12 = /*#__PURE__*/(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+  type: "submit",
+  "class": "btn btn-primary"
+}, "Submit", -1 /* HOISTED */);
+function render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_2, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("form", {
+    onSubmit: _cache[5] || (_cache[5] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(function () {
+      return $setup.register && $setup.register.apply($setup, arguments);
+    }, ["prevent"]))
+  }, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_3, [_hoisted_4, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[0] || (_cache[0] = function ($event) {
+      return $setup.form.name = $event;
+    }),
+    "class": "form-control",
+    type: "text",
+    placeholder: "Name"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.name]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_5, [_hoisted_6, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[1] || (_cache[1] = function ($event) {
+      return $setup.form.email = $event;
+    }),
+    "class": "form-control",
+    type: "email",
+    placeholder: "Email"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.email]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_7, [_hoisted_8, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[2] || (_cache[2] = function ($event) {
+      return $setup.form.password = $event;
+    }),
+    "class": "form-control",
+    type: "password",
+    placeholder: "Password"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.password]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_9, [_hoisted_10, (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[3] || (_cache[3] = function ($event) {
+      return $setup.form.password_confirmation = $event;
+    }),
+    "class": "form-control",
+    type: "password",
+    placeholder: "Confirm Password"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.password_confirmation]])]), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_11, [(0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)((0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("input", {
+    "onUpdate:modelValue": _cache[4] || (_cache[4] = function ($event) {
+      return $setup.form.role = $event;
+    }),
+    "class": "form-control",
+    type: "hidden"
+  }, null, 512 /* NEED_PATCH */), [[vue__WEBPACK_IMPORTED_MODULE_0__.vModelText, $setup.form.role]])]), _hoisted_12], 32 /* NEED_HYDRATION */)])]);
 }
 
 /***/ }),
@@ -22034,202 +22805,201 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _popperjs_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @popperjs/core */ "./node_modules/@popperjs/core/lib/index.js");
 /* harmony import */ var _popperjs_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @popperjs/core */ "./node_modules/@popperjs/core/lib/popper.js");
 /*!
-  * Bootstrap v5.3.3 (https://getbootstrap.com/)
-  * Copyright 2011-2024 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
+  * Bootstrap v5.2.0 (https://getbootstrap.com/)
+  * Copyright 2011-2022 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
   */
 
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap dom/data.js
+ * Bootstrap (v5.2.0): util/index.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-/**
- * Constants
- */
-
-const elementMap = new Map();
-const Data = {
-  set(element, key, instance) {
-    if (!elementMap.has(element)) {
-      elementMap.set(element, new Map());
-    }
-    const instanceMap = elementMap.get(element);
-
-    // make it clear we only want one instance per element
-    // can be removed later when multiple key/instances are fine to be used
-    if (!instanceMap.has(key) && instanceMap.size !== 0) {
-      // eslint-disable-next-line no-console
-      console.error(`Bootstrap doesn't allow more than one instance per element. Bound instance: ${Array.from(instanceMap.keys())[0]}.`);
-      return;
-    }
-    instanceMap.set(key, instance);
-  },
-  get(element, key) {
-    if (elementMap.has(element)) {
-      return elementMap.get(element).get(key) || null;
-    }
-    return null;
-  },
-  remove(element, key) {
-    if (!elementMap.has(element)) {
-      return;
-    }
-    const instanceMap = elementMap.get(element);
-    instanceMap.delete(key);
-
-    // free up element references if there are no instances left for an element
-    if (instanceMap.size === 0) {
-      elementMap.delete(element);
-    }
-  }
-};
-
-/**
- * --------------------------------------------------------------------------
- * Bootstrap util/index.js
- * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
- * --------------------------------------------------------------------------
- */
-
 const MAX_UID = 1000000;
 const MILLISECONDS_MULTIPLIER = 1000;
-const TRANSITION_END = 'transitionend';
+const TRANSITION_END = 'transitionend'; // Shout-out Angus Croll (https://goo.gl/pxwQGp)
 
-/**
- * Properly escape IDs selectors to handle weird IDs
- * @param {string} selector
- * @returns {string}
- */
-const parseSelector = selector => {
-  if (selector && window.CSS && window.CSS.escape) {
-    // document.querySelector needs escaping to handle IDs (html5+) containing for instance /
-    selector = selector.replace(/#([^\s"#']+)/g, (match, id) => `#${CSS.escape(id)}`);
-  }
-  return selector;
-};
-
-// Shout-out Angus Croll (https://goo.gl/pxwQGp)
 const toType = object => {
   if (object === null || object === undefined) {
     return `${object}`;
   }
+
   return Object.prototype.toString.call(object).match(/\s([a-z]+)/i)[1].toLowerCase();
 };
-
 /**
  * Public Util API
  */
+
 
 const getUID = prefix => {
   do {
     prefix += Math.floor(Math.random() * MAX_UID);
   } while (document.getElementById(prefix));
+
   return prefix;
 };
+
+const getSelector = element => {
+  let selector = element.getAttribute('data-bs-target');
+
+  if (!selector || selector === '#') {
+    let hrefAttribute = element.getAttribute('href'); // The only valid content that could double as a selector are IDs or classes,
+    // so everything starting with `#` or `.`. If a "real" URL is used as the selector,
+    // `document.querySelector` will rightfully complain it is invalid.
+    // See https://github.com/twbs/bootstrap/issues/32273
+
+    if (!hrefAttribute || !hrefAttribute.includes('#') && !hrefAttribute.startsWith('.')) {
+      return null;
+    } // Just in case some CMS puts out a full URL with the anchor appended
+
+
+    if (hrefAttribute.includes('#') && !hrefAttribute.startsWith('#')) {
+      hrefAttribute = `#${hrefAttribute.split('#')[1]}`;
+    }
+
+    selector = hrefAttribute && hrefAttribute !== '#' ? hrefAttribute.trim() : null;
+  }
+
+  return selector;
+};
+
+const getSelectorFromElement = element => {
+  const selector = getSelector(element);
+
+  if (selector) {
+    return document.querySelector(selector) ? selector : null;
+  }
+
+  return null;
+};
+
+const getElementFromSelector = element => {
+  const selector = getSelector(element);
+  return selector ? document.querySelector(selector) : null;
+};
+
 const getTransitionDurationFromElement = element => {
   if (!element) {
     return 0;
-  }
+  } // Get transition-duration of the element
 
-  // Get transition-duration of the element
+
   let {
     transitionDuration,
     transitionDelay
   } = window.getComputedStyle(element);
   const floatTransitionDuration = Number.parseFloat(transitionDuration);
-  const floatTransitionDelay = Number.parseFloat(transitionDelay);
+  const floatTransitionDelay = Number.parseFloat(transitionDelay); // Return 0 if element or transition duration is not found
 
-  // Return 0 if element or transition duration is not found
   if (!floatTransitionDuration && !floatTransitionDelay) {
     return 0;
-  }
+  } // If multiple durations are defined, take the first
 
-  // If multiple durations are defined, take the first
+
   transitionDuration = transitionDuration.split(',')[0];
   transitionDelay = transitionDelay.split(',')[0];
   return (Number.parseFloat(transitionDuration) + Number.parseFloat(transitionDelay)) * MILLISECONDS_MULTIPLIER;
 };
+
 const triggerTransitionEnd = element => {
   element.dispatchEvent(new Event(TRANSITION_END));
 };
+
 const isElement = object => {
   if (!object || typeof object !== 'object') {
     return false;
   }
+
   if (typeof object.jquery !== 'undefined') {
     object = object[0];
   }
+
   return typeof object.nodeType !== 'undefined';
 };
+
 const getElement = object => {
   // it's a jQuery object or a node element
   if (isElement(object)) {
     return object.jquery ? object[0] : object;
   }
+
   if (typeof object === 'string' && object.length > 0) {
-    return document.querySelector(parseSelector(object));
+    return document.querySelector(object);
   }
+
   return null;
 };
+
 const isVisible = element => {
   if (!isElement(element) || element.getClientRects().length === 0) {
     return false;
   }
-  const elementIsVisible = getComputedStyle(element).getPropertyValue('visibility') === 'visible';
-  // Handle `details` element as its content may falsie appear visible when it is closed
+
+  const elementIsVisible = getComputedStyle(element).getPropertyValue('visibility') === 'visible'; // Handle `details` element as its content may falsie appear visible when it is closed
+
   const closedDetails = element.closest('details:not([open])');
+
   if (!closedDetails) {
     return elementIsVisible;
   }
+
   if (closedDetails !== element) {
     const summary = element.closest('summary');
+
     if (summary && summary.parentNode !== closedDetails) {
       return false;
     }
+
     if (summary === null) {
       return false;
     }
   }
+
   return elementIsVisible;
 };
+
 const isDisabled = element => {
   if (!element || element.nodeType !== Node.ELEMENT_NODE) {
     return true;
   }
+
   if (element.classList.contains('disabled')) {
     return true;
   }
+
   if (typeof element.disabled !== 'undefined') {
     return element.disabled;
   }
+
   return element.hasAttribute('disabled') && element.getAttribute('disabled') !== 'false';
 };
+
 const findShadowRoot = element => {
   if (!document.documentElement.attachShadow) {
     return null;
-  }
+  } // Can find the shadow root otherwise it'll return the document
 
-  // Can find the shadow root otherwise it'll return the document
+
   if (typeof element.getRootNode === 'function') {
     const root = element.getRootNode();
     return root instanceof ShadowRoot ? root : null;
   }
+
   if (element instanceof ShadowRoot) {
     return element;
-  }
+  } // when we don't find a shadow root
 
-  // when we don't find a shadow root
+
   if (!element.parentNode) {
     return null;
   }
+
   return findShadowRoot(element.parentNode);
 };
-const noop = () => {};
 
+const noop = () => {};
 /**
  * Trick to restart an element's animation
  *
@@ -22238,16 +23008,22 @@ const noop = () => {};
  *
  * @see https://www.charistheo.io/blog/2021/02/restart-a-css-animation-with-javascript/#restarting-a-css-animation
  */
+
+
 const reflow = element => {
   element.offsetHeight; // eslint-disable-line no-unused-expressions
 };
+
 const getjQuery = () => {
   if (window.jQuery && !document.body.hasAttribute('data-bs-no-jquery')) {
     return window.jQuery;
   }
+
   return null;
 };
+
 const DOMContentLoadedCallbacks = [];
+
 const onDOMContentLoaded = callback => {
   if (document.readyState === 'loading') {
     // add listener on the first call when the document is in loading state
@@ -22258,21 +23034,26 @@ const onDOMContentLoaded = callback => {
         }
       });
     }
+
     DOMContentLoadedCallbacks.push(callback);
   } else {
     callback();
   }
 };
+
 const isRTL = () => document.documentElement.dir === 'rtl';
+
 const defineJQueryPlugin = plugin => {
   onDOMContentLoaded(() => {
     const $ = getjQuery();
     /* istanbul ignore if */
+
     if ($) {
       const name = plugin.NAME;
       const JQUERY_NO_CONFLICT = $.fn[name];
       $.fn[name] = plugin.jQueryInterface;
       $.fn[name].Constructor = plugin;
+
       $.fn[name].noConflict = () => {
         $.fn[name] = JQUERY_NO_CONFLICT;
         return plugin.jQueryInterface;
@@ -22280,27 +23061,35 @@ const defineJQueryPlugin = plugin => {
     }
   });
 };
-const execute = (possibleCallback, args = [], defaultValue = possibleCallback) => {
-  return typeof possibleCallback === 'function' ? possibleCallback(...args) : defaultValue;
+
+const execute = callback => {
+  if (typeof callback === 'function') {
+    callback();
+  }
 };
+
 const executeAfterTransition = (callback, transitionElement, waitForTransition = true) => {
   if (!waitForTransition) {
     execute(callback);
     return;
   }
+
   const durationPadding = 5;
   const emulatedDuration = getTransitionDurationFromElement(transitionElement) + durationPadding;
   let called = false;
+
   const handler = ({
     target
   }) => {
     if (target !== transitionElement) {
       return;
     }
+
     called = true;
     transitionElement.removeEventListener(TRANSITION_END, handler);
     execute(callback);
   };
+
   transitionElement.addEventListener(TRANSITION_END, handler);
   setTimeout(() => {
     if (!called) {
@@ -22308,7 +23097,6 @@ const executeAfterTransition = (callback, transitionElement, waitForTransition =
     }
   }, emulatedDuration);
 };
-
 /**
  * Return the previous/next element of a list.
  *
@@ -22318,30 +23106,32 @@ const executeAfterTransition = (callback, transitionElement, waitForTransition =
  * @param isCycleAllowed
  * @return {Element|elem} The proper element
  */
+
+
 const getNextActiveElement = (list, activeElement, shouldGetNext, isCycleAllowed) => {
   const listLength = list.length;
-  let index = list.indexOf(activeElement);
-
-  // if the element does not exist in the list return an element
+  let index = list.indexOf(activeElement); // if the element does not exist in the list return an element
   // depending on the direction and if cycle is allowed
+
   if (index === -1) {
     return !shouldGetNext && isCycleAllowed ? list[listLength - 1] : list[0];
   }
+
   index += shouldGetNext ? 1 : -1;
+
   if (isCycleAllowed) {
     index = (index + listLength) % listLength;
   }
+
   return list[Math.max(0, Math.min(index, listLength - 1))];
 };
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap dom/event-handler.js
+ * Bootstrap (v5.2.0): dom/event-handler.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -22350,13 +23140,13 @@ const namespaceRegex = /[^.]*(?=\..*)\.|.*/;
 const stripNameRegex = /\..*/;
 const stripUidRegex = /::\d+$/;
 const eventRegistry = {}; // Events storage
+
 let uidEvent = 1;
 const customEvents = {
   mouseenter: 'mouseover',
   mouseleave: 'mouseout'
 };
 const nativeEvents = new Set(['click', 'dblclick', 'mouseup', 'mousedown', 'contextmenu', 'mousewheel', 'DOMMouseScroll', 'mouseover', 'mouseout', 'mousemove', 'selectstart', 'selectend', 'keydown', 'keypress', 'keyup', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'pointerdown', 'pointermove', 'pointerup', 'pointerleave', 'pointercancel', 'gesturestart', 'gesturechange', 'gestureend', 'focus', 'blur', 'change', 'reset', 'select', 'submit', 'focusin', 'focusout', 'load', 'unload', 'beforeunload', 'resize', 'move', 'DOMContentLoaded', 'readystatechange', 'error', 'abort', 'scroll']);
-
 /**
  * Private methods
  */
@@ -22364,26 +23154,32 @@ const nativeEvents = new Set(['click', 'dblclick', 'mouseup', 'mousedown', 'cont
 function makeEventUid(element, uid) {
   return uid && `${uid}::${uidEvent++}` || element.uidEvent || uidEvent++;
 }
+
 function getElementEvents(element) {
   const uid = makeEventUid(element);
   element.uidEvent = uid;
   eventRegistry[uid] = eventRegistry[uid] || {};
   return eventRegistry[uid];
 }
+
 function bootstrapHandler(element, fn) {
   return function handler(event) {
     hydrateObj(event, {
       delegateTarget: element
     });
+
     if (handler.oneOff) {
       EventHandler.off(element, event.type, fn);
     }
+
     return fn.apply(element, [event]);
   };
 }
+
 function bootstrapDelegationHandler(element, selector, fn) {
   return function handler(event) {
     const domElements = element.querySelectorAll(selector);
+
     for (let {
       target
     } = event; target && target !== this; target = target.parentNode) {
@@ -22391,38 +23187,46 @@ function bootstrapDelegationHandler(element, selector, fn) {
         if (domElement !== target) {
           continue;
         }
+
         hydrateObj(event, {
           delegateTarget: target
         });
+
         if (handler.oneOff) {
           EventHandler.off(element, event.type, selector, fn);
         }
+
         return fn.apply(target, [event]);
       }
     }
   };
 }
+
 function findHandler(events, callable, delegationSelector = null) {
   return Object.values(events).find(event => event.callable === callable && event.delegationSelector === delegationSelector);
 }
+
 function normalizeParameters(originalTypeEvent, handler, delegationFunction) {
-  const isDelegated = typeof handler === 'string';
-  // TODO: tooltip passes `false` instead of selector, so we need to check
+  const isDelegated = typeof handler === 'string'; // todo: tooltip passes `false` instead of selector, so we need to check
+
   const callable = isDelegated ? delegationFunction : handler || delegationFunction;
   let typeEvent = getTypeEvent(originalTypeEvent);
+
   if (!nativeEvents.has(typeEvent)) {
     typeEvent = originalTypeEvent;
   }
+
   return [isDelegated, callable, typeEvent];
 }
+
 function addHandler(element, originalTypeEvent, handler, delegationFunction, oneOff) {
   if (typeof originalTypeEvent !== 'string' || !element) {
     return;
   }
-  let [isDelegated, callable, typeEvent] = normalizeParameters(originalTypeEvent, handler, delegationFunction);
 
-  // in case of mouseenter or mouseleave wrap the handler within a function that checks for its DOM position
+  let [isDelegated, callable, typeEvent] = normalizeParameters(originalTypeEvent, handler, delegationFunction); // in case of mouseenter or mouseleave wrap the handler within a function that checks for its DOM position
   // this prevents the handler from being dispatched the same way as mouseover or mouseout does
+
   if (originalTypeEvent in customEvents) {
     const wrapFunction = fn => {
       return function (event) {
@@ -22431,15 +23235,19 @@ function addHandler(element, originalTypeEvent, handler, delegationFunction, one
         }
       };
     };
+
     callable = wrapFunction(callable);
   }
+
   const events = getElementEvents(element);
   const handlers = events[typeEvent] || (events[typeEvent] = {});
   const previousFunction = findHandler(handlers, callable, isDelegated ? handler : null);
+
   if (previousFunction) {
     previousFunction.oneOff = previousFunction.oneOff && oneOff;
     return;
   }
+
   const uid = makeEventUid(callable, originalTypeEvent.replace(namespaceRegex, ''));
   const fn = isDelegated ? bootstrapDelegationHandler(element, handler, callable) : bootstrapHandler(element, callable);
   fn.delegationSelector = isDelegated ? handler : null;
@@ -22449,67 +23257,86 @@ function addHandler(element, originalTypeEvent, handler, delegationFunction, one
   handlers[uid] = fn;
   element.addEventListener(typeEvent, fn, isDelegated);
 }
+
 function removeHandler(element, events, typeEvent, handler, delegationSelector) {
   const fn = findHandler(events[typeEvent], handler, delegationSelector);
+
   if (!fn) {
     return;
   }
+
   element.removeEventListener(typeEvent, fn, Boolean(delegationSelector));
   delete events[typeEvent][fn.uidEvent];
 }
+
 function removeNamespacedHandlers(element, events, typeEvent, namespace) {
   const storeElementEvent = events[typeEvent] || {};
-  for (const [handlerKey, event] of Object.entries(storeElementEvent)) {
+
+  for (const handlerKey of Object.keys(storeElementEvent)) {
     if (handlerKey.includes(namespace)) {
+      const event = storeElementEvent[handlerKey];
       removeHandler(element, events, typeEvent, event.callable, event.delegationSelector);
     }
   }
 }
+
 function getTypeEvent(event) {
   // allow to get the native events from namespaced events ('click.bs.button' --> 'click')
   event = event.replace(stripNameRegex, '');
   return customEvents[event] || event;
 }
+
 const EventHandler = {
   on(element, event, handler, delegationFunction) {
     addHandler(element, event, handler, delegationFunction, false);
   },
+
   one(element, event, handler, delegationFunction) {
     addHandler(element, event, handler, delegationFunction, true);
   },
+
   off(element, originalTypeEvent, handler, delegationFunction) {
     if (typeof originalTypeEvent !== 'string' || !element) {
       return;
     }
+
     const [isDelegated, callable, typeEvent] = normalizeParameters(originalTypeEvent, handler, delegationFunction);
     const inNamespace = typeEvent !== originalTypeEvent;
     const events = getElementEvents(element);
     const storeElementEvent = events[typeEvent] || {};
     const isNamespace = originalTypeEvent.startsWith('.');
+
     if (typeof callable !== 'undefined') {
       // Simplest case: handler is passed, remove that listener ONLY.
       if (!Object.keys(storeElementEvent).length) {
         return;
       }
+
       removeHandler(element, events, typeEvent, callable, isDelegated ? handler : null);
       return;
     }
+
     if (isNamespace) {
       for (const elementEvent of Object.keys(events)) {
         removeNamespacedHandlers(element, events, elementEvent, originalTypeEvent.slice(1));
       }
     }
-    for (const [keyHandlers, event] of Object.entries(storeElementEvent)) {
+
+    for (const keyHandlers of Object.keys(storeElementEvent)) {
       const handlerKey = keyHandlers.replace(stripUidRegex, '');
+
       if (!inNamespace || originalTypeEvent.includes(handlerKey)) {
+        const event = storeElementEvent[keyHandlers];
         removeHandler(element, events, typeEvent, event.callable, event.delegationSelector);
       }
     }
   },
+
   trigger(element, event, args) {
     if (typeof event !== 'string' || !element) {
       return null;
     }
+
     const $ = getjQuery();
     const typeEvent = getTypeEvent(event);
     const inNamespace = event !== typeEvent;
@@ -22517,6 +23344,7 @@ const EventHandler = {
     let bubbles = true;
     let nativeDispatch = true;
     let defaultPrevented = false;
+
     if (inNamespace && $) {
       jQueryEvent = $.Event(event, args);
       $(element).trigger(jQueryEvent);
@@ -22524,103 +23352,177 @@ const EventHandler = {
       nativeDispatch = !jQueryEvent.isImmediatePropagationStopped();
       defaultPrevented = jQueryEvent.isDefaultPrevented();
     }
-    const evt = hydrateObj(new Event(event, {
+
+    let evt = new Event(event, {
       bubbles,
       cancelable: true
-    }), args);
+    });
+    evt = hydrateObj(evt, args);
+
     if (defaultPrevented) {
       evt.preventDefault();
     }
+
     if (nativeDispatch) {
       element.dispatchEvent(evt);
     }
+
     if (evt.defaultPrevented && jQueryEvent) {
       jQueryEvent.preventDefault();
     }
+
     return evt;
   }
+
 };
-function hydrateObj(obj, meta = {}) {
-  for (const [key, value] of Object.entries(meta)) {
+
+function hydrateObj(obj, meta) {
+  for (const [key, value] of Object.entries(meta || {})) {
     try {
       obj[key] = value;
     } catch (_unused) {
       Object.defineProperty(obj, key, {
         configurable: true,
+
         get() {
           return value;
         }
+
       });
     }
   }
+
   return obj;
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap dom/manipulator.js
+ * Bootstrap (v5.2.0): dom/data.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
 
+/**
+ * Constants
+ */
+const elementMap = new Map();
+const Data = {
+  set(element, key, instance) {
+    if (!elementMap.has(element)) {
+      elementMap.set(element, new Map());
+    }
+
+    const instanceMap = elementMap.get(element); // make it clear we only want one instance per element
+    // can be removed later when multiple key/instances are fine to be used
+
+    if (!instanceMap.has(key) && instanceMap.size !== 0) {
+      // eslint-disable-next-line no-console
+      console.error(`Bootstrap doesn't allow more than one instance per element. Bound instance: ${Array.from(instanceMap.keys())[0]}.`);
+      return;
+    }
+
+    instanceMap.set(key, instance);
+  },
+
+  get(element, key) {
+    if (elementMap.has(element)) {
+      return elementMap.get(element).get(key) || null;
+    }
+
+    return null;
+  },
+
+  remove(element, key) {
+    if (!elementMap.has(element)) {
+      return;
+    }
+
+    const instanceMap = elementMap.get(element);
+    instanceMap.delete(key); // free up element references if there are no instances left for an element
+
+    if (instanceMap.size === 0) {
+      elementMap.delete(element);
+    }
+  }
+
+};
+
+/**
+ * --------------------------------------------------------------------------
+ * Bootstrap (v5.2.0): dom/manipulator.js
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ * --------------------------------------------------------------------------
+ */
 function normalizeData(value) {
   if (value === 'true') {
     return true;
   }
+
   if (value === 'false') {
     return false;
   }
+
   if (value === Number(value).toString()) {
     return Number(value);
   }
+
   if (value === '' || value === 'null') {
     return null;
   }
+
   if (typeof value !== 'string') {
     return value;
   }
+
   try {
     return JSON.parse(decodeURIComponent(value));
   } catch (_unused) {
     return value;
   }
 }
+
 function normalizeDataKey(key) {
   return key.replace(/[A-Z]/g, chr => `-${chr.toLowerCase()}`);
 }
+
 const Manipulator = {
   setDataAttribute(element, key, value) {
     element.setAttribute(`data-bs-${normalizeDataKey(key)}`, value);
   },
+
   removeDataAttribute(element, key) {
     element.removeAttribute(`data-bs-${normalizeDataKey(key)}`);
   },
+
   getDataAttributes(element) {
     if (!element) {
       return {};
     }
+
     const attributes = {};
     const bsKeys = Object.keys(element.dataset).filter(key => key.startsWith('bs') && !key.startsWith('bsConfig'));
+
     for (const key of bsKeys) {
       let pureKey = key.replace(/^bs/, '');
       pureKey = pureKey.charAt(0).toLowerCase() + pureKey.slice(1, pureKey.length);
       attributes[pureKey] = normalizeData(element.dataset[key]);
     }
+
     return attributes;
   },
+
   getDataAttribute(element, key) {
     return normalizeData(element.getAttribute(`data-bs-${normalizeDataKey(key)}`));
   }
+
 };
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/config.js
+ * Bootstrap (v5.2.0): util/config.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Class definition
  */
@@ -22630,56 +23532,63 @@ class Config {
   static get Default() {
     return {};
   }
+
   static get DefaultType() {
     return {};
   }
+
   static get NAME() {
     throw new Error('You have to implement the static method "NAME", for each component!');
   }
+
   _getConfig(config) {
     config = this._mergeConfigObj(config);
     config = this._configAfterMerge(config);
+
     this._typeCheckConfig(config);
+
     return config;
   }
+
   _configAfterMerge(config) {
     return config;
   }
+
   _mergeConfigObj(config, element) {
     const jsonConfig = isElement(element) ? Manipulator.getDataAttribute(element, 'config') : {}; // try to parse
 
-    return {
-      ...this.constructor.Default,
+    return { ...this.constructor.Default,
       ...(typeof jsonConfig === 'object' ? jsonConfig : {}),
       ...(isElement(element) ? Manipulator.getDataAttributes(element) : {}),
       ...(typeof config === 'object' ? config : {})
     };
   }
+
   _typeCheckConfig(config, configTypes = this.constructor.DefaultType) {
-    for (const [property, expectedTypes] of Object.entries(configTypes)) {
+    for (const property of Object.keys(configTypes)) {
+      const expectedTypes = configTypes[property];
       const value = config[property];
       const valueType = isElement(value) ? 'element' : toType(value);
+
       if (!new RegExp(expectedTypes).test(valueType)) {
         throw new TypeError(`${this.constructor.NAME.toUpperCase()}: Option "${property}" provided type "${valueType}" but expected type "${expectedTypes}".`);
       }
     }
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap base-component.js
+ * Bootstrap (v5.2.0): base-component.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
 
-const VERSION = '5.3.3';
-
+const VERSION = '5.2.0';
 /**
  * Class definition
  */
@@ -22688,145 +23597,69 @@ class BaseComponent extends Config {
   constructor(element, config) {
     super();
     element = getElement(element);
+
     if (!element) {
       return;
     }
+
     this._element = element;
     this._config = this._getConfig(config);
     Data.set(this._element, this.constructor.DATA_KEY, this);
-  }
+  } // Public
 
-  // Public
+
   dispose() {
     Data.remove(this._element, this.constructor.DATA_KEY);
     EventHandler.off(this._element, this.constructor.EVENT_KEY);
+
     for (const propertyName of Object.getOwnPropertyNames(this)) {
       this[propertyName] = null;
     }
   }
+
   _queueCallback(callback, element, isAnimated = true) {
     executeAfterTransition(callback, element, isAnimated);
   }
+
   _getConfig(config) {
     config = this._mergeConfigObj(config, this._element);
     config = this._configAfterMerge(config);
-    this._typeCheckConfig(config);
-    return config;
-  }
 
-  // Static
+    this._typeCheckConfig(config);
+
+    return config;
+  } // Static
+
+
   static getInstance(element) {
     return Data.get(getElement(element), this.DATA_KEY);
   }
+
   static getOrCreateInstance(element, config = {}) {
     return this.getInstance(element) || new this(element, typeof config === 'object' ? config : null);
   }
+
   static get VERSION() {
     return VERSION;
   }
+
   static get DATA_KEY() {
     return `bs.${this.NAME}`;
   }
+
   static get EVENT_KEY() {
     return `.${this.DATA_KEY}`;
   }
+
   static eventName(name) {
     return `${name}${this.EVENT_KEY}`;
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap dom/selector-engine.js
- * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
- * --------------------------------------------------------------------------
- */
-
-const getSelector = element => {
-  let selector = element.getAttribute('data-bs-target');
-  if (!selector || selector === '#') {
-    let hrefAttribute = element.getAttribute('href');
-
-    // The only valid content that could double as a selector are IDs or classes,
-    // so everything starting with `#` or `.`. If a "real" URL is used as the selector,
-    // `document.querySelector` will rightfully complain it is invalid.
-    // See https://github.com/twbs/bootstrap/issues/32273
-    if (!hrefAttribute || !hrefAttribute.includes('#') && !hrefAttribute.startsWith('.')) {
-      return null;
-    }
-
-    // Just in case some CMS puts out a full URL with the anchor appended
-    if (hrefAttribute.includes('#') && !hrefAttribute.startsWith('#')) {
-      hrefAttribute = `#${hrefAttribute.split('#')[1]}`;
-    }
-    selector = hrefAttribute && hrefAttribute !== '#' ? hrefAttribute.trim() : null;
-  }
-  return selector ? selector.split(',').map(sel => parseSelector(sel)).join(',') : null;
-};
-const SelectorEngine = {
-  find(selector, element = document.documentElement) {
-    return [].concat(...Element.prototype.querySelectorAll.call(element, selector));
-  },
-  findOne(selector, element = document.documentElement) {
-    return Element.prototype.querySelector.call(element, selector);
-  },
-  children(element, selector) {
-    return [].concat(...element.children).filter(child => child.matches(selector));
-  },
-  parents(element, selector) {
-    const parents = [];
-    let ancestor = element.parentNode.closest(selector);
-    while (ancestor) {
-      parents.push(ancestor);
-      ancestor = ancestor.parentNode.closest(selector);
-    }
-    return parents;
-  },
-  prev(element, selector) {
-    let previous = element.previousElementSibling;
-    while (previous) {
-      if (previous.matches(selector)) {
-        return [previous];
-      }
-      previous = previous.previousElementSibling;
-    }
-    return [];
-  },
-  // TODO: this is now unused; remove later along with prev()
-  next(element, selector) {
-    let next = element.nextElementSibling;
-    while (next) {
-      if (next.matches(selector)) {
-        return [next];
-      }
-      next = next.nextElementSibling;
-    }
-    return [];
-  },
-  focusableChildren(element) {
-    const focusables = ['a', 'button', 'input', 'textarea', 'select', 'details', '[tabindex]', '[contenteditable="true"]'].map(selector => `${selector}:not([tabindex^="-"])`).join(',');
-    return this.find(focusables, element).filter(el => !isDisabled(el) && isVisible(el));
-  },
-  getSelectorFromElement(element) {
-    const selector = getSelector(element);
-    if (selector) {
-      return SelectorEngine.findOne(selector) ? selector : null;
-    }
-    return null;
-  },
-  getElementFromSelector(element) {
-    const selector = getSelector(element);
-    return selector ? SelectorEngine.findOne(selector) : null;
-  },
-  getMultipleElementsFromSelector(element) {
-    const selector = getSelector(element);
-    return selector ? SelectorEngine.find(selector) : [];
-  }
-};
-
-/**
- * --------------------------------------------------------------------------
- * Bootstrap util/component-functions.js
+ * Bootstrap (v5.2.0): util/component-functions.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
@@ -22838,25 +23671,24 @@ const enableDismissTrigger = (component, method = 'hide') => {
     if (['A', 'AREA'].includes(this.tagName)) {
       event.preventDefault();
     }
+
     if (isDisabled(this)) {
       return;
     }
-    const target = SelectorEngine.getElementFromSelector(this) || this.closest(`.${name}`);
-    const instance = component.getOrCreateInstance(target);
 
-    // Method argument is left, for Alert and only, as it doesn't implement the 'hide' method
+    const target = getElementFromSelector(this) || this.closest(`.${name}`);
+    const instance = component.getOrCreateInstance(target); // Method argument is left, for Alert and only, as it doesn't implement the 'hide' method
+
     instance[method]();
   });
 };
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap alert.js
+ * Bootstrap (v5.2.0): alert.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -22868,7 +23700,6 @@ const EVENT_CLOSE = `close${EVENT_KEY$b}`;
 const EVENT_CLOSED = `closed${EVENT_KEY$b}`;
 const CLASS_NAME_FADE$5 = 'fade';
 const CLASS_NAME_SHOW$8 = 'show';
-
 /**
  * Class definition
  */
@@ -22877,47 +23708,55 @@ class Alert extends BaseComponent {
   // Getters
   static get NAME() {
     return NAME$f;
-  }
+  } // Public
 
-  // Public
+
   close() {
     const closeEvent = EventHandler.trigger(this._element, EVENT_CLOSE);
+
     if (closeEvent.defaultPrevented) {
       return;
     }
-    this._element.classList.remove(CLASS_NAME_SHOW$8);
-    const isAnimated = this._element.classList.contains(CLASS_NAME_FADE$5);
-    this._queueCallback(() => this._destroyElement(), this._element, isAnimated);
-  }
 
-  // Private
+    this._element.classList.remove(CLASS_NAME_SHOW$8);
+
+    const isAnimated = this._element.classList.contains(CLASS_NAME_FADE$5);
+
+    this._queueCallback(() => this._destroyElement(), this._element, isAnimated);
+  } // Private
+
+
   _destroyElement() {
     this._element.remove();
+
     EventHandler.trigger(this._element, EVENT_CLOSED);
     this.dispose();
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Alert.getOrCreateInstance(this);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (data[config] === undefined || config.startsWith('_') || config === 'constructor') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config](this);
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
 
-enableDismissTrigger(Alert, 'close');
 
+enableDismissTrigger(Alert, 'close');
 /**
  * jQuery
  */
@@ -22926,12 +23765,10 @@ defineJQueryPlugin(Alert);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap button.js
+ * Bootstrap (v5.2.0): button.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -22943,7 +23780,6 @@ const DATA_API_KEY$6 = '.data-api';
 const CLASS_NAME_ACTIVE$3 = 'active';
 const SELECTOR_DATA_TOGGLE$5 = '[data-bs-toggle="button"]';
 const EVENT_CLICK_DATA_API$6 = `click${EVENT_KEY$a}${DATA_API_KEY$6}`;
-
 /**
  * Class definition
  */
@@ -22952,28 +23788,30 @@ class Button extends BaseComponent {
   // Getters
   static get NAME() {
     return NAME$e;
-  }
+  } // Public
 
-  // Public
+
   toggle() {
     // Toggle class and sync the `aria-pressed` attribute with the return value of the `.toggle()` method
     this._element.setAttribute('aria-pressed', this._element.classList.toggle(CLASS_NAME_ACTIVE$3));
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Button.getOrCreateInstance(this);
+
       if (config === 'toggle') {
         data[config]();
       }
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
+
 
 EventHandler.on(document, EVENT_CLICK_DATA_API$6, SELECTOR_DATA_TOGGLE$5, event => {
   event.preventDefault();
@@ -22981,7 +23819,6 @@ EventHandler.on(document, EVENT_CLICK_DATA_API$6, SELECTOR_DATA_TOGGLE$5, event 
   const data = Button.getOrCreateInstance(button);
   data.toggle();
 });
-
 /**
  * jQuery
  */
@@ -22990,12 +23827,81 @@ defineJQueryPlugin(Button);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/swipe.js
+ * Bootstrap (v5.2.0): dom/selector-engine.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
+/**
+ * Constants
+ */
 
+const SelectorEngine = {
+  find(selector, element = document.documentElement) {
+    return [].concat(...Element.prototype.querySelectorAll.call(element, selector));
+  },
 
+  findOne(selector, element = document.documentElement) {
+    return Element.prototype.querySelector.call(element, selector);
+  },
+
+  children(element, selector) {
+    return [].concat(...element.children).filter(child => child.matches(selector));
+  },
+
+  parents(element, selector) {
+    const parents = [];
+    let ancestor = element.parentNode.closest(selector);
+
+    while (ancestor) {
+      parents.push(ancestor);
+      ancestor = ancestor.parentNode.closest(selector);
+    }
+
+    return parents;
+  },
+
+  prev(element, selector) {
+    let previous = element.previousElementSibling;
+
+    while (previous) {
+      if (previous.matches(selector)) {
+        return [previous];
+      }
+
+      previous = previous.previousElementSibling;
+    }
+
+    return [];
+  },
+
+  // TODO: this is now unused; remove later along with prev()
+  next(element, selector) {
+    let next = element.nextElementSibling;
+
+    while (next) {
+      if (next.matches(selector)) {
+        return [next];
+      }
+
+      next = next.nextElementSibling;
+    }
+
+    return [];
+  },
+
+  focusableChildren(element) {
+    const focusables = ['a', 'button', 'input', 'textarea', 'select', 'details', '[tabindex]', '[contenteditable="true"]'].map(selector => `${selector}:not([tabindex^="-"])`).join(',');
+    return this.find(focusables, element).filter(el => !isDisabled(el) && isVisible(el));
+  }
+
+};
+
+/**
+ * --------------------------------------------------------------------------
+ * Bootstrap (v5.2.0): util/swipe.js
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ * --------------------------------------------------------------------------
+ */
 /**
  * Constants
  */
@@ -23021,7 +23927,6 @@ const DefaultType$c = {
   leftCallback: '(function|null)',
   rightCallback: '(function|null)'
 };
-
 /**
  * Class definition
  */
@@ -23030,67 +23935,84 @@ class Swipe extends Config {
   constructor(element, config) {
     super();
     this._element = element;
+
     if (!element || !Swipe.isSupported()) {
       return;
     }
+
     this._config = this._getConfig(config);
     this._deltaX = 0;
     this._supportPointerEvents = Boolean(window.PointerEvent);
-    this._initEvents();
-  }
 
-  // Getters
+    this._initEvents();
+  } // Getters
+
+
   static get Default() {
     return Default$c;
   }
+
   static get DefaultType() {
     return DefaultType$c;
   }
+
   static get NAME() {
     return NAME$d;
-  }
+  } // Public
 
-  // Public
+
   dispose() {
     EventHandler.off(this._element, EVENT_KEY$9);
-  }
+  } // Private
 
-  // Private
+
   _start(event) {
     if (!this._supportPointerEvents) {
       this._deltaX = event.touches[0].clientX;
       return;
     }
+
     if (this._eventIsPointerPenTouch(event)) {
       this._deltaX = event.clientX;
     }
   }
+
   _end(event) {
     if (this._eventIsPointerPenTouch(event)) {
       this._deltaX = event.clientX - this._deltaX;
     }
+
     this._handleSwipe();
+
     execute(this._config.endCallback);
   }
+
   _move(event) {
     this._deltaX = event.touches && event.touches.length > 1 ? 0 : event.touches[0].clientX - this._deltaX;
   }
+
   _handleSwipe() {
     const absDeltaX = Math.abs(this._deltaX);
+
     if (absDeltaX <= SWIPE_THRESHOLD) {
       return;
     }
+
     const direction = absDeltaX / this._deltaX;
     this._deltaX = 0;
+
     if (!direction) {
       return;
     }
+
     execute(direction > 0 ? this._config.rightCallback : this._config.leftCallback);
   }
+
   _initEvents() {
     if (this._supportPointerEvents) {
       EventHandler.on(this._element, EVENT_POINTERDOWN, event => this._start(event));
       EventHandler.on(this._element, EVENT_POINTERUP, event => this._end(event));
+
       this._element.classList.add(CLASS_NAME_POINTER_EVENT);
     } else {
       EventHandler.on(this._element, EVENT_TOUCHSTART, event => this._start(event));
@@ -23098,24 +24020,24 @@ class Swipe extends Config {
       EventHandler.on(this._element, EVENT_TOUCHEND, event => this._end(event));
     }
   }
+
   _eventIsPointerPenTouch(event) {
     return this._supportPointerEvents && (event.pointerType === POINTER_TYPE_PEN || event.pointerType === POINTER_TYPE_TOUCH);
-  }
+  } // Static
 
-  // Static
+
   static isSupported() {
     return 'ontouchstart' in document.documentElement || navigator.maxTouchPoints > 0;
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap carousel.js
+ * Bootstrap (v5.2.0): carousel.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -23175,7 +24097,6 @@ const DefaultType$b = {
   touch: 'boolean',
   wrap: 'boolean'
 };
-
 /**
  * Class definition
  */
@@ -23189,27 +24110,32 @@ class Carousel extends BaseComponent {
     this.touchTimeout = null;
     this._swipeHelper = null;
     this._indicatorsElement = SelectorEngine.findOne(SELECTOR_INDICATORS, this._element);
+
     this._addEventListeners();
+
     if (this._config.ride === CLASS_NAME_CAROUSEL) {
       this.cycle();
     }
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$b;
   }
+
   static get DefaultType() {
     return DefaultType$b;
   }
+
   static get NAME() {
     return NAME$c;
-  }
+  } // Public
 
-  // Public
+
   next() {
     this._slide(ORDER_NEXT);
   }
+
   nextWhenVisible() {
     // FIXME TODO use `document.visibilityState`
     // Don't call next when the page isn't visible
@@ -23218,80 +24144,101 @@ class Carousel extends BaseComponent {
       this.next();
     }
   }
+
   prev() {
     this._slide(ORDER_PREV);
   }
+
   pause() {
     if (this._isSliding) {
       triggerTransitionEnd(this._element);
     }
+
     this._clearInterval();
   }
+
   cycle() {
     this._clearInterval();
+
     this._updateInterval();
+
     this._interval = setInterval(() => this.nextWhenVisible(), this._config.interval);
   }
+
   _maybeEnableCycle() {
     if (!this._config.ride) {
       return;
     }
+
     if (this._isSliding) {
       EventHandler.one(this._element, EVENT_SLID, () => this.cycle());
       return;
     }
+
     this.cycle();
   }
+
   to(index) {
     const items = this._getItems();
+
     if (index > items.length - 1 || index < 0) {
       return;
     }
+
     if (this._isSliding) {
       EventHandler.one(this._element, EVENT_SLID, () => this.to(index));
       return;
     }
+
     const activeIndex = this._getItemIndex(this._getActive());
+
     if (activeIndex === index) {
       return;
     }
+
     const order = index > activeIndex ? ORDER_NEXT : ORDER_PREV;
+
     this._slide(order, items[index]);
   }
+
   dispose() {
     if (this._swipeHelper) {
       this._swipeHelper.dispose();
     }
-    super.dispose();
-  }
 
-  // Private
+    super.dispose();
+  } // Private
+
+
   _configAfterMerge(config) {
     config.defaultInterval = config.interval;
     return config;
   }
+
   _addEventListeners() {
     if (this._config.keyboard) {
       EventHandler.on(this._element, EVENT_KEYDOWN$1, event => this._keydown(event));
     }
+
     if (this._config.pause === 'hover') {
       EventHandler.on(this._element, EVENT_MOUSEENTER$1, () => this.pause());
       EventHandler.on(this._element, EVENT_MOUSELEAVE$1, () => this._maybeEnableCycle());
     }
+
     if (this._config.touch && Swipe.isSupported()) {
       this._addTouchEventListeners();
     }
   }
+
   _addTouchEventListeners() {
     for (const img of SelectorEngine.find(SELECTOR_ITEM_IMG, this._element)) {
       EventHandler.on(img, EVENT_DRAG_START, event => event.preventDefault());
     }
+
     const endCallBack = () => {
       if (this._config.pause !== 'hover') {
         return;
-      }
-
-      // If it's a touch-enabled device, mouseenter/leave are fired as
+      } // If it's a touch-enabled device, mouseenter/leave are fired as
       // part of the mouse compatibility events on first tap - the carousel
       // would stop cycling until user tapped out of it;
       // here, we listen for touchend, explicitly pause the carousel
@@ -23299,12 +24246,16 @@ class Carousel extends BaseComponent {
       // is NOT fired) and after a timeout (to allow for mouse compatibility
       // events to fire) we explicitly restart cycling
 
+
       this.pause();
+
       if (this.touchTimeout) {
         clearTimeout(this.touchTimeout);
       }
+
       this.touchTimeout = setTimeout(() => this._maybeEnableCycle(), TOUCHEVENT_COMPAT_WAIT + this._config.interval);
     };
+
     const swipeConfig = {
       leftCallback: () => this._slide(this._directionToOrder(DIRECTION_LEFT)),
       rightCallback: () => this._slide(this._directionToOrder(DIRECTION_RIGHT)),
@@ -23312,51 +24263,68 @@ class Carousel extends BaseComponent {
     };
     this._swipeHelper = new Swipe(this._element, swipeConfig);
   }
+
   _keydown(event) {
     if (/input|textarea/i.test(event.target.tagName)) {
       return;
     }
+
     const direction = KEY_TO_DIRECTION[event.key];
+
     if (direction) {
       event.preventDefault();
+
       this._slide(this._directionToOrder(direction));
     }
   }
+
   _getItemIndex(element) {
     return this._getItems().indexOf(element);
   }
+
   _setActiveIndicatorElement(index) {
     if (!this._indicatorsElement) {
       return;
     }
+
     const activeIndicator = SelectorEngine.findOne(SELECTOR_ACTIVE, this._indicatorsElement);
     activeIndicator.classList.remove(CLASS_NAME_ACTIVE$2);
     activeIndicator.removeAttribute('aria-current');
     const newActiveIndicator = SelectorEngine.findOne(`[data-bs-slide-to="${index}"]`, this._indicatorsElement);
+
     if (newActiveIndicator) {
       newActiveIndicator.classList.add(CLASS_NAME_ACTIVE$2);
       newActiveIndicator.setAttribute('aria-current', 'true');
     }
   }
+
   _updateInterval() {
     const element = this._activeElement || this._getActive();
+
     if (!element) {
       return;
     }
+
     const elementInterval = Number.parseInt(element.getAttribute('data-bs-interval'), 10);
     this._config.interval = elementInterval || this._config.defaultInterval;
   }
+
   _slide(order, element = null) {
     if (this._isSliding) {
       return;
     }
+
     const activeElement = this._getActive();
+
     const isNext = order === ORDER_NEXT;
     const nextElement = element || getNextActiveElement(this._getItems(), activeElement, isNext, this._config.wrap);
+
     if (nextElement === activeElement) {
       return;
     }
+
     const nextElementIndex = this._getItemIndex(nextElement);
+
     const triggerEvent = eventName => {
       return EventHandler.trigger(this._element, eventName, {
         relatedTarget: nextElement,
@@ -23365,19 +24333,25 @@ class Carousel extends BaseComponent {
         to: nextElementIndex
       });
     };
+
     const slideEvent = triggerEvent(EVENT_SLIDE);
+
     if (slideEvent.defaultPrevented) {
       return;
     }
+
     if (!activeElement || !nextElement) {
       // Some weirdness is happening, so we bail
-      // TODO: change tests that use empty divs to avoid this check
+      // todo: change tests that use empty divs to avoid this check
       return;
     }
+
     const isCycling = Boolean(this._interval);
     this.pause();
     this._isSliding = true;
+
     this._setActiveIndicatorElement(nextElementIndex);
+
     this._activeElement = nextElement;
     const directionalClassName = isNext ? CLASS_NAME_START : CLASS_NAME_END;
     const orderClassName = isNext ? CLASS_NAME_NEXT : CLASS_NAME_PREV;
@@ -23385,6 +24359,7 @@ class Carousel extends BaseComponent {
     reflow(nextElement);
     activeElement.classList.add(directionalClassName);
     nextElement.classList.add(directionalClassName);
+
     const completeCallBack = () => {
       nextElement.classList.remove(directionalClassName, orderClassName);
       nextElement.classList.add(CLASS_NAME_ACTIVE$2);
@@ -23392,89 +24367,113 @@ class Carousel extends BaseComponent {
       this._isSliding = false;
       triggerEvent(EVENT_SLID);
     };
+
     this._queueCallback(completeCallBack, activeElement, this._isAnimated());
+
     if (isCycling) {
       this.cycle();
     }
   }
+
   _isAnimated() {
     return this._element.classList.contains(CLASS_NAME_SLIDE);
   }
+
   _getActive() {
     return SelectorEngine.findOne(SELECTOR_ACTIVE_ITEM, this._element);
   }
+
   _getItems() {
     return SelectorEngine.find(SELECTOR_ITEM, this._element);
   }
+
   _clearInterval() {
     if (this._interval) {
       clearInterval(this._interval);
       this._interval = null;
     }
   }
+
   _directionToOrder(direction) {
     if (isRTL()) {
       return direction === DIRECTION_LEFT ? ORDER_PREV : ORDER_NEXT;
     }
+
     return direction === DIRECTION_LEFT ? ORDER_NEXT : ORDER_PREV;
   }
+
   _orderToDirection(order) {
     if (isRTL()) {
       return order === ORDER_PREV ? DIRECTION_LEFT : DIRECTION_RIGHT;
     }
-    return order === ORDER_PREV ? DIRECTION_RIGHT : DIRECTION_LEFT;
-  }
 
-  // Static
+    return order === ORDER_PREV ? DIRECTION_RIGHT : DIRECTION_LEFT;
+  } // Static
+
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Carousel.getOrCreateInstance(this, config);
+
       if (typeof config === 'number') {
         data.to(config);
         return;
       }
+
       if (typeof config === 'string') {
         if (data[config] === undefined || config.startsWith('_') || config === 'constructor') {
           throw new TypeError(`No method named "${config}"`);
         }
+
         data[config]();
       }
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
 
+
 EventHandler.on(document, EVENT_CLICK_DATA_API$5, SELECTOR_DATA_SLIDE, function (event) {
-  const target = SelectorEngine.getElementFromSelector(this);
+  const target = getElementFromSelector(this);
+
   if (!target || !target.classList.contains(CLASS_NAME_CAROUSEL)) {
     return;
   }
+
   event.preventDefault();
   const carousel = Carousel.getOrCreateInstance(target);
   const slideIndex = this.getAttribute('data-bs-slide-to');
+
   if (slideIndex) {
     carousel.to(slideIndex);
+
     carousel._maybeEnableCycle();
+
     return;
   }
+
   if (Manipulator.getDataAttribute(this, 'slide') === 'next') {
     carousel.next();
+
     carousel._maybeEnableCycle();
+
     return;
   }
+
   carousel.prev();
+
   carousel._maybeEnableCycle();
 });
 EventHandler.on(window, EVENT_LOAD_DATA_API$3, () => {
   const carousels = SelectorEngine.find(SELECTOR_DATA_RIDE);
+
   for (const carousel of carousels) {
     Carousel.getOrCreateInstance(carousel);
   }
 });
-
 /**
  * jQuery
  */
@@ -23483,12 +24482,10 @@ defineJQueryPlugin(Carousel);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap collapse.js
+ * Bootstrap (v5.2.0): collapse.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -23520,7 +24517,6 @@ const DefaultType$a = {
   parent: '(null|element)',
   toggle: 'boolean'
 };
-
 /**
  * Class definition
  */
@@ -23531,34 +24527,41 @@ class Collapse extends BaseComponent {
     this._isTransitioning = false;
     this._triggerArray = [];
     const toggleList = SelectorEngine.find(SELECTOR_DATA_TOGGLE$4);
+
     for (const elem of toggleList) {
-      const selector = SelectorEngine.getSelectorFromElement(elem);
+      const selector = getSelectorFromElement(elem);
       const filterElement = SelectorEngine.find(selector).filter(foundElement => foundElement === this._element);
+
       if (selector !== null && filterElement.length) {
         this._triggerArray.push(elem);
       }
     }
+
     this._initializeChildren();
+
     if (!this._config.parent) {
       this._addAriaAndCollapsedClass(this._triggerArray, this._isShown());
     }
+
     if (this._config.toggle) {
       this.toggle();
     }
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$a;
   }
+
   static get DefaultType() {
     return DefaultType$a;
   }
+
   static get NAME() {
     return NAME$b;
-  }
+  } // Public
 
-  // Public
+
   toggle() {
     if (this._isShown()) {
       this.hide();
@@ -23566,149 +24569,201 @@ class Collapse extends BaseComponent {
       this.show();
     }
   }
+
   show() {
     if (this._isTransitioning || this._isShown()) {
       return;
     }
-    let activeChildren = [];
 
-    // find active children
+    let activeChildren = []; // find active children
+
     if (this._config.parent) {
       activeChildren = this._getFirstLevelChildren(SELECTOR_ACTIVES).filter(element => element !== this._element).map(element => Collapse.getOrCreateInstance(element, {
         toggle: false
       }));
     }
+
     if (activeChildren.length && activeChildren[0]._isTransitioning) {
       return;
     }
+
     const startEvent = EventHandler.trigger(this._element, EVENT_SHOW$6);
+
     if (startEvent.defaultPrevented) {
       return;
     }
+
     for (const activeInstance of activeChildren) {
       activeInstance.hide();
     }
+
     const dimension = this._getDimension();
+
     this._element.classList.remove(CLASS_NAME_COLLAPSE);
+
     this._element.classList.add(CLASS_NAME_COLLAPSING);
+
     this._element.style[dimension] = 0;
+
     this._addAriaAndCollapsedClass(this._triggerArray, true);
+
     this._isTransitioning = true;
+
     const complete = () => {
       this._isTransitioning = false;
+
       this._element.classList.remove(CLASS_NAME_COLLAPSING);
+
       this._element.classList.add(CLASS_NAME_COLLAPSE, CLASS_NAME_SHOW$7);
+
       this._element.style[dimension] = '';
       EventHandler.trigger(this._element, EVENT_SHOWN$6);
     };
+
     const capitalizedDimension = dimension[0].toUpperCase() + dimension.slice(1);
     const scrollSize = `scroll${capitalizedDimension}`;
+
     this._queueCallback(complete, this._element, true);
+
     this._element.style[dimension] = `${this._element[scrollSize]}px`;
   }
+
   hide() {
     if (this._isTransitioning || !this._isShown()) {
       return;
     }
+
     const startEvent = EventHandler.trigger(this._element, EVENT_HIDE$6);
+
     if (startEvent.defaultPrevented) {
       return;
     }
+
     const dimension = this._getDimension();
+
     this._element.style[dimension] = `${this._element.getBoundingClientRect()[dimension]}px`;
     reflow(this._element);
+
     this._element.classList.add(CLASS_NAME_COLLAPSING);
+
     this._element.classList.remove(CLASS_NAME_COLLAPSE, CLASS_NAME_SHOW$7);
+
     for (const trigger of this._triggerArray) {
-      const element = SelectorEngine.getElementFromSelector(trigger);
+      const element = getElementFromSelector(trigger);
+
       if (element && !this._isShown(element)) {
         this._addAriaAndCollapsedClass([trigger], false);
       }
     }
+
     this._isTransitioning = true;
+
     const complete = () => {
       this._isTransitioning = false;
+
       this._element.classList.remove(CLASS_NAME_COLLAPSING);
+
       this._element.classList.add(CLASS_NAME_COLLAPSE);
+
       EventHandler.trigger(this._element, EVENT_HIDDEN$6);
     };
+
     this._element.style[dimension] = '';
+
     this._queueCallback(complete, this._element, true);
   }
+
   _isShown(element = this._element) {
     return element.classList.contains(CLASS_NAME_SHOW$7);
-  }
+  } // Private
 
-  // Private
+
   _configAfterMerge(config) {
     config.toggle = Boolean(config.toggle); // Coerce string values
+
     config.parent = getElement(config.parent);
     return config;
   }
+
   _getDimension() {
     return this._element.classList.contains(CLASS_NAME_HORIZONTAL) ? WIDTH : HEIGHT;
   }
+
   _initializeChildren() {
     if (!this._config.parent) {
       return;
     }
+
     const children = this._getFirstLevelChildren(SELECTOR_DATA_TOGGLE$4);
+
     for (const element of children) {
-      const selected = SelectorEngine.getElementFromSelector(element);
+      const selected = getElementFromSelector(element);
+
       if (selected) {
         this._addAriaAndCollapsedClass([element], this._isShown(selected));
       }
     }
   }
+
   _getFirstLevelChildren(selector) {
-    const children = SelectorEngine.find(CLASS_NAME_DEEPER_CHILDREN, this._config.parent);
-    // remove children if greater depth
+    const children = SelectorEngine.find(CLASS_NAME_DEEPER_CHILDREN, this._config.parent); // remove children if greater depth
+
     return SelectorEngine.find(selector, this._config.parent).filter(element => !children.includes(element));
   }
+
   _addAriaAndCollapsedClass(triggerArray, isOpen) {
     if (!triggerArray.length) {
       return;
     }
+
     for (const element of triggerArray) {
       element.classList.toggle(CLASS_NAME_COLLAPSED, !isOpen);
       element.setAttribute('aria-expanded', isOpen);
     }
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     const _config = {};
+
     if (typeof config === 'string' && /show|hide/.test(config)) {
       _config.toggle = false;
     }
+
     return this.each(function () {
       const data = Collapse.getOrCreateInstance(this, _config);
+
       if (typeof config === 'string') {
         if (typeof data[config] === 'undefined') {
           throw new TypeError(`No method named "${config}"`);
         }
+
         data[config]();
       }
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
+
 
 EventHandler.on(document, EVENT_CLICK_DATA_API$4, SELECTOR_DATA_TOGGLE$4, function (event) {
   // preventDefault only for <a> elements (which change the URL) not inside the collapsible element
   if (event.target.tagName === 'A' || event.delegateTarget && event.delegateTarget.tagName === 'A') {
     event.preventDefault();
   }
-  for (const element of SelectorEngine.getMultipleElementsFromSelector(this)) {
+
+  const selector = getSelectorFromElement(this);
+  const selectorElements = SelectorEngine.find(selector);
+
+  for (const element of selectorElements) {
     Collapse.getOrCreateInstance(element, {
       toggle: false
     }).toggle();
   }
 });
-
 /**
  * jQuery
  */
@@ -23717,12 +24772,10 @@ defineJQueryPlugin(Collapse);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap dropdown.js
+ * Bootstrap (v5.2.0): dropdown.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -23780,7 +24833,6 @@ const DefaultType$9 = {
   popperConfig: '(null|object|function)',
   reference: '(string|element|object)'
 };
-
 /**
  * Class definition
  */
@@ -23790,112 +24842,142 @@ class Dropdown extends BaseComponent {
     super(element, config);
     this._popper = null;
     this._parent = this._element.parentNode; // dropdown wrapper
-    // TODO: v6 revert #37011 & change markup https://getbootstrap.com/docs/5.3/forms/input-group/
-    this._menu = SelectorEngine.next(this._element, SELECTOR_MENU)[0] || SelectorEngine.prev(this._element, SELECTOR_MENU)[0] || SelectorEngine.findOne(SELECTOR_MENU, this._parent);
-    this._inNavbar = this._detectNavbar();
-  }
 
-  // Getters
+    this._menu = SelectorEngine.findOne(SELECTOR_MENU, this._parent);
+    this._inNavbar = this._detectNavbar();
+  } // Getters
+
+
   static get Default() {
     return Default$9;
   }
+
   static get DefaultType() {
     return DefaultType$9;
   }
+
   static get NAME() {
     return NAME$a;
-  }
+  } // Public
 
-  // Public
+
   toggle() {
     return this._isShown() ? this.hide() : this.show();
   }
+
   show() {
     if (isDisabled(this._element) || this._isShown()) {
       return;
     }
+
     const relatedTarget = {
       relatedTarget: this._element
     };
     const showEvent = EventHandler.trigger(this._element, EVENT_SHOW$5, relatedTarget);
+
     if (showEvent.defaultPrevented) {
       return;
     }
-    this._createPopper();
 
-    // If this is a touch-enabled device we add extra
+    this._createPopper(); // If this is a touch-enabled device we add extra
     // empty mouseover listeners to the body's immediate children;
     // only needed because of broken event delegation on iOS
     // https://www.quirksmode.org/blog/archives/2014/02/mouse_event_bub.html
+
+
     if ('ontouchstart' in document.documentElement && !this._parent.closest(SELECTOR_NAVBAR_NAV)) {
       for (const element of [].concat(...document.body.children)) {
         EventHandler.on(element, 'mouseover', noop);
       }
     }
+
     this._element.focus();
+
     this._element.setAttribute('aria-expanded', true);
+
     this._menu.classList.add(CLASS_NAME_SHOW$6);
+
     this._element.classList.add(CLASS_NAME_SHOW$6);
+
     EventHandler.trigger(this._element, EVENT_SHOWN$5, relatedTarget);
   }
+
   hide() {
     if (isDisabled(this._element) || !this._isShown()) {
       return;
     }
+
     const relatedTarget = {
       relatedTarget: this._element
     };
+
     this._completeHide(relatedTarget);
   }
+
   dispose() {
     if (this._popper) {
       this._popper.destroy();
     }
+
     super.dispose();
   }
+
   update() {
     this._inNavbar = this._detectNavbar();
+
     if (this._popper) {
       this._popper.update();
     }
-  }
+  } // Private
 
-  // Private
+
   _completeHide(relatedTarget) {
     const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE$5, relatedTarget);
+
     if (hideEvent.defaultPrevented) {
       return;
-    }
-
-    // If this is a touch-enabled device we remove the extra
+    } // If this is a touch-enabled device we remove the extra
     // empty mouseover listeners we added for iOS support
+
+
     if ('ontouchstart' in document.documentElement) {
       for (const element of [].concat(...document.body.children)) {
         EventHandler.off(element, 'mouseover', noop);
       }
     }
+
     if (this._popper) {
       this._popper.destroy();
     }
+
     this._menu.classList.remove(CLASS_NAME_SHOW$6);
+
     this._element.classList.remove(CLASS_NAME_SHOW$6);
+
     this._element.setAttribute('aria-expanded', 'false');
+
     Manipulator.removeDataAttribute(this._menu, 'popper');
     EventHandler.trigger(this._element, EVENT_HIDDEN$5, relatedTarget);
   }
+
   _getConfig(config) {
     config = super._getConfig(config);
+
     if (typeof config.reference === 'object' && !isElement(config.reference) && typeof config.reference.getBoundingClientRect !== 'function') {
       // Popper virtual elements require a getBoundingClientRect method
       throw new TypeError(`${NAME$a.toUpperCase()}: Option "reference" provided type "object" without a required "getBoundingClientRect" method.`);
     }
+
     return config;
   }
+
   _createPopper() {
     if (typeof _popperjs_core__WEBPACK_IMPORTED_MODULE_0__ === 'undefined') {
       throw new TypeError('Bootstrap\'s dropdowns require Popper (https://popper.js.org)');
     }
+
     let referenceElement = this._element;
+
     if (this._config.reference === 'parent') {
       referenceElement = this._parent;
     } else if (isElement(this._config.reference)) {
@@ -23903,49 +24985,65 @@ class Dropdown extends BaseComponent {
     } else if (typeof this._config.reference === 'object') {
       referenceElement = this._config.reference;
     }
+
     const popperConfig = this._getPopperConfig();
+
     this._popper = _popperjs_core__WEBPACK_IMPORTED_MODULE_1__.createPopper(referenceElement, this._menu, popperConfig);
   }
+
   _isShown() {
     return this._menu.classList.contains(CLASS_NAME_SHOW$6);
   }
+
   _getPlacement() {
     const parentDropdown = this._parent;
+
     if (parentDropdown.classList.contains(CLASS_NAME_DROPEND)) {
       return PLACEMENT_RIGHT;
     }
+
     if (parentDropdown.classList.contains(CLASS_NAME_DROPSTART)) {
       return PLACEMENT_LEFT;
     }
+
     if (parentDropdown.classList.contains(CLASS_NAME_DROPUP_CENTER)) {
       return PLACEMENT_TOPCENTER;
     }
+
     if (parentDropdown.classList.contains(CLASS_NAME_DROPDOWN_CENTER)) {
       return PLACEMENT_BOTTOMCENTER;
-    }
+    } // We need to trim the value because custom properties can also include spaces
 
-    // We need to trim the value because custom properties can also include spaces
+
     const isEnd = getComputedStyle(this._menu).getPropertyValue('--bs-position').trim() === 'end';
+
     if (parentDropdown.classList.contains(CLASS_NAME_DROPUP)) {
       return isEnd ? PLACEMENT_TOPEND : PLACEMENT_TOP;
     }
+
     return isEnd ? PLACEMENT_BOTTOMEND : PLACEMENT_BOTTOM;
   }
+
   _detectNavbar() {
     return this._element.closest(SELECTOR_NAVBAR) !== null;
   }
+
   _getOffset() {
     const {
       offset
     } = this._config;
+
     if (typeof offset === 'string') {
       return offset.split(',').map(value => Number.parseInt(value, 10));
     }
+
     if (typeof offset === 'function') {
       return popperData => offset(popperData, this._element);
     }
+
     return offset;
   }
+
   _getPopperConfig() {
     const defaultBsPopperConfig = {
       placement: this._getPlacement(),
@@ -23960,101 +25058,120 @@ class Dropdown extends BaseComponent {
           offset: this._getOffset()
         }
       }]
-    };
+    }; // Disable Popper if we have a static display or Dropdown is in Navbar
 
-    // Disable Popper if we have a static display or Dropdown is in Navbar
     if (this._inNavbar || this._config.display === 'static') {
-      Manipulator.setDataAttribute(this._menu, 'popper', 'static'); // TODO: v6 remove
+      Manipulator.setDataAttribute(this._menu, 'popper', 'static'); // todo:v6 remove
+
       defaultBsPopperConfig.modifiers = [{
         name: 'applyStyles',
         enabled: false
       }];
     }
-    return {
-      ...defaultBsPopperConfig,
-      ...execute(this._config.popperConfig, [defaultBsPopperConfig])
+
+    return { ...defaultBsPopperConfig,
+      ...(typeof this._config.popperConfig === 'function' ? this._config.popperConfig(defaultBsPopperConfig) : this._config.popperConfig)
     };
   }
+
   _selectMenuItem({
     key,
     target
   }) {
     const items = SelectorEngine.find(SELECTOR_VISIBLE_ITEMS, this._menu).filter(element => isVisible(element));
+
     if (!items.length) {
       return;
-    }
-
-    // if target isn't included in items (e.g. when expanding the dropdown)
+    } // if target isn't included in items (e.g. when expanding the dropdown)
     // allow cycling to get the last item in case key equals ARROW_UP_KEY
-    getNextActiveElement(items, target, key === ARROW_DOWN_KEY$1, !items.includes(target)).focus();
-  }
 
-  // Static
+
+    getNextActiveElement(items, target, key === ARROW_DOWN_KEY$1, !items.includes(target)).focus();
+  } // Static
+
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Dropdown.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (typeof data[config] === 'undefined') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config]();
     });
   }
+
   static clearMenus(event) {
     if (event.button === RIGHT_MOUSE_BUTTON || event.type === 'keyup' && event.key !== TAB_KEY$1) {
       return;
     }
+
     const openToggles = SelectorEngine.find(SELECTOR_DATA_TOGGLE_SHOWN);
+
     for (const toggle of openToggles) {
       const context = Dropdown.getInstance(toggle);
+
       if (!context || context._config.autoClose === false) {
         continue;
       }
+
       const composedPath = event.composedPath();
       const isMenuTarget = composedPath.includes(context._menu);
+
       if (composedPath.includes(context._element) || context._config.autoClose === 'inside' && !isMenuTarget || context._config.autoClose === 'outside' && isMenuTarget) {
         continue;
-      }
+      } // Tab navigation through the dropdown menu or events from contained inputs shouldn't close the menu
 
-      // Tab navigation through the dropdown menu or events from contained inputs shouldn't close the menu
+
       if (context._menu.contains(event.target) && (event.type === 'keyup' && event.key === TAB_KEY$1 || /input|select|option|textarea|form/i.test(event.target.tagName))) {
         continue;
       }
+
       const relatedTarget = {
         relatedTarget: context._element
       };
+
       if (event.type === 'click') {
         relatedTarget.clickEvent = event;
       }
+
       context._completeHide(relatedTarget);
     }
   }
+
   static dataApiKeydownHandler(event) {
     // If not an UP | DOWN | ESCAPE key => not a dropdown command
     // If input/textarea && if key is other than ESCAPE => not a dropdown command
-
     const isInput = /input|textarea/i.test(event.target.tagName);
     const isEscapeEvent = event.key === ESCAPE_KEY$2;
     const isUpOrDownEvent = [ARROW_UP_KEY$1, ARROW_DOWN_KEY$1].includes(event.key);
+
     if (!isUpOrDownEvent && !isEscapeEvent) {
       return;
     }
+
     if (isInput && !isEscapeEvent) {
       return;
     }
-    event.preventDefault();
 
-    // TODO: v6 revert #37011 & change markup https://getbootstrap.com/docs/5.3/forms/input-group/
-    const getToggleButton = this.matches(SELECTOR_DATA_TOGGLE$3) ? this : SelectorEngine.prev(this, SELECTOR_DATA_TOGGLE$3)[0] || SelectorEngine.next(this, SELECTOR_DATA_TOGGLE$3)[0] || SelectorEngine.findOne(SELECTOR_DATA_TOGGLE$3, event.delegateTarget.parentNode);
+    event.preventDefault();
+    const getToggleButton = SelectorEngine.findOne(SELECTOR_DATA_TOGGLE$3, event.delegateTarget.parentNode);
     const instance = Dropdown.getOrCreateInstance(getToggleButton);
+
     if (isUpOrDownEvent) {
       event.stopPropagation();
       instance.show();
+
       instance._selectMenuItem(event);
+
       return;
     }
+
     if (instance._isShown()) {
       // else is escape and we check if it is shown
       event.stopPropagation();
@@ -24062,11 +25179,12 @@ class Dropdown extends BaseComponent {
       getToggleButton.focus();
     }
   }
-}
 
+}
 /**
  * Data API implementation
  */
+
 
 EventHandler.on(document, EVENT_KEYDOWN_DATA_API, SELECTOR_DATA_TOGGLE$3, Dropdown.dataApiKeydownHandler);
 EventHandler.on(document, EVENT_KEYDOWN_DATA_API, SELECTOR_MENU, Dropdown.dataApiKeydownHandler);
@@ -24076,7 +25194,6 @@ EventHandler.on(document, EVENT_CLICK_DATA_API$3, SELECTOR_DATA_TOGGLE$3, functi
   event.preventDefault();
   Dropdown.getOrCreateInstance(this).toggle();
 });
-
 /**
  * jQuery
  */
@@ -24085,12 +25202,129 @@ defineJQueryPlugin(Dropdown);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/backdrop.js
+ * Bootstrap (v5.2.0): util/scrollBar.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
+/**
+ * Constants
+ */
+
+const SELECTOR_FIXED_CONTENT = '.fixed-top, .fixed-bottom, .is-fixed, .sticky-top';
+const SELECTOR_STICKY_CONTENT = '.sticky-top';
+const PROPERTY_PADDING = 'padding-right';
+const PROPERTY_MARGIN = 'margin-right';
+/**
+ * Class definition
+ */
+
+class ScrollBarHelper {
+  constructor() {
+    this._element = document.body;
+  } // Public
 
 
+  getWidth() {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Window/innerWidth#usage_notes
+    const documentWidth = document.documentElement.clientWidth;
+    return Math.abs(window.innerWidth - documentWidth);
+  }
+
+  hide() {
+    const width = this.getWidth();
+
+    this._disableOverFlow(); // give padding to element to balance the hidden scrollbar width
+
+
+    this._setElementAttributes(this._element, PROPERTY_PADDING, calculatedValue => calculatedValue + width); // trick: We adjust positive paddingRight and negative marginRight to sticky-top elements to keep showing fullwidth
+
+
+    this._setElementAttributes(SELECTOR_FIXED_CONTENT, PROPERTY_PADDING, calculatedValue => calculatedValue + width);
+
+    this._setElementAttributes(SELECTOR_STICKY_CONTENT, PROPERTY_MARGIN, calculatedValue => calculatedValue - width);
+  }
+
+  reset() {
+    this._resetElementAttributes(this._element, 'overflow');
+
+    this._resetElementAttributes(this._element, PROPERTY_PADDING);
+
+    this._resetElementAttributes(SELECTOR_FIXED_CONTENT, PROPERTY_PADDING);
+
+    this._resetElementAttributes(SELECTOR_STICKY_CONTENT, PROPERTY_MARGIN);
+  }
+
+  isOverflowing() {
+    return this.getWidth() > 0;
+  } // Private
+
+
+  _disableOverFlow() {
+    this._saveInitialAttribute(this._element, 'overflow');
+
+    this._element.style.overflow = 'hidden';
+  }
+
+  _setElementAttributes(selector, styleProperty, callback) {
+    const scrollbarWidth = this.getWidth();
+
+    const manipulationCallBack = element => {
+      if (element !== this._element && window.innerWidth > element.clientWidth + scrollbarWidth) {
+        return;
+      }
+
+      this._saveInitialAttribute(element, styleProperty);
+
+      const calculatedValue = window.getComputedStyle(element).getPropertyValue(styleProperty);
+      element.style.setProperty(styleProperty, `${callback(Number.parseFloat(calculatedValue))}px`);
+    };
+
+    this._applyManipulationCallback(selector, manipulationCallBack);
+  }
+
+  _saveInitialAttribute(element, styleProperty) {
+    const actualValue = element.style.getPropertyValue(styleProperty);
+
+    if (actualValue) {
+      Manipulator.setDataAttribute(element, styleProperty, actualValue);
+    }
+  }
+
+  _resetElementAttributes(selector, styleProperty) {
+    const manipulationCallBack = element => {
+      const value = Manipulator.getDataAttribute(element, styleProperty); // We only want to remove the property if the value is `null`; the value can also be zero
+
+      if (value === null) {
+        element.style.removeProperty(styleProperty);
+        return;
+      }
+
+      Manipulator.removeDataAttribute(element, styleProperty);
+      element.style.setProperty(styleProperty, value);
+    };
+
+    this._applyManipulationCallback(selector, manipulationCallBack);
+  }
+
+  _applyManipulationCallback(selector, callBack) {
+    if (isElement(selector)) {
+      callBack(selector);
+      return;
+    }
+
+    for (const sel of SelectorEngine.find(selector, this._element)) {
+      callBack(sel);
+    }
+  }
+
+}
+
+/**
+ * --------------------------------------------------------------------------
+ * Bootstrap (v5.2.0): util/backdrop.js
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ * --------------------------------------------------------------------------
+ */
 /**
  * Constants
  */
@@ -24106,6 +25340,7 @@ const Default$8 = {
   isVisible: true,
   // if false, we use the backdrop helper without adding any element to the dom
   rootElement: 'body' // give the choice to place backdrop under different elements
+
 };
 const DefaultType$8 = {
   className: 'string',
@@ -24114,7 +25349,6 @@ const DefaultType$8 = {
   isVisible: 'boolean',
   rootElement: '(element|string)'
 };
-
 /**
  * Class definition
  */
@@ -24125,96 +25359,118 @@ class Backdrop extends Config {
     this._config = this._getConfig(config);
     this._isAppended = false;
     this._element = null;
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$8;
   }
+
   static get DefaultType() {
     return DefaultType$8;
   }
+
   static get NAME() {
     return NAME$9;
-  }
+  } // Public
 
-  // Public
+
   show(callback) {
     if (!this._config.isVisible) {
       execute(callback);
       return;
     }
+
     this._append();
+
     const element = this._getElement();
+
     if (this._config.isAnimated) {
       reflow(element);
     }
+
     element.classList.add(CLASS_NAME_SHOW$5);
+
     this._emulateAnimation(() => {
       execute(callback);
     });
   }
+
   hide(callback) {
     if (!this._config.isVisible) {
       execute(callback);
       return;
     }
+
     this._getElement().classList.remove(CLASS_NAME_SHOW$5);
+
     this._emulateAnimation(() => {
       this.dispose();
       execute(callback);
     });
   }
+
   dispose() {
     if (!this._isAppended) {
       return;
     }
-    EventHandler.off(this._element, EVENT_MOUSEDOWN);
-    this._element.remove();
-    this._isAppended = false;
-  }
 
-  // Private
+    EventHandler.off(this._element, EVENT_MOUSEDOWN);
+
+    this._element.remove();
+
+    this._isAppended = false;
+  } // Private
+
+
   _getElement() {
     if (!this._element) {
       const backdrop = document.createElement('div');
       backdrop.className = this._config.className;
+
       if (this._config.isAnimated) {
         backdrop.classList.add(CLASS_NAME_FADE$4);
       }
+
       this._element = backdrop;
     }
+
     return this._element;
   }
+
   _configAfterMerge(config) {
     // use getElement() with the default "body" to get a fresh Element on each instantiation
     config.rootElement = getElement(config.rootElement);
     return config;
   }
+
   _append() {
     if (this._isAppended) {
       return;
     }
+
     const element = this._getElement();
+
     this._config.rootElement.append(element);
+
     EventHandler.on(element, EVENT_MOUSEDOWN, () => {
       execute(this._config.clickCallback);
     });
     this._isAppended = true;
   }
+
   _emulateAnimation(callback) {
     executeAfterTransition(callback, this._getElement(), this._config.isAnimated);
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/focustrap.js
+ * Bootstrap (v5.2.0): util/focustrap.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -24230,12 +25486,12 @@ const TAB_NAV_BACKWARD = 'backward';
 const Default$7 = {
   autofocus: true,
   trapElement: null // The element to trap focus inside of
+
 };
 const DefaultType$7 = {
   autofocus: 'boolean',
   trapElement: 'element'
 };
-
 /**
  * Class definition
  */
@@ -24246,49 +25502,59 @@ class FocusTrap extends Config {
     this._config = this._getConfig(config);
     this._isActive = false;
     this._lastTabNavDirection = null;
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$7;
   }
+
   static get DefaultType() {
     return DefaultType$7;
   }
+
   static get NAME() {
     return NAME$8;
-  }
+  } // Public
 
-  // Public
+
   activate() {
     if (this._isActive) {
       return;
     }
+
     if (this._config.autofocus) {
       this._config.trapElement.focus();
     }
+
     EventHandler.off(document, EVENT_KEY$5); // guard against infinite focus loop
+
     EventHandler.on(document, EVENT_FOCUSIN$2, event => this._handleFocusin(event));
     EventHandler.on(document, EVENT_KEYDOWN_TAB, event => this._handleKeydown(event));
     this._isActive = true;
   }
+
   deactivate() {
     if (!this._isActive) {
       return;
     }
+
     this._isActive = false;
     EventHandler.off(document, EVENT_KEY$5);
-  }
+  } // Private
 
-  // Private
+
   _handleFocusin(event) {
     const {
       trapElement
     } = this._config;
+
     if (event.target === document || event.target === trapElement || trapElement.contains(event.target)) {
       return;
     }
+
     const elements = SelectorEngine.focusableChildren(trapElement);
+
     if (elements.length === 0) {
       trapElement.focus();
     } else if (this._lastTabNavDirection === TAB_NAV_BACKWARD) {
@@ -24297,120 +25563,23 @@ class FocusTrap extends Config {
       elements[0].focus();
     }
   }
+
   _handleKeydown(event) {
     if (event.key !== TAB_KEY) {
       return;
     }
+
     this._lastTabNavDirection = event.shiftKey ? TAB_NAV_BACKWARD : TAB_NAV_FORWARD;
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/scrollBar.js
+ * Bootstrap (v5.2.0): modal.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
-/**
- * Constants
- */
-
-const SELECTOR_FIXED_CONTENT = '.fixed-top, .fixed-bottom, .is-fixed, .sticky-top';
-const SELECTOR_STICKY_CONTENT = '.sticky-top';
-const PROPERTY_PADDING = 'padding-right';
-const PROPERTY_MARGIN = 'margin-right';
-
-/**
- * Class definition
- */
-
-class ScrollBarHelper {
-  constructor() {
-    this._element = document.body;
-  }
-
-  // Public
-  getWidth() {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Window/innerWidth#usage_notes
-    const documentWidth = document.documentElement.clientWidth;
-    return Math.abs(window.innerWidth - documentWidth);
-  }
-  hide() {
-    const width = this.getWidth();
-    this._disableOverFlow();
-    // give padding to element to balance the hidden scrollbar width
-    this._setElementAttributes(this._element, PROPERTY_PADDING, calculatedValue => calculatedValue + width);
-    // trick: We adjust positive paddingRight and negative marginRight to sticky-top elements to keep showing fullwidth
-    this._setElementAttributes(SELECTOR_FIXED_CONTENT, PROPERTY_PADDING, calculatedValue => calculatedValue + width);
-    this._setElementAttributes(SELECTOR_STICKY_CONTENT, PROPERTY_MARGIN, calculatedValue => calculatedValue - width);
-  }
-  reset() {
-    this._resetElementAttributes(this._element, 'overflow');
-    this._resetElementAttributes(this._element, PROPERTY_PADDING);
-    this._resetElementAttributes(SELECTOR_FIXED_CONTENT, PROPERTY_PADDING);
-    this._resetElementAttributes(SELECTOR_STICKY_CONTENT, PROPERTY_MARGIN);
-  }
-  isOverflowing() {
-    return this.getWidth() > 0;
-  }
-
-  // Private
-  _disableOverFlow() {
-    this._saveInitialAttribute(this._element, 'overflow');
-    this._element.style.overflow = 'hidden';
-  }
-  _setElementAttributes(selector, styleProperty, callback) {
-    const scrollbarWidth = this.getWidth();
-    const manipulationCallBack = element => {
-      if (element !== this._element && window.innerWidth > element.clientWidth + scrollbarWidth) {
-        return;
-      }
-      this._saveInitialAttribute(element, styleProperty);
-      const calculatedValue = window.getComputedStyle(element).getPropertyValue(styleProperty);
-      element.style.setProperty(styleProperty, `${callback(Number.parseFloat(calculatedValue))}px`);
-    };
-    this._applyManipulationCallback(selector, manipulationCallBack);
-  }
-  _saveInitialAttribute(element, styleProperty) {
-    const actualValue = element.style.getPropertyValue(styleProperty);
-    if (actualValue) {
-      Manipulator.setDataAttribute(element, styleProperty, actualValue);
-    }
-  }
-  _resetElementAttributes(selector, styleProperty) {
-    const manipulationCallBack = element => {
-      const value = Manipulator.getDataAttribute(element, styleProperty);
-      // We only want to remove the property if the value is `null`; the value can also be zero
-      if (value === null) {
-        element.style.removeProperty(styleProperty);
-        return;
-      }
-      Manipulator.removeDataAttribute(element, styleProperty);
-      element.style.setProperty(styleProperty, value);
-    };
-    this._applyManipulationCallback(selector, manipulationCallBack);
-  }
-  _applyManipulationCallback(selector, callBack) {
-    if (isElement(selector)) {
-      callBack(selector);
-      return;
-    }
-    for (const sel of SelectorEngine.find(selector, this._element)) {
-      callBack(sel);
-    }
-  }
-}
-
-/**
- * --------------------------------------------------------------------------
- * Bootstrap modal.js
- * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
- * --------------------------------------------------------------------------
- */
-
-
 /**
  * Constants
  */
@@ -24426,7 +25595,6 @@ const EVENT_HIDDEN$4 = `hidden${EVENT_KEY$4}`;
 const EVENT_SHOW$4 = `show${EVENT_KEY$4}`;
 const EVENT_SHOWN$4 = `shown${EVENT_KEY$4}`;
 const EVENT_RESIZE$1 = `resize${EVENT_KEY$4}`;
-const EVENT_CLICK_DISMISS = `click.dismiss${EVENT_KEY$4}`;
 const EVENT_MOUSEDOWN_DISMISS = `mousedown.dismiss${EVENT_KEY$4}`;
 const EVENT_KEYDOWN_DISMISS$1 = `keydown.dismiss${EVENT_KEY$4}`;
 const EVENT_CLICK_DATA_API$2 = `click${EVENT_KEY$4}${DATA_API_KEY$2}`;
@@ -24448,7 +25616,6 @@ const DefaultType$6 = {
   focus: 'boolean',
   keyboard: 'boolean'
 };
-
 /**
  * Class definition
  */
@@ -24462,67 +25629,91 @@ class Modal extends BaseComponent {
     this._isShown = false;
     this._isTransitioning = false;
     this._scrollBar = new ScrollBarHelper();
-    this._addEventListeners();
-  }
 
-  // Getters
+    this._addEventListeners();
+  } // Getters
+
+
   static get Default() {
     return Default$6;
   }
+
   static get DefaultType() {
     return DefaultType$6;
   }
+
   static get NAME() {
     return NAME$7;
-  }
+  } // Public
 
-  // Public
+
   toggle(relatedTarget) {
     return this._isShown ? this.hide() : this.show(relatedTarget);
   }
+
   show(relatedTarget) {
     if (this._isShown || this._isTransitioning) {
       return;
     }
+
     const showEvent = EventHandler.trigger(this._element, EVENT_SHOW$4, {
       relatedTarget
     });
+
     if (showEvent.defaultPrevented) {
       return;
     }
+
     this._isShown = true;
     this._isTransitioning = true;
+
     this._scrollBar.hide();
+
     document.body.classList.add(CLASS_NAME_OPEN);
+
     this._adjustDialog();
+
     this._backdrop.show(() => this._showElement(relatedTarget));
   }
+
   hide() {
     if (!this._isShown || this._isTransitioning) {
       return;
     }
+
     const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE$4);
+
     if (hideEvent.defaultPrevented) {
       return;
     }
+
     this._isShown = false;
     this._isTransitioning = true;
+
     this._focustrap.deactivate();
+
     this._element.classList.remove(CLASS_NAME_SHOW$4);
+
     this._queueCallback(() => this._hideModal(), this._element, this._isAnimated());
   }
+
   dispose() {
-    EventHandler.off(window, EVENT_KEY$4);
-    EventHandler.off(this._dialog, EVENT_KEY$4);
+    for (const htmlElement of [window, this._dialog]) {
+      EventHandler.off(htmlElement, EVENT_KEY$4);
+    }
+
     this._backdrop.dispose();
+
     this._focustrap.deactivate();
+
     super.dispose();
   }
+
   handleUpdate() {
     this._adjustDialog();
-  }
+  } // Private
 
-  // Private
+
   _initializeBackDrop() {
     return new Backdrop({
       isVisible: Boolean(this._config.backdrop),
@@ -24530,47 +25721,64 @@ class Modal extends BaseComponent {
       isAnimated: this._isAnimated()
     });
   }
+
   _initializeFocusTrap() {
     return new FocusTrap({
       trapElement: this._element
     });
   }
+
   _showElement(relatedTarget) {
     // try to append dynamic modal
     if (!document.body.contains(this._element)) {
       document.body.append(this._element);
     }
+
     this._element.style.display = 'block';
+
     this._element.removeAttribute('aria-hidden');
+
     this._element.setAttribute('aria-modal', true);
+
     this._element.setAttribute('role', 'dialog');
+
     this._element.scrollTop = 0;
     const modalBody = SelectorEngine.findOne(SELECTOR_MODAL_BODY, this._dialog);
+
     if (modalBody) {
       modalBody.scrollTop = 0;
     }
+
     reflow(this._element);
+
     this._element.classList.add(CLASS_NAME_SHOW$4);
+
     const transitionComplete = () => {
       if (this._config.focus) {
         this._focustrap.activate();
       }
+
       this._isTransitioning = false;
       EventHandler.trigger(this._element, EVENT_SHOWN$4, {
         relatedTarget
       });
     };
+
     this._queueCallback(transitionComplete, this._dialog, this._isAnimated());
   }
+
   _addEventListeners() {
     EventHandler.on(this._element, EVENT_KEYDOWN_DISMISS$1, event => {
       if (event.key !== ESCAPE_KEY$1) {
         return;
       }
+
       if (this._config.keyboard) {
+        event.preventDefault();
         this.hide();
         return;
       }
+
       this._triggerBackdropTransition();
     });
     EventHandler.on(window, EVENT_RESIZE$1, () => {
@@ -24579,129 +25787,160 @@ class Modal extends BaseComponent {
       }
     });
     EventHandler.on(this._element, EVENT_MOUSEDOWN_DISMISS, event => {
-      // a bad trick to segregate clicks that may start inside dialog but end outside, and avoid listen to scrollbar clicks
-      EventHandler.one(this._element, EVENT_CLICK_DISMISS, event2 => {
-        if (this._element !== event.target || this._element !== event2.target) {
-          return;
-        }
-        if (this._config.backdrop === 'static') {
-          this._triggerBackdropTransition();
-          return;
-        }
-        if (this._config.backdrop) {
-          this.hide();
-        }
-      });
+      if (event.target !== event.currentTarget) {
+        // click is inside modal-dialog
+        return;
+      }
+
+      if (this._config.backdrop === 'static') {
+        this._triggerBackdropTransition();
+
+        return;
+      }
+
+      if (this._config.backdrop) {
+        this.hide();
+      }
     });
   }
+
   _hideModal() {
     this._element.style.display = 'none';
+
     this._element.setAttribute('aria-hidden', true);
+
     this._element.removeAttribute('aria-modal');
+
     this._element.removeAttribute('role');
+
     this._isTransitioning = false;
+
     this._backdrop.hide(() => {
       document.body.classList.remove(CLASS_NAME_OPEN);
+
       this._resetAdjustments();
+
       this._scrollBar.reset();
+
       EventHandler.trigger(this._element, EVENT_HIDDEN$4);
     });
   }
+
   _isAnimated() {
     return this._element.classList.contains(CLASS_NAME_FADE$3);
   }
+
   _triggerBackdropTransition() {
     const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE_PREVENTED$1);
+
     if (hideEvent.defaultPrevented) {
       return;
     }
+
     const isModalOverflowing = this._element.scrollHeight > document.documentElement.clientHeight;
-    const initialOverflowY = this._element.style.overflowY;
-    // return if the following background transition hasn't yet completed
+    const initialOverflowY = this._element.style.overflowY; // return if the following background transition hasn't yet completed
+
     if (initialOverflowY === 'hidden' || this._element.classList.contains(CLASS_NAME_STATIC)) {
       return;
     }
+
     if (!isModalOverflowing) {
       this._element.style.overflowY = 'hidden';
     }
+
     this._element.classList.add(CLASS_NAME_STATIC);
+
     this._queueCallback(() => {
       this._element.classList.remove(CLASS_NAME_STATIC);
+
       this._queueCallback(() => {
         this._element.style.overflowY = initialOverflowY;
       }, this._dialog);
     }, this._dialog);
+
     this._element.focus();
   }
-
   /**
    * The following methods are used to handle overflowing modals
    */
 
+
   _adjustDialog() {
     const isModalOverflowing = this._element.scrollHeight > document.documentElement.clientHeight;
+
     const scrollbarWidth = this._scrollBar.getWidth();
+
     const isBodyOverflowing = scrollbarWidth > 0;
+
     if (isBodyOverflowing && !isModalOverflowing) {
       const property = isRTL() ? 'paddingLeft' : 'paddingRight';
       this._element.style[property] = `${scrollbarWidth}px`;
     }
+
     if (!isBodyOverflowing && isModalOverflowing) {
       const property = isRTL() ? 'paddingRight' : 'paddingLeft';
       this._element.style[property] = `${scrollbarWidth}px`;
     }
   }
+
   _resetAdjustments() {
     this._element.style.paddingLeft = '';
     this._element.style.paddingRight = '';
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config, relatedTarget) {
     return this.each(function () {
       const data = Modal.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (typeof data[config] === 'undefined') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config](relatedTarget);
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
 
+
 EventHandler.on(document, EVENT_CLICK_DATA_API$2, SELECTOR_DATA_TOGGLE$2, function (event) {
-  const target = SelectorEngine.getElementFromSelector(this);
+  const target = getElementFromSelector(this);
+
   if (['A', 'AREA'].includes(this.tagName)) {
     event.preventDefault();
   }
+
   EventHandler.one(target, EVENT_SHOW$4, showEvent => {
     if (showEvent.defaultPrevented) {
       // only register focus restorer if modal will actually get shown
       return;
     }
+
     EventHandler.one(target, EVENT_HIDDEN$4, () => {
       if (isVisible(this)) {
         this.focus();
       }
     });
-  });
+  }); // avoid conflict when clicking modal toggler while another one is open
 
-  // avoid conflict when clicking modal toggler while another one is open
   const alreadyOpen = SelectorEngine.findOne(OPEN_SELECTOR$1);
+
   if (alreadyOpen) {
     Modal.getInstance(alreadyOpen).hide();
   }
+
   const data = Modal.getOrCreateInstance(target);
   data.toggle(this);
 });
 enableDismissTrigger(Modal);
-
 /**
  * jQuery
  */
@@ -24710,12 +25949,10 @@ defineJQueryPlugin(Modal);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap offcanvas.js
+ * Bootstrap (v5.2.0): offcanvas.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -24750,7 +25987,6 @@ const DefaultType$5 = {
   keyboard: 'boolean',
   scroll: 'boolean'
 };
-
 /**
  * Class definition
  */
@@ -24761,95 +25997,130 @@ class Offcanvas extends BaseComponent {
     this._isShown = false;
     this._backdrop = this._initializeBackDrop();
     this._focustrap = this._initializeFocusTrap();
-    this._addEventListeners();
-  }
 
-  // Getters
+    this._addEventListeners();
+  } // Getters
+
+
   static get Default() {
     return Default$5;
   }
+
   static get DefaultType() {
     return DefaultType$5;
   }
+
   static get NAME() {
     return NAME$6;
-  }
+  } // Public
 
-  // Public
+
   toggle(relatedTarget) {
     return this._isShown ? this.hide() : this.show(relatedTarget);
   }
+
   show(relatedTarget) {
     if (this._isShown) {
       return;
     }
+
     const showEvent = EventHandler.trigger(this._element, EVENT_SHOW$3, {
       relatedTarget
     });
+
     if (showEvent.defaultPrevented) {
       return;
     }
+
     this._isShown = true;
+
     this._backdrop.show();
+
     if (!this._config.scroll) {
       new ScrollBarHelper().hide();
     }
+
     this._element.setAttribute('aria-modal', true);
+
     this._element.setAttribute('role', 'dialog');
+
     this._element.classList.add(CLASS_NAME_SHOWING$1);
+
     const completeCallBack = () => {
       if (!this._config.scroll || this._config.backdrop) {
         this._focustrap.activate();
       }
+
       this._element.classList.add(CLASS_NAME_SHOW$3);
+
       this._element.classList.remove(CLASS_NAME_SHOWING$1);
+
       EventHandler.trigger(this._element, EVENT_SHOWN$3, {
         relatedTarget
       });
     };
+
     this._queueCallback(completeCallBack, this._element, true);
   }
+
   hide() {
     if (!this._isShown) {
       return;
     }
+
     const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE$3);
+
     if (hideEvent.defaultPrevented) {
       return;
     }
+
     this._focustrap.deactivate();
+
     this._element.blur();
+
     this._isShown = false;
+
     this._element.classList.add(CLASS_NAME_HIDING);
+
     this._backdrop.hide();
+
     const completeCallback = () => {
       this._element.classList.remove(CLASS_NAME_SHOW$3, CLASS_NAME_HIDING);
+
       this._element.removeAttribute('aria-modal');
+
       this._element.removeAttribute('role');
+
       if (!this._config.scroll) {
         new ScrollBarHelper().reset();
       }
+
       EventHandler.trigger(this._element, EVENT_HIDDEN$3);
     };
+
     this._queueCallback(completeCallback, this._element, true);
   }
+
   dispose() {
     this._backdrop.dispose();
-    this._focustrap.deactivate();
-    super.dispose();
-  }
 
-  // Private
+    this._focustrap.deactivate();
+
+    super.dispose();
+  } // Private
+
+
   _initializeBackDrop() {
     const clickCallback = () => {
       if (this._config.backdrop === 'static') {
         EventHandler.trigger(this._element, EVENT_HIDE_PREVENTED);
         return;
       }
-      this.hide();
-    };
 
-    // 'static' option will be translated to true, and booleans will keep their value
+      this.hide();
+    }; // 'static' option will be translated to true, and booleans will keep their value
+
+
     const isVisible = Boolean(this._config.backdrop);
     return new Backdrop({
       className: CLASS_NAME_BACKDROP,
@@ -24859,63 +26130,75 @@ class Offcanvas extends BaseComponent {
       clickCallback: isVisible ? clickCallback : null
     });
   }
+
   _initializeFocusTrap() {
     return new FocusTrap({
       trapElement: this._element
     });
   }
+
   _addEventListeners() {
     EventHandler.on(this._element, EVENT_KEYDOWN_DISMISS, event => {
       if (event.key !== ESCAPE_KEY) {
         return;
       }
-      if (this._config.keyboard) {
-        this.hide();
+
+      if (!this._config.keyboard) {
+        EventHandler.trigger(this._element, EVENT_HIDE_PREVENTED);
         return;
       }
-      EventHandler.trigger(this._element, EVENT_HIDE_PREVENTED);
-    });
-  }
 
-  // Static
+      this.hide();
+    });
+  } // Static
+
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Offcanvas.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (data[config] === undefined || config.startsWith('_') || config === 'constructor') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config](this);
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
 
+
 EventHandler.on(document, EVENT_CLICK_DATA_API$1, SELECTOR_DATA_TOGGLE$1, function (event) {
-  const target = SelectorEngine.getElementFromSelector(this);
+  const target = getElementFromSelector(this);
+
   if (['A', 'AREA'].includes(this.tagName)) {
     event.preventDefault();
   }
+
   if (isDisabled(this)) {
     return;
   }
+
   EventHandler.one(target, EVENT_HIDDEN$3, () => {
     // focus on trigger when it is closed
     if (isVisible(this)) {
       this.focus();
     }
-  });
+  }); // avoid conflict when clicking a toggler of an offcanvas, while another is open
 
-  // avoid conflict when clicking a toggler of an offcanvas, while another is open
   const alreadyOpen = SelectorEngine.findOne(OPEN_SELECTOR);
+
   if (alreadyOpen && alreadyOpen !== target) {
     Offcanvas.getInstance(alreadyOpen).hide();
   }
+
   const data = Offcanvas.getOrCreateInstance(target);
   data.toggle(this);
 });
@@ -24932,7 +26215,6 @@ EventHandler.on(window, EVENT_RESIZE, () => {
   }
 });
 enableDismissTrigger(Offcanvas);
-
 /**
  * jQuery
  */
@@ -24941,13 +26223,42 @@ defineJQueryPlugin(Offcanvas);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/sanitizer.js
+ * Bootstrap (v5.2.0): util/sanitizer.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-// js-docs-start allow-list
+const uriAttributes = new Set(['background', 'cite', 'href', 'itemtype', 'longdesc', 'poster', 'src', 'xlink:href']);
 const ARIA_ATTRIBUTE_PATTERN = /^aria-[\w-]*$/i;
+/**
+ * A pattern that recognizes a commonly useful subset of URLs that are safe.
+ *
+ * Shout-out to Angular https://github.com/angular/angular/blob/12.2.x/packages/core/src/sanitization/url_sanitizer.ts
+ */
+
+const SAFE_URL_PATTERN = /^(?:(?:https?|mailto|ftp|tel|file|sms):|[^#&/:?]*(?:[#/?]|$))/i;
+/**
+ * A pattern that matches safe data URLs. Only matches image, video and audio types.
+ *
+ * Shout-out to Angular https://github.com/angular/angular/blob/12.2.x/packages/core/src/sanitization/url_sanitizer.ts
+ */
+
+const DATA_URL_PATTERN = /^data:(?:image\/(?:bmp|gif|jpeg|jpg|png|tiff|webp)|video\/(?:mpeg|mp4|ogg|webm)|audio\/(?:mp3|oga|ogg|opus));base64,[\d+/a-z]+=*$/i;
+
+const allowedAttribute = (attribute, allowedAttributeList) => {
+  const attributeName = attribute.nodeName.toLowerCase();
+
+  if (allowedAttributeList.includes(attributeName)) {
+    if (uriAttributes.has(attributeName)) {
+      return Boolean(SAFE_URL_PATTERN.test(attribute.nodeValue) || DATA_URL_PATTERN.test(attribute.nodeValue));
+    }
+
+    return true;
+  } // Check if a regular expression validates the attribute.
+
+
+  return allowedAttributeList.filter(attributeRegex => attributeRegex instanceof RegExp).some(regex => regex.test(attributeName));
+};
+
 const DefaultAllowlist = {
   // Global attributes allowed on any supplied element below.
   '*': ['class', 'dir', 'id', 'lang', 'role', ARIA_ATTRIBUTE_PATTERN],
@@ -24957,10 +26268,7 @@ const DefaultAllowlist = {
   br: [],
   col: [],
   code: [],
-  dd: [],
   div: [],
-  dl: [],
-  dt: [],
   em: [],
   hr: [],
   h1: [],
@@ -24984,65 +26292,46 @@ const DefaultAllowlist = {
   u: [],
   ul: []
 };
-// js-docs-end allow-list
-
-const uriAttributes = new Set(['background', 'cite', 'href', 'itemtype', 'longdesc', 'poster', 'src', 'xlink:href']);
-
-/**
- * A pattern that recognizes URLs that are safe wrt. XSS in URL navigation
- * contexts.
- *
- * Shout-out to Angular https://github.com/angular/angular/blob/15.2.8/packages/core/src/sanitization/url_sanitizer.ts#L38
- */
-// eslint-disable-next-line unicorn/better-regex
-const SAFE_URL_PATTERN = /^(?!javascript:)(?:[a-z0-9+.-]+:|[^&:/?#]*(?:[/?#]|$))/i;
-const allowedAttribute = (attribute, allowedAttributeList) => {
-  const attributeName = attribute.nodeName.toLowerCase();
-  if (allowedAttributeList.includes(attributeName)) {
-    if (uriAttributes.has(attributeName)) {
-      return Boolean(SAFE_URL_PATTERN.test(attribute.nodeValue));
-    }
-    return true;
-  }
-
-  // Check if a regular expression validates the attribute.
-  return allowedAttributeList.filter(attributeRegex => attributeRegex instanceof RegExp).some(regex => regex.test(attributeName));
-};
 function sanitizeHtml(unsafeHtml, allowList, sanitizeFunction) {
   if (!unsafeHtml.length) {
     return unsafeHtml;
   }
+
   if (sanitizeFunction && typeof sanitizeFunction === 'function') {
     return sanitizeFunction(unsafeHtml);
   }
+
   const domParser = new window.DOMParser();
   const createdDocument = domParser.parseFromString(unsafeHtml, 'text/html');
   const elements = [].concat(...createdDocument.body.querySelectorAll('*'));
+
   for (const element of elements) {
     const elementName = element.nodeName.toLowerCase();
+
     if (!Object.keys(allowList).includes(elementName)) {
       element.remove();
       continue;
     }
+
     const attributeList = [].concat(...element.attributes);
     const allowedAttributes = [].concat(allowList['*'] || [], allowList[elementName] || []);
+
     for (const attribute of attributeList) {
       if (!allowedAttribute(attribute, allowedAttributes)) {
         element.removeAttribute(attribute.nodeName);
       }
     }
   }
+
   return createdDocument.body.innerHTML;
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap util/template-factory.js
+ * Bootstrap (v5.2.0): util/template-factory.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -25071,7 +26360,6 @@ const DefaultContentType = {
   entry: '(string|element|function|null)',
   selector: '(string|element)'
 };
-
 /**
  * Class definition
  */
@@ -25080,53 +26368,65 @@ class TemplateFactory extends Config {
   constructor(config) {
     super();
     this._config = this._getConfig(config);
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$4;
   }
+
   static get DefaultType() {
     return DefaultType$4;
   }
+
   static get NAME() {
     return NAME$5;
-  }
+  } // Public
 
-  // Public
+
   getContent() {
     return Object.values(this._config.content).map(config => this._resolvePossibleFunction(config)).filter(Boolean);
   }
+
   hasContent() {
     return this.getContent().length > 0;
   }
+
   changeContent(content) {
     this._checkContent(content);
-    this._config.content = {
-      ...this._config.content,
+
+    this._config.content = { ...this._config.content,
       ...content
     };
     return this;
   }
+
   toHtml() {
     const templateWrapper = document.createElement('div');
     templateWrapper.innerHTML = this._maybeSanitize(this._config.template);
+
     for (const [selector, text] of Object.entries(this._config.content)) {
       this._setContent(templateWrapper, text, selector);
     }
+
     const template = templateWrapper.children[0];
+
     const extraClass = this._resolvePossibleFunction(this._config.extraClass);
+
     if (extraClass) {
       template.classList.add(...extraClass.split(' '));
     }
-    return template;
-  }
 
-  // Private
+    return template;
+  } // Private
+
+
   _typeCheckConfig(config) {
     super._typeCheckConfig(config);
+
     this._checkContent(config.content);
   }
+
   _checkContent(arg) {
     for (const [selector, content] of Object.entries(arg)) {
       super._typeCheckConfig({
@@ -25135,50 +26435,61 @@ class TemplateFactory extends Config {
       }, DefaultContentType);
     }
   }
+
   _setContent(template, content, selector) {
     const templateElement = SelectorEngine.findOne(selector, template);
+
     if (!templateElement) {
       return;
     }
+
     content = this._resolvePossibleFunction(content);
+
     if (!content) {
       templateElement.remove();
       return;
     }
+
     if (isElement(content)) {
       this._putElementInTemplate(getElement(content), templateElement);
+
       return;
     }
+
     if (this._config.html) {
       templateElement.innerHTML = this._maybeSanitize(content);
       return;
     }
+
     templateElement.textContent = content;
   }
+
   _maybeSanitize(arg) {
     return this._config.sanitize ? sanitizeHtml(arg, this._config.allowList, this._config.sanitizeFn) : arg;
   }
+
   _resolvePossibleFunction(arg) {
-    return execute(arg, [this]);
+    return typeof arg === 'function' ? arg(this) : arg;
   }
+
   _putElementInTemplate(element, templateElement) {
     if (this._config.html) {
       templateElement.innerHTML = '';
       templateElement.append(element);
       return;
     }
+
     templateElement.textContent = element.textContent;
   }
+
 }
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap tooltip.js
+ * Bootstrap (v5.2.0): tooltip.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -25221,7 +26532,7 @@ const Default$3 = {
   delay: 0,
   fallbackPlacements: ['top', 'right', 'bottom', 'left'],
   html: false,
-  offset: [0, 6],
+  offset: [0, 0],
   placement: 'top',
   popperConfig: null,
   sanitize: true,
@@ -25250,7 +26561,6 @@ const DefaultType$3 = {
   title: '(string|element|function)',
   trigger: 'string'
 };
-
 /**
  * Class definition
  */
@@ -25260,240 +26570,316 @@ class Tooltip extends BaseComponent {
     if (typeof _popperjs_core__WEBPACK_IMPORTED_MODULE_0__ === 'undefined') {
       throw new TypeError('Bootstrap\'s tooltips require Popper (https://popper.js.org)');
     }
-    super(element, config);
 
-    // Private
+    super(element, config); // Private
+
     this._isEnabled = true;
     this._timeout = 0;
-    this._isHovered = null;
+    this._isHovered = false;
     this._activeTrigger = {};
     this._popper = null;
     this._templateFactory = null;
-    this._newContent = null;
+    this._newContent = null; // Protected
 
-    // Protected
     this.tip = null;
-    this._setListeners();
-    if (!this._config.selector) {
-      this._fixTitle();
-    }
-  }
 
-  // Getters
+    this._setListeners();
+  } // Getters
+
+
   static get Default() {
     return Default$3;
   }
+
   static get DefaultType() {
     return DefaultType$3;
   }
+
   static get NAME() {
     return NAME$4;
-  }
+  } // Public
 
-  // Public
+
   enable() {
     this._isEnabled = true;
   }
+
   disable() {
     this._isEnabled = false;
   }
+
   toggleEnabled() {
     this._isEnabled = !this._isEnabled;
   }
-  toggle() {
+
+  toggle(event) {
     if (!this._isEnabled) {
       return;
     }
-    this._activeTrigger.click = !this._activeTrigger.click;
-    if (this._isShown()) {
-      this._leave();
+
+    if (event) {
+      const context = this._initializeOnDelegatedTarget(event);
+
+      context._activeTrigger.click = !context._activeTrigger.click;
+
+      if (context._isWithActiveTrigger()) {
+        context._enter();
+      } else {
+        context._leave();
+      }
+
       return;
     }
+
+    if (this._isShown()) {
+      this._leave();
+
+      return;
+    }
+
     this._enter();
   }
+
   dispose() {
     clearTimeout(this._timeout);
     EventHandler.off(this._element.closest(SELECTOR_MODAL), EVENT_MODAL_HIDE, this._hideModalHandler);
-    if (this._element.getAttribute('data-bs-original-title')) {
-      this._element.setAttribute('title', this._element.getAttribute('data-bs-original-title'));
+
+    if (this.tip) {
+      this.tip.remove();
     }
+
     this._disposePopper();
+
     super.dispose();
   }
+
   show() {
     if (this._element.style.display === 'none') {
       throw new Error('Please use show on visible elements');
     }
+
     if (!(this._isWithContent() && this._isEnabled)) {
       return;
     }
+
     const showEvent = EventHandler.trigger(this._element, this.constructor.eventName(EVENT_SHOW$2));
     const shadowRoot = findShadowRoot(this._element);
+
     const isInTheDom = (shadowRoot || this._element.ownerDocument.documentElement).contains(this._element);
+
     if (showEvent.defaultPrevented || !isInTheDom) {
       return;
+    } // todo v6 remove this OR make it optional
+
+
+    if (this.tip) {
+      this.tip.remove();
+      this.tip = null;
     }
 
-    // TODO: v6 remove this or make it optional
-    this._disposePopper();
     const tip = this._getTipElement();
+
     this._element.setAttribute('aria-describedby', tip.getAttribute('id'));
+
     const {
       container
     } = this._config;
+
     if (!this._element.ownerDocument.documentElement.contains(this.tip)) {
       container.append(tip);
       EventHandler.trigger(this._element, this.constructor.eventName(EVENT_INSERTED));
     }
-    this._popper = this._createPopper(tip);
-    tip.classList.add(CLASS_NAME_SHOW$2);
 
-    // If this is a touch-enabled device we add extra
+    if (this._popper) {
+      this._popper.update();
+    } else {
+      this._popper = this._createPopper(tip);
+    }
+
+    tip.classList.add(CLASS_NAME_SHOW$2); // If this is a touch-enabled device we add extra
     // empty mouseover listeners to the body's immediate children;
     // only needed because of broken event delegation on iOS
     // https://www.quirksmode.org/blog/archives/2014/02/mouse_event_bub.html
+
     if ('ontouchstart' in document.documentElement) {
       for (const element of [].concat(...document.body.children)) {
         EventHandler.on(element, 'mouseover', noop);
       }
     }
+
     const complete = () => {
+      const previousHoverState = this._isHovered;
+      this._isHovered = false;
       EventHandler.trigger(this._element, this.constructor.eventName(EVENT_SHOWN$2));
-      if (this._isHovered === false) {
+
+      if (previousHoverState) {
         this._leave();
       }
-      this._isHovered = false;
     };
+
     this._queueCallback(complete, this.tip, this._isAnimated());
   }
+
   hide() {
     if (!this._isShown()) {
       return;
     }
+
     const hideEvent = EventHandler.trigger(this._element, this.constructor.eventName(EVENT_HIDE$2));
+
     if (hideEvent.defaultPrevented) {
       return;
     }
-    const tip = this._getTipElement();
-    tip.classList.remove(CLASS_NAME_SHOW$2);
 
-    // If this is a touch-enabled device we remove the extra
+    const tip = this._getTipElement();
+
+    tip.classList.remove(CLASS_NAME_SHOW$2); // If this is a touch-enabled device we remove the extra
     // empty mouseover listeners we added for iOS support
+
     if ('ontouchstart' in document.documentElement) {
       for (const element of [].concat(...document.body.children)) {
         EventHandler.off(element, 'mouseover', noop);
       }
     }
+
     this._activeTrigger[TRIGGER_CLICK] = false;
     this._activeTrigger[TRIGGER_FOCUS] = false;
     this._activeTrigger[TRIGGER_HOVER] = false;
-    this._isHovered = null; // it is a trick to support manual triggering
+    this._isHovered = false;
 
     const complete = () => {
       if (this._isWithActiveTrigger()) {
         return;
       }
+
       if (!this._isHovered) {
-        this._disposePopper();
+        tip.remove();
       }
+
       this._element.removeAttribute('aria-describedby');
+
       EventHandler.trigger(this._element, this.constructor.eventName(EVENT_HIDDEN$2));
+
+      this._disposePopper();
     };
+
     this._queueCallback(complete, this.tip, this._isAnimated());
   }
+
   update() {
     if (this._popper) {
       this._popper.update();
     }
-  }
+  } // Protected
 
-  // Protected
+
   _isWithContent() {
     return Boolean(this._getTitle());
   }
+
   _getTipElement() {
     if (!this.tip) {
       this.tip = this._createTipElement(this._newContent || this._getContentForTemplate());
     }
+
     return this.tip;
   }
-  _createTipElement(content) {
-    const tip = this._getTemplateFactory(content).toHtml();
 
-    // TODO: remove this check in v6
+  _createTipElement(content) {
+    const tip = this._getTemplateFactory(content).toHtml(); // todo: remove this check on v6
+
+
     if (!tip) {
       return null;
     }
-    tip.classList.remove(CLASS_NAME_FADE$2, CLASS_NAME_SHOW$2);
-    // TODO: v6 the following can be achieved with CSS only
+
+    tip.classList.remove(CLASS_NAME_FADE$2, CLASS_NAME_SHOW$2); // todo: on v6 the following can be achieved with CSS only
+
     tip.classList.add(`bs-${this.constructor.NAME}-auto`);
     const tipId = getUID(this.constructor.NAME).toString();
     tip.setAttribute('id', tipId);
+
     if (this._isAnimated()) {
       tip.classList.add(CLASS_NAME_FADE$2);
     }
+
     return tip;
   }
+
   setContent(content) {
     this._newContent = content;
+
     if (this._isShown()) {
       this._disposePopper();
+
       this.show();
     }
   }
+
   _getTemplateFactory(content) {
     if (this._templateFactory) {
       this._templateFactory.changeContent(content);
     } else {
-      this._templateFactory = new TemplateFactory({
-        ...this._config,
+      this._templateFactory = new TemplateFactory({ ...this._config,
         // the `content` var has to be after `this._config`
         // to override config.content in case of popover
         content,
         extraClass: this._resolvePossibleFunction(this._config.customClass)
       });
     }
+
     return this._templateFactory;
   }
+
   _getContentForTemplate() {
     return {
       [SELECTOR_TOOLTIP_INNER]: this._getTitle()
     };
   }
-  _getTitle() {
-    return this._resolvePossibleFunction(this._config.title) || this._element.getAttribute('data-bs-original-title');
-  }
 
-  // Private
+  _getTitle() {
+    return this._resolvePossibleFunction(this._config.title) || this._config.originalTitle;
+  } // Private
+
+
   _initializeOnDelegatedTarget(event) {
     return this.constructor.getOrCreateInstance(event.delegateTarget, this._getDelegateConfig());
   }
+
   _isAnimated() {
     return this._config.animation || this.tip && this.tip.classList.contains(CLASS_NAME_FADE$2);
   }
+
   _isShown() {
     return this.tip && this.tip.classList.contains(CLASS_NAME_SHOW$2);
   }
+
   _createPopper(tip) {
-    const placement = execute(this._config.placement, [this, tip, this._element]);
+    const placement = typeof this._config.placement === 'function' ? this._config.placement.call(this, tip, this._element) : this._config.placement;
     const attachment = AttachmentMap[placement.toUpperCase()];
     return _popperjs_core__WEBPACK_IMPORTED_MODULE_1__.createPopper(this._element, tip, this._getPopperConfig(attachment));
   }
+
   _getOffset() {
     const {
       offset
     } = this._config;
+
     if (typeof offset === 'string') {
       return offset.split(',').map(value => Number.parseInt(value, 10));
     }
+
     if (typeof offset === 'function') {
       return popperData => offset(popperData, this._element);
     }
+
     return offset;
   }
+
   _resolvePossibleFunction(arg) {
-    return execute(arg, [this._element]);
+    return typeof arg === 'function' ? arg.call(this._element) : arg;
   }
+
   _getPopperConfig(attachment) {
     const defaultBsPopperConfig = {
       placement: attachment,
@@ -25528,169 +26914,204 @@ class Tooltip extends BaseComponent {
         }
       }]
     };
-    return {
-      ...defaultBsPopperConfig,
-      ...execute(this._config.popperConfig, [defaultBsPopperConfig])
+    return { ...defaultBsPopperConfig,
+      ...(typeof this._config.popperConfig === 'function' ? this._config.popperConfig(defaultBsPopperConfig) : this._config.popperConfig)
     };
   }
+
   _setListeners() {
     const triggers = this._config.trigger.split(' ');
+
     for (const trigger of triggers) {
       if (trigger === 'click') {
-        EventHandler.on(this._element, this.constructor.eventName(EVENT_CLICK$1), this._config.selector, event => {
-          const context = this._initializeOnDelegatedTarget(event);
-          context.toggle();
-        });
+        EventHandler.on(this._element, this.constructor.eventName(EVENT_CLICK$1), this._config.selector, event => this.toggle(event));
       } else if (trigger !== TRIGGER_MANUAL) {
         const eventIn = trigger === TRIGGER_HOVER ? this.constructor.eventName(EVENT_MOUSEENTER) : this.constructor.eventName(EVENT_FOCUSIN$1);
         const eventOut = trigger === TRIGGER_HOVER ? this.constructor.eventName(EVENT_MOUSELEAVE) : this.constructor.eventName(EVENT_FOCUSOUT$1);
         EventHandler.on(this._element, eventIn, this._config.selector, event => {
           const context = this._initializeOnDelegatedTarget(event);
+
           context._activeTrigger[event.type === 'focusin' ? TRIGGER_FOCUS : TRIGGER_HOVER] = true;
+
           context._enter();
         });
         EventHandler.on(this._element, eventOut, this._config.selector, event => {
           const context = this._initializeOnDelegatedTarget(event);
+
           context._activeTrigger[event.type === 'focusout' ? TRIGGER_FOCUS : TRIGGER_HOVER] = context._element.contains(event.relatedTarget);
+
           context._leave();
         });
       }
     }
+
     this._hideModalHandler = () => {
       if (this._element) {
         this.hide();
       }
     };
+
     EventHandler.on(this._element.closest(SELECTOR_MODAL), EVENT_MODAL_HIDE, this._hideModalHandler);
+
+    if (this._config.selector) {
+      this._config = { ...this._config,
+        trigger: 'manual',
+        selector: ''
+      };
+    } else {
+      this._fixTitle();
+    }
   }
+
   _fixTitle() {
-    const title = this._element.getAttribute('title');
+    const title = this._config.originalTitle;
+
     if (!title) {
       return;
     }
+
     if (!this._element.getAttribute('aria-label') && !this._element.textContent.trim()) {
       this._element.setAttribute('aria-label', title);
     }
-    this._element.setAttribute('data-bs-original-title', title); // DO NOT USE IT. Is only for backwards compatibility
+
     this._element.removeAttribute('title');
   }
+
   _enter() {
     if (this._isShown() || this._isHovered) {
       this._isHovered = true;
       return;
     }
+
     this._isHovered = true;
+
     this._setTimeout(() => {
       if (this._isHovered) {
         this.show();
       }
     }, this._config.delay.show);
   }
+
   _leave() {
     if (this._isWithActiveTrigger()) {
       return;
     }
+
     this._isHovered = false;
+
     this._setTimeout(() => {
       if (!this._isHovered) {
         this.hide();
       }
     }, this._config.delay.hide);
   }
+
   _setTimeout(handler, timeout) {
     clearTimeout(this._timeout);
     this._timeout = setTimeout(handler, timeout);
   }
+
   _isWithActiveTrigger() {
     return Object.values(this._activeTrigger).includes(true);
   }
+
   _getConfig(config) {
     const dataAttributes = Manipulator.getDataAttributes(this._element);
+
     for (const dataAttribute of Object.keys(dataAttributes)) {
       if (DISALLOWED_ATTRIBUTES.has(dataAttribute)) {
         delete dataAttributes[dataAttribute];
       }
     }
-    config = {
-      ...dataAttributes,
+
+    config = { ...dataAttributes,
       ...(typeof config === 'object' && config ? config : {})
     };
     config = this._mergeConfigObj(config);
     config = this._configAfterMerge(config);
+
     this._typeCheckConfig(config);
+
     return config;
   }
+
   _configAfterMerge(config) {
     config.container = config.container === false ? document.body : getElement(config.container);
+
     if (typeof config.delay === 'number') {
       config.delay = {
         show: config.delay,
         hide: config.delay
       };
     }
+
+    config.originalTitle = this._element.getAttribute('title') || '';
+
     if (typeof config.title === 'number') {
       config.title = config.title.toString();
     }
+
     if (typeof config.content === 'number') {
       config.content = config.content.toString();
     }
+
     return config;
   }
+
   _getDelegateConfig() {
     const config = {};
-    for (const [key, value] of Object.entries(this._config)) {
-      if (this.constructor.Default[key] !== value) {
-        config[key] = value;
-      }
-    }
-    config.selector = false;
-    config.trigger = 'manual';
 
-    // In the future can be replaced with:
+    for (const key in this._config) {
+      if (this.constructor.Default[key] !== this._config[key]) {
+        config[key] = this._config[key];
+      }
+    } // In the future can be replaced with:
     // const keysWithDifferentValues = Object.entries(this._config).filter(entry => this.constructor.Default[entry[0]] !== this._config[entry[0]])
     // `Object.fromEntries(keysWithDifferentValues)`
+
+
     return config;
   }
+
   _disposePopper() {
     if (this._popper) {
       this._popper.destroy();
+
       this._popper = null;
     }
-    if (this.tip) {
-      this.tip.remove();
-      this.tip = null;
-    }
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Tooltip.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (typeof data[config] === 'undefined') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config]();
     });
   }
-}
 
+}
 /**
  * jQuery
  */
+
 
 defineJQueryPlugin(Tooltip);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap popover.js
+ * Bootstrap (v5.2.0): popover.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -25698,19 +27119,16 @@ defineJQueryPlugin(Tooltip);
 const NAME$3 = 'popover';
 const SELECTOR_TITLE = '.popover-header';
 const SELECTOR_CONTENT = '.popover-body';
-const Default$2 = {
-  ...Tooltip.Default,
+const Default$2 = { ...Tooltip.Default,
   content: '',
   offset: [0, 8],
   placement: 'right',
   template: '<div class="popover" role="tooltip">' + '<div class="popover-arrow"></div>' + '<h3 class="popover-header"></h3>' + '<div class="popover-body"></div>' + '</div>',
   trigger: 'click'
 };
-const DefaultType$2 = {
-  ...Tooltip.DefaultType,
+const DefaultType$2 = { ...Tooltip.DefaultType,
   content: '(null|string|element|function)'
 };
-
 /**
  * Class definition
  */
@@ -25720,58 +27138,63 @@ class Popover extends Tooltip {
   static get Default() {
     return Default$2;
   }
+
   static get DefaultType() {
     return DefaultType$2;
   }
+
   static get NAME() {
     return NAME$3;
-  }
+  } // Overrides
 
-  // Overrides
+
   _isWithContent() {
     return this._getTitle() || this._getContent();
-  }
+  } // Private
 
-  // Private
+
   _getContentForTemplate() {
     return {
       [SELECTOR_TITLE]: this._getTitle(),
       [SELECTOR_CONTENT]: this._getContent()
     };
   }
+
   _getContent() {
     return this._resolvePossibleFunction(this._config.content);
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Popover.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (typeof data[config] === 'undefined') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config]();
     });
   }
-}
 
+}
 /**
  * jQuery
  */
+
 
 defineJQueryPlugin(Popover);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap scrollspy.js
+ * Bootstrap (v5.2.0): scrollspy.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -25799,27 +27222,23 @@ const Default$1 = {
   // TODO: v6 @deprecated, keep it for backwards compatibility reasons
   rootMargin: '0px 0px -25%',
   smoothScroll: false,
-  target: null,
-  threshold: [0.1, 0.5, 1]
+  target: null
 };
 const DefaultType$1 = {
   offset: '(number|null)',
   // TODO v6 @deprecated, keep it for backwards compatibility reasons
   rootMargin: 'string',
   smoothScroll: 'boolean',
-  target: 'element',
-  threshold: 'array'
+  target: 'element'
 };
-
 /**
  * Class definition
  */
 
 class ScrollSpy extends BaseComponent {
   constructor(element, config) {
-    super(element, config);
+    super(element, config); // this._element is the observablesContainer and config.target the menu links wrapper
 
-    // this._element is the observablesContainer and config.target the menu links wrapper
     this._targetLinks = new Map();
     this._observableSections = new Map();
     this._rootElement = getComputedStyle(this._element).overflowY === 'visible' ? null : this._element;
@@ -25830,153 +27249,181 @@ class ScrollSpy extends BaseComponent {
       parentScrollTop: 0
     };
     this.refresh(); // initialize
-  }
+  } // Getters
 
-  // Getters
+
   static get Default() {
     return Default$1;
   }
+
   static get DefaultType() {
     return DefaultType$1;
   }
+
   static get NAME() {
     return NAME$2;
-  }
+  } // Public
 
-  // Public
+
   refresh() {
     this._initializeTargetsAndObservables();
+
     this._maybeEnableSmoothScroll();
+
     if (this._observer) {
       this._observer.disconnect();
     } else {
       this._observer = this._getNewObserver();
     }
+
     for (const section of this._observableSections.values()) {
       this._observer.observe(section);
     }
   }
+
   dispose() {
     this._observer.disconnect();
-    super.dispose();
-  }
 
-  // Private
+    super.dispose();
+  } // Private
+
+
   _configAfterMerge(config) {
     // TODO: on v6 target should be given explicitly & remove the {target: 'ss-target'} case
     config.target = getElement(config.target) || document.body;
-
-    // TODO: v6 Only for backwards compatibility reasons. Use rootMargin only
-    config.rootMargin = config.offset ? `${config.offset}px 0px -30%` : config.rootMargin;
-    if (typeof config.threshold === 'string') {
-      config.threshold = config.threshold.split(',').map(value => Number.parseFloat(value));
-    }
     return config;
   }
+
   _maybeEnableSmoothScroll() {
     if (!this._config.smoothScroll) {
       return;
-    }
+    } // unregister any previous listeners
 
-    // unregister any previous listeners
+
     EventHandler.off(this._config.target, EVENT_CLICK);
     EventHandler.on(this._config.target, EVENT_CLICK, SELECTOR_TARGET_LINKS, event => {
       const observableSection = this._observableSections.get(event.target.hash);
+
       if (observableSection) {
         event.preventDefault();
         const root = this._rootElement || window;
         const height = observableSection.offsetTop - this._element.offsetTop;
+
         if (root.scrollTo) {
           root.scrollTo({
             top: height,
             behavior: 'smooth'
           });
           return;
-        }
+        } // Chrome 60 doesn't support `scrollTo`
 
-        // Chrome 60 doesn't support `scrollTo`
+
         root.scrollTop = height;
       }
     });
   }
+
   _getNewObserver() {
     const options = {
       root: this._rootElement,
-      threshold: this._config.threshold,
-      rootMargin: this._config.rootMargin
+      threshold: [0.1, 0.5, 1],
+      rootMargin: this._getRootMargin()
     };
     return new IntersectionObserver(entries => this._observerCallback(entries), options);
-  }
+  } // The logic of selection
 
-  // The logic of selection
+
   _observerCallback(entries) {
     const targetElement = entry => this._targetLinks.get(`#${entry.target.id}`);
+
     const activate = entry => {
       this._previousScrollData.visibleEntryTop = entry.target.offsetTop;
+
       this._process(targetElement(entry));
     };
+
     const parentScrollTop = (this._rootElement || document.documentElement).scrollTop;
     const userScrollsDown = parentScrollTop >= this._previousScrollData.parentScrollTop;
     this._previousScrollData.parentScrollTop = parentScrollTop;
+
     for (const entry of entries) {
       if (!entry.isIntersecting) {
         this._activeTarget = null;
+
         this._clearActiveClass(targetElement(entry));
-        continue;
-      }
-      const entryIsLowerThanPrevious = entry.target.offsetTop >= this._previousScrollData.visibleEntryTop;
-      // if we are scrolling down, pick the bigger offsetTop
-      if (userScrollsDown && entryIsLowerThanPrevious) {
-        activate(entry);
-        // if parent isn't scrolled, let's keep the first visible item, breaking the iteration
-        if (!parentScrollTop) {
-          return;
-        }
+
         continue;
       }
 
-      // if we are scrolling up, pick the smallest offsetTop
+      const entryIsLowerThanPrevious = entry.target.offsetTop >= this._previousScrollData.visibleEntryTop; // if we are scrolling down, pick the bigger offsetTop
+
+      if (userScrollsDown && entryIsLowerThanPrevious) {
+        activate(entry); // if parent isn't scrolled, let's keep the first visible item, breaking the iteration
+
+        if (!parentScrollTop) {
+          return;
+        }
+
+        continue;
+      } // if we are scrolling up, pick the smallest offsetTop
+
+
       if (!userScrollsDown && !entryIsLowerThanPrevious) {
         activate(entry);
       }
     }
+  } // TODO: v6 Only for backwards compatibility reasons. Use rootMargin only
+
+
+  _getRootMargin() {
+    return this._config.offset ? `${this._config.offset}px 0px -30%` : this._config.rootMargin;
   }
+
   _initializeTargetsAndObservables() {
     this._targetLinks = new Map();
     this._observableSections = new Map();
     const targetLinks = SelectorEngine.find(SELECTOR_TARGET_LINKS, this._config.target);
+
     for (const anchor of targetLinks) {
       // ensure that the anchor has an id and is not disabled
       if (!anchor.hash || isDisabled(anchor)) {
         continue;
       }
-      const observableSection = SelectorEngine.findOne(decodeURI(anchor.hash), this._element);
 
-      // ensure that the observableSection exists & is visible
+      const observableSection = SelectorEngine.findOne(anchor.hash, this._element); // ensure that the observableSection exists & is visible
+
       if (isVisible(observableSection)) {
-        this._targetLinks.set(decodeURI(anchor.hash), anchor);
+        this._targetLinks.set(anchor.hash, anchor);
+
         this._observableSections.set(anchor.hash, observableSection);
       }
     }
   }
+
   _process(target) {
     if (this._activeTarget === target) {
       return;
     }
+
     this._clearActiveClass(this._config.target);
+
     this._activeTarget = target;
     target.classList.add(CLASS_NAME_ACTIVE$1);
+
     this._activateParents(target);
+
     EventHandler.trigger(this._element, EVENT_ACTIVATE, {
       relatedTarget: target
     });
   }
+
   _activateParents(target) {
     // Activate dropdown parents
     if (target.classList.contains(CLASS_NAME_DROPDOWN_ITEM)) {
       SelectorEngine.findOne(SELECTOR_DROPDOWN_TOGGLE$1, target.closest(SELECTOR_DROPDOWN)).classList.add(CLASS_NAME_ACTIVE$1);
       return;
     }
+
     for (const listGroup of SelectorEngine.parents(target, SELECTOR_NAV_LIST_GROUP)) {
       // Set triggered links parents as active
       // With both <ul> and <nav> markup a parent is the previous sibling of any nav ancestor
@@ -25985,39 +27432,44 @@ class ScrollSpy extends BaseComponent {
       }
     }
   }
+
   _clearActiveClass(parent) {
     parent.classList.remove(CLASS_NAME_ACTIVE$1);
     const activeNodes = SelectorEngine.find(`${SELECTOR_TARGET_LINKS}.${CLASS_NAME_ACTIVE$1}`, parent);
+
     for (const node of activeNodes) {
       node.classList.remove(CLASS_NAME_ACTIVE$1);
     }
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = ScrollSpy.getOrCreateInstance(this, config);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (data[config] === undefined || config.startsWith('_') || config === 'constructor') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config]();
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
+
 
 EventHandler.on(window, EVENT_LOAD_DATA_API$1, () => {
   for (const spy of SelectorEngine.find(SELECTOR_DATA_SPY)) {
     ScrollSpy.getOrCreateInstance(spy);
   }
 });
-
 /**
  * jQuery
  */
@@ -26026,12 +27478,10 @@ defineJQueryPlugin(ScrollSpy);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap tab.js
+ * Bootstrap (v5.2.0): tab.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -26050,22 +27500,21 @@ const ARROW_LEFT_KEY = 'ArrowLeft';
 const ARROW_RIGHT_KEY = 'ArrowRight';
 const ARROW_UP_KEY = 'ArrowUp';
 const ARROW_DOWN_KEY = 'ArrowDown';
-const HOME_KEY = 'Home';
-const END_KEY = 'End';
 const CLASS_NAME_ACTIVE = 'active';
 const CLASS_NAME_FADE$1 = 'fade';
 const CLASS_NAME_SHOW$1 = 'show';
 const CLASS_DROPDOWN = 'dropdown';
 const SELECTOR_DROPDOWN_TOGGLE = '.dropdown-toggle';
 const SELECTOR_DROPDOWN_MENU = '.dropdown-menu';
-const NOT_SELECTOR_DROPDOWN_TOGGLE = `:not(${SELECTOR_DROPDOWN_TOGGLE})`;
+const SELECTOR_DROPDOWN_ITEM = '.dropdown-item';
+const NOT_SELECTOR_DROPDOWN_TOGGLE = ':not(.dropdown-toggle)';
 const SELECTOR_TAB_PANEL = '.list-group, .nav, [role="tablist"]';
 const SELECTOR_OUTER = '.nav-item, .list-group-item';
 const SELECTOR_INNER = `.nav-link${NOT_SELECTOR_DROPDOWN_TOGGLE}, .list-group-item${NOT_SELECTOR_DROPDOWN_TOGGLE}, [role="tab"]${NOT_SELECTOR_DROPDOWN_TOGGLE}`;
-const SELECTOR_DATA_TOGGLE = '[data-bs-toggle="tab"], [data-bs-toggle="pill"], [data-bs-toggle="list"]'; // TODO: could only be `tab` in v6
+const SELECTOR_DATA_TOGGLE = '[data-bs-toggle="tab"], [data-bs-toggle="pill"], [data-bs-toggle="list"]'; // todo:v6: could be only `tab`
+
 const SELECTOR_INNER_ELEM = `${SELECTOR_INNER}, ${SELECTOR_DATA_TOGGLE}`;
 const SELECTOR_DATA_TOGGLE_ACTIVE = `.${CLASS_NAME_ACTIVE}[data-bs-toggle="tab"], .${CLASS_NAME_ACTIVE}[data-bs-toggle="pill"], .${CLASS_NAME_ACTIVE}[data-bs-toggle="list"]`;
-
 /**
  * Class definition
  */
@@ -26074,215 +27523,261 @@ class Tab extends BaseComponent {
   constructor(element) {
     super(element);
     this._parent = this._element.closest(SELECTOR_TAB_PANEL);
+
     if (!this._parent) {
-      return;
-      // TODO: should throw exception in v6
+      return; // todo: should Throw exception on v6
       // throw new TypeError(`${element.outerHTML} has not a valid parent ${SELECTOR_INNER_ELEM}`)
-    }
+    } // Set up initial aria attributes
 
-    // Set up initial aria attributes
+
     this._setInitialAttributes(this._parent, this._getChildren());
-    EventHandler.on(this._element, EVENT_KEYDOWN, event => this._keydown(event));
-  }
 
-  // Getters
+    EventHandler.on(this._element, EVENT_KEYDOWN, event => this._keydown(event));
+  } // Getters
+
+
   static get NAME() {
     return NAME$1;
-  }
+  } // Public
 
-  // Public
+
   show() {
     // Shows this elem and deactivate the active sibling if exists
     const innerElem = this._element;
+
     if (this._elemIsActive(innerElem)) {
       return;
-    }
+    } // Search for active tab on same parent to deactivate it
 
-    // Search for active tab on same parent to deactivate it
+
     const active = this._getActiveElem();
+
     const hideEvent = active ? EventHandler.trigger(active, EVENT_HIDE$1, {
       relatedTarget: innerElem
     }) : null;
     const showEvent = EventHandler.trigger(innerElem, EVENT_SHOW$1, {
       relatedTarget: active
     });
+
     if (showEvent.defaultPrevented || hideEvent && hideEvent.defaultPrevented) {
       return;
     }
-    this._deactivate(active, innerElem);
-    this._activate(innerElem, active);
-  }
 
-  // Private
+    this._deactivate(active, innerElem);
+
+    this._activate(innerElem, active);
+  } // Private
+
+
   _activate(element, relatedElem) {
     if (!element) {
       return;
     }
+
     element.classList.add(CLASS_NAME_ACTIVE);
-    this._activate(SelectorEngine.getElementFromSelector(element)); // Search and activate/show the proper section
+
+    this._activate(getElementFromSelector(element)); // Search and activate/show the proper section
+
 
     const complete = () => {
       if (element.getAttribute('role') !== 'tab') {
         element.classList.add(CLASS_NAME_SHOW$1);
         return;
       }
+
+      element.focus();
       element.removeAttribute('tabindex');
       element.setAttribute('aria-selected', true);
+
       this._toggleDropDown(element, true);
+
       EventHandler.trigger(element, EVENT_SHOWN$1, {
         relatedTarget: relatedElem
       });
     };
+
     this._queueCallback(complete, element, element.classList.contains(CLASS_NAME_FADE$1));
   }
+
   _deactivate(element, relatedElem) {
     if (!element) {
       return;
     }
+
     element.classList.remove(CLASS_NAME_ACTIVE);
     element.blur();
-    this._deactivate(SelectorEngine.getElementFromSelector(element)); // Search and deactivate the shown section too
+
+    this._deactivate(getElementFromSelector(element)); // Search and deactivate the shown section too
+
 
     const complete = () => {
       if (element.getAttribute('role') !== 'tab') {
         element.classList.remove(CLASS_NAME_SHOW$1);
         return;
       }
+
       element.setAttribute('aria-selected', false);
       element.setAttribute('tabindex', '-1');
+
       this._toggleDropDown(element, false);
+
       EventHandler.trigger(element, EVENT_HIDDEN$1, {
         relatedTarget: relatedElem
       });
     };
+
     this._queueCallback(complete, element, element.classList.contains(CLASS_NAME_FADE$1));
   }
+
   _keydown(event) {
-    if (![ARROW_LEFT_KEY, ARROW_RIGHT_KEY, ARROW_UP_KEY, ARROW_DOWN_KEY, HOME_KEY, END_KEY].includes(event.key)) {
+    if (![ARROW_LEFT_KEY, ARROW_RIGHT_KEY, ARROW_UP_KEY, ARROW_DOWN_KEY].includes(event.key)) {
       return;
     }
+
     event.stopPropagation(); // stopPropagation/preventDefault both added to support up/down keys without scrolling the page
+
     event.preventDefault();
-    const children = this._getChildren().filter(element => !isDisabled(element));
-    let nextActiveElement;
-    if ([HOME_KEY, END_KEY].includes(event.key)) {
-      nextActiveElement = children[event.key === HOME_KEY ? 0 : children.length - 1];
-    } else {
-      const isNext = [ARROW_RIGHT_KEY, ARROW_DOWN_KEY].includes(event.key);
-      nextActiveElement = getNextActiveElement(children, event.target, isNext, true);
-    }
+    const isNext = [ARROW_RIGHT_KEY, ARROW_DOWN_KEY].includes(event.key);
+    const nextActiveElement = getNextActiveElement(this._getChildren().filter(element => !isDisabled(element)), event.target, isNext, true);
+
     if (nextActiveElement) {
-      nextActiveElement.focus({
-        preventScroll: true
-      });
       Tab.getOrCreateInstance(nextActiveElement).show();
     }
   }
+
   _getChildren() {
     // collection of inner elements
     return SelectorEngine.find(SELECTOR_INNER_ELEM, this._parent);
   }
+
   _getActiveElem() {
     return this._getChildren().find(child => this._elemIsActive(child)) || null;
   }
+
   _setInitialAttributes(parent, children) {
     this._setAttributeIfNotExists(parent, 'role', 'tablist');
+
     for (const child of children) {
       this._setInitialAttributesOnChild(child);
     }
   }
+
   _setInitialAttributesOnChild(child) {
     child = this._getInnerElement(child);
+
     const isActive = this._elemIsActive(child);
+
     const outerElem = this._getOuterElement(child);
+
     child.setAttribute('aria-selected', isActive);
+
     if (outerElem !== child) {
       this._setAttributeIfNotExists(outerElem, 'role', 'presentation');
     }
+
     if (!isActive) {
       child.setAttribute('tabindex', '-1');
     }
-    this._setAttributeIfNotExists(child, 'role', 'tab');
 
-    // set attributes to the related panel too
+    this._setAttributeIfNotExists(child, 'role', 'tab'); // set attributes to the related panel too
+
+
     this._setInitialAttributesOnTargetPanel(child);
   }
+
   _setInitialAttributesOnTargetPanel(child) {
-    const target = SelectorEngine.getElementFromSelector(child);
+    const target = getElementFromSelector(child);
+
     if (!target) {
       return;
     }
+
     this._setAttributeIfNotExists(target, 'role', 'tabpanel');
+
     if (child.id) {
-      this._setAttributeIfNotExists(target, 'aria-labelledby', `${child.id}`);
+      this._setAttributeIfNotExists(target, 'aria-labelledby', `#${child.id}`);
     }
   }
+
   _toggleDropDown(element, open) {
     const outerElem = this._getOuterElement(element);
+
     if (!outerElem.classList.contains(CLASS_DROPDOWN)) {
       return;
     }
+
     const toggle = (selector, className) => {
       const element = SelectorEngine.findOne(selector, outerElem);
+
       if (element) {
         element.classList.toggle(className, open);
       }
     };
+
     toggle(SELECTOR_DROPDOWN_TOGGLE, CLASS_NAME_ACTIVE);
     toggle(SELECTOR_DROPDOWN_MENU, CLASS_NAME_SHOW$1);
+    toggle(SELECTOR_DROPDOWN_ITEM, CLASS_NAME_ACTIVE);
     outerElem.setAttribute('aria-expanded', open);
   }
+
   _setAttributeIfNotExists(element, attribute, value) {
     if (!element.hasAttribute(attribute)) {
       element.setAttribute(attribute, value);
     }
   }
+
   _elemIsActive(elem) {
     return elem.classList.contains(CLASS_NAME_ACTIVE);
-  }
+  } // Try to get the inner element (usually the .nav-link)
 
-  // Try to get the inner element (usually the .nav-link)
+
   _getInnerElement(elem) {
     return elem.matches(SELECTOR_INNER_ELEM) ? elem : SelectorEngine.findOne(SELECTOR_INNER_ELEM, elem);
-  }
+  } // Try to get the outer element (usually the .nav-item)
 
-  // Try to get the outer element (usually the .nav-item)
+
   _getOuterElement(elem) {
     return elem.closest(SELECTOR_OUTER) || elem;
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Tab.getOrCreateInstance(this);
+
       if (typeof config !== 'string') {
         return;
       }
+
       if (data[config] === undefined || config.startsWith('_') || config === 'constructor') {
         throw new TypeError(`No method named "${config}"`);
       }
+
       data[config]();
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
+
 
 EventHandler.on(document, EVENT_CLICK_DATA_API, SELECTOR_DATA_TOGGLE, function (event) {
   if (['A', 'AREA'].includes(this.tagName)) {
     event.preventDefault();
   }
+
   if (isDisabled(this)) {
     return;
   }
+
   Tab.getOrCreateInstance(this).show();
 });
-
 /**
  * Initialize on focus
  */
+
 EventHandler.on(window, EVENT_LOAD_DATA_API, () => {
   for (const element of SelectorEngine.find(SELECTOR_DATA_TOGGLE_ACTIVE)) {
     Tab.getOrCreateInstance(element);
@@ -26296,12 +27791,10 @@ defineJQueryPlugin(Tab);
 
 /**
  * --------------------------------------------------------------------------
- * Bootstrap toast.js
+ * Bootstrap (v5.2.0): toast.js
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
  * --------------------------------------------------------------------------
  */
-
-
 /**
  * Constants
  */
@@ -26319,6 +27812,7 @@ const EVENT_SHOW = `show${EVENT_KEY}`;
 const EVENT_SHOWN = `shown${EVENT_KEY}`;
 const CLASS_NAME_FADE = 'fade';
 const CLASS_NAME_HIDE = 'hide'; // @deprecated - kept here only for backwards compatibility
+
 const CLASS_NAME_SHOW = 'show';
 const CLASS_NAME_SHOWING = 'showing';
 const DefaultType = {
@@ -26331,7 +27825,6 @@ const Default = {
   autohide: true,
   delay: 5000
 };
-
 /**
  * Class definition
  */
@@ -26342,136 +27835,171 @@ class Toast extends BaseComponent {
     this._timeout = null;
     this._hasMouseInteraction = false;
     this._hasKeyboardInteraction = false;
-    this._setListeners();
-  }
 
-  // Getters
+    this._setListeners();
+  } // Getters
+
+
   static get Default() {
     return Default;
   }
+
   static get DefaultType() {
     return DefaultType;
   }
+
   static get NAME() {
     return NAME;
-  }
+  } // Public
 
-  // Public
+
   show() {
     const showEvent = EventHandler.trigger(this._element, EVENT_SHOW);
+
     if (showEvent.defaultPrevented) {
       return;
     }
+
     this._clearTimeout();
+
     if (this._config.animation) {
       this._element.classList.add(CLASS_NAME_FADE);
     }
+
     const complete = () => {
       this._element.classList.remove(CLASS_NAME_SHOWING);
+
       EventHandler.trigger(this._element, EVENT_SHOWN);
+
       this._maybeScheduleHide();
     };
+
     this._element.classList.remove(CLASS_NAME_HIDE); // @deprecated
+
+
     reflow(this._element);
+
     this._element.classList.add(CLASS_NAME_SHOW, CLASS_NAME_SHOWING);
+
     this._queueCallback(complete, this._element, this._config.animation);
   }
+
   hide() {
     if (!this.isShown()) {
       return;
     }
+
     const hideEvent = EventHandler.trigger(this._element, EVENT_HIDE);
+
     if (hideEvent.defaultPrevented) {
       return;
     }
+
     const complete = () => {
       this._element.classList.add(CLASS_NAME_HIDE); // @deprecated
+
+
       this._element.classList.remove(CLASS_NAME_SHOWING, CLASS_NAME_SHOW);
+
       EventHandler.trigger(this._element, EVENT_HIDDEN);
     };
+
     this._element.classList.add(CLASS_NAME_SHOWING);
+
     this._queueCallback(complete, this._element, this._config.animation);
   }
+
   dispose() {
     this._clearTimeout();
+
     if (this.isShown()) {
       this._element.classList.remove(CLASS_NAME_SHOW);
     }
+
     super.dispose();
   }
+
   isShown() {
     return this._element.classList.contains(CLASS_NAME_SHOW);
-  }
+  } // Private
 
-  // Private
 
   _maybeScheduleHide() {
     if (!this._config.autohide) {
       return;
     }
+
     if (this._hasMouseInteraction || this._hasKeyboardInteraction) {
       return;
     }
+
     this._timeout = setTimeout(() => {
       this.hide();
     }, this._config.delay);
   }
+
   _onInteraction(event, isInteracting) {
     switch (event.type) {
       case 'mouseover':
       case 'mouseout':
-        {
-          this._hasMouseInteraction = isInteracting;
-          break;
-        }
+        this._hasMouseInteraction = isInteracting;
+        break;
+
       case 'focusin':
       case 'focusout':
-        {
-          this._hasKeyboardInteraction = isInteracting;
-          break;
-        }
+        this._hasKeyboardInteraction = isInteracting;
+        break;
     }
+
     if (isInteracting) {
       this._clearTimeout();
+
       return;
     }
+
     const nextElement = event.relatedTarget;
+
     if (this._element === nextElement || this._element.contains(nextElement)) {
       return;
     }
+
     this._maybeScheduleHide();
   }
+
   _setListeners() {
     EventHandler.on(this._element, EVENT_MOUSEOVER, event => this._onInteraction(event, true));
     EventHandler.on(this._element, EVENT_MOUSEOUT, event => this._onInteraction(event, false));
     EventHandler.on(this._element, EVENT_FOCUSIN, event => this._onInteraction(event, true));
     EventHandler.on(this._element, EVENT_FOCUSOUT, event => this._onInteraction(event, false));
   }
+
   _clearTimeout() {
     clearTimeout(this._timeout);
     this._timeout = null;
-  }
+  } // Static
 
-  // Static
+
   static jQueryInterface(config) {
     return this.each(function () {
       const data = Toast.getOrCreateInstance(this, config);
+
       if (typeof config === 'string') {
         if (typeof data[config] === 'undefined') {
           throw new TypeError(`No method named "${config}"`);
         }
+
         data[config](this);
       }
     });
   }
-}
 
+}
 /**
  * Data API implementation
  */
 
-enableDismissTrigger(Toast);
 
+enableDismissTrigger(Toast);
 /**
  * jQuery
  */
@@ -28531,6 +30059,539 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
+/***/ "./node_modules/process/browser.js":
+/*!*****************************************!*\
+  !*** ./node_modules/process/browser.js ***!
+  \*****************************************/
+/***/ ((module) => {
+
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+
+/***/ }),
+
+/***/ "./node_modules/bootstrap/dist/css/bootstrap.min.css":
+/*!***********************************************************!*\
+  !*** ./node_modules/bootstrap/dist/css/bootstrap.min.css ***!
+  \***********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! !../../../style-loader/dist/runtime/injectStylesIntoStyleTag.js */ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js");
+/* harmony import */ var _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_bootstrap_min_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! !!../../../css-loader/dist/cjs.js??clonedRuleSet-9.use[1]!../../../postcss-loader/dist/cjs.js??clonedRuleSet-9.use[2]!./bootstrap.min.css */ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-9.use[1]!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-9.use[2]!./node_modules/bootstrap/dist/css/bootstrap.min.css");
+
+            
+
+var options = {};
+
+options.insert = "head";
+options.singleton = false;
+
+var update = _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default()(_css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_bootstrap_min_css__WEBPACK_IMPORTED_MODULE_1__["default"], options);
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (_css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_bootstrap_min_css__WEBPACK_IMPORTED_MODULE_1__["default"].locals || {});
+
+/***/ }),
+
+/***/ "./node_modules/v-calendar/dist/style.css":
+/*!************************************************!*\
+  !*** ./node_modules/v-calendar/dist/style.css ***!
+  \************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! !../../style-loader/dist/runtime/injectStylesIntoStyleTag.js */ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js");
+/* harmony import */ var _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_style_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! !!../../css-loader/dist/cjs.js??clonedRuleSet-9.use[1]!../../postcss-loader/dist/cjs.js??clonedRuleSet-9.use[2]!./style.css */ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-9.use[1]!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-9.use[2]!./node_modules/v-calendar/dist/style.css");
+
+            
+
+var options = {};
+
+options.insert = "head";
+options.singleton = false;
+
+var update = _style_loader_dist_runtime_injectStylesIntoStyleTag_js__WEBPACK_IMPORTED_MODULE_0___default()(_css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_style_css__WEBPACK_IMPORTED_MODULE_1__["default"], options);
+
+
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (_css_loader_dist_cjs_js_clonedRuleSet_9_use_1_postcss_loader_dist_cjs_js_clonedRuleSet_9_use_2_style_css__WEBPACK_IMPORTED_MODULE_1__["default"].locals || {});
+
+/***/ }),
+
+/***/ "./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js":
+/*!****************************************************************************!*\
+  !*** ./node_modules/style-loader/dist/runtime/injectStylesIntoStyleTag.js ***!
+  \****************************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var isOldIE = function isOldIE() {
+  var memo;
+  return function memorize() {
+    if (typeof memo === 'undefined') {
+      // Test for IE <= 9 as proposed by Browserhacks
+      // @see http://browserhacks.com/#hack-e71d8692f65334173fee715c222cb805
+      // Tests for existence of standard globals is to allow style-loader
+      // to operate correctly into non-standard environments
+      // @see https://github.com/webpack-contrib/style-loader/issues/177
+      memo = Boolean(window && document && document.all && !window.atob);
+    }
+
+    return memo;
+  };
+}();
+
+var getTarget = function getTarget() {
+  var memo = {};
+  return function memorize(target) {
+    if (typeof memo[target] === 'undefined') {
+      var styleTarget = document.querySelector(target); // Special case to return head of iframe instead of iframe itself
+
+      if (window.HTMLIFrameElement && styleTarget instanceof window.HTMLIFrameElement) {
+        try {
+          // This will throw an exception if access to iframe is blocked
+          // due to cross-origin restrictions
+          styleTarget = styleTarget.contentDocument.head;
+        } catch (e) {
+          // istanbul ignore next
+          styleTarget = null;
+        }
+      }
+
+      memo[target] = styleTarget;
+    }
+
+    return memo[target];
+  };
+}();
+
+var stylesInDom = [];
+
+function getIndexByIdentifier(identifier) {
+  var result = -1;
+
+  for (var i = 0; i < stylesInDom.length; i++) {
+    if (stylesInDom[i].identifier === identifier) {
+      result = i;
+      break;
+    }
+  }
+
+  return result;
+}
+
+function modulesToDom(list, options) {
+  var idCountMap = {};
+  var identifiers = [];
+
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i];
+    var id = options.base ? item[0] + options.base : item[0];
+    var count = idCountMap[id] || 0;
+    var identifier = "".concat(id, " ").concat(count);
+    idCountMap[id] = count + 1;
+    var index = getIndexByIdentifier(identifier);
+    var obj = {
+      css: item[1],
+      media: item[2],
+      sourceMap: item[3]
+    };
+
+    if (index !== -1) {
+      stylesInDom[index].references++;
+      stylesInDom[index].updater(obj);
+    } else {
+      stylesInDom.push({
+        identifier: identifier,
+        updater: addStyle(obj, options),
+        references: 1
+      });
+    }
+
+    identifiers.push(identifier);
+  }
+
+  return identifiers;
+}
+
+function insertStyleElement(options) {
+  var style = document.createElement('style');
+  var attributes = options.attributes || {};
+
+  if (typeof attributes.nonce === 'undefined') {
+    var nonce =  true ? __webpack_require__.nc : 0;
+
+    if (nonce) {
+      attributes.nonce = nonce;
+    }
+  }
+
+  Object.keys(attributes).forEach(function (key) {
+    style.setAttribute(key, attributes[key]);
+  });
+
+  if (typeof options.insert === 'function') {
+    options.insert(style);
+  } else {
+    var target = getTarget(options.insert || 'head');
+
+    if (!target) {
+      throw new Error("Couldn't find a style target. This probably means that the value for the 'insert' parameter is invalid.");
+    }
+
+    target.appendChild(style);
+  }
+
+  return style;
+}
+
+function removeStyleElement(style) {
+  // istanbul ignore if
+  if (style.parentNode === null) {
+    return false;
+  }
+
+  style.parentNode.removeChild(style);
+}
+/* istanbul ignore next  */
+
+
+var replaceText = function replaceText() {
+  var textStore = [];
+  return function replace(index, replacement) {
+    textStore[index] = replacement;
+    return textStore.filter(Boolean).join('\n');
+  };
+}();
+
+function applyToSingletonTag(style, index, remove, obj) {
+  var css = remove ? '' : obj.media ? "@media ".concat(obj.media, " {").concat(obj.css, "}") : obj.css; // For old IE
+
+  /* istanbul ignore if  */
+
+  if (style.styleSheet) {
+    style.styleSheet.cssText = replaceText(index, css);
+  } else {
+    var cssNode = document.createTextNode(css);
+    var childNodes = style.childNodes;
+
+    if (childNodes[index]) {
+      style.removeChild(childNodes[index]);
+    }
+
+    if (childNodes.length) {
+      style.insertBefore(cssNode, childNodes[index]);
+    } else {
+      style.appendChild(cssNode);
+    }
+  }
+}
+
+function applyToTag(style, options, obj) {
+  var css = obj.css;
+  var media = obj.media;
+  var sourceMap = obj.sourceMap;
+
+  if (media) {
+    style.setAttribute('media', media);
+  } else {
+    style.removeAttribute('media');
+  }
+
+  if (sourceMap && typeof btoa !== 'undefined') {
+    css += "\n/*# sourceMappingURL=data:application/json;base64,".concat(btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))), " */");
+  } // For old IE
+
+  /* istanbul ignore if  */
+
+
+  if (style.styleSheet) {
+    style.styleSheet.cssText = css;
+  } else {
+    while (style.firstChild) {
+      style.removeChild(style.firstChild);
+    }
+
+    style.appendChild(document.createTextNode(css));
+  }
+}
+
+var singleton = null;
+var singletonCounter = 0;
+
+function addStyle(obj, options) {
+  var style;
+  var update;
+  var remove;
+
+  if (options.singleton) {
+    var styleIndex = singletonCounter++;
+    style = singleton || (singleton = insertStyleElement(options));
+    update = applyToSingletonTag.bind(null, style, styleIndex, false);
+    remove = applyToSingletonTag.bind(null, style, styleIndex, true);
+  } else {
+    style = insertStyleElement(options);
+    update = applyToTag.bind(null, style, options);
+
+    remove = function remove() {
+      removeStyleElement(style);
+    };
+  }
+
+  update(obj);
+  return function updateStyle(newObj) {
+    if (newObj) {
+      if (newObj.css === obj.css && newObj.media === obj.media && newObj.sourceMap === obj.sourceMap) {
+        return;
+      }
+
+      update(obj = newObj);
+    } else {
+      remove();
+    }
+  };
+}
+
+module.exports = function (list, options) {
+  options = options || {}; // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
+  // tags it will allow on a page
+
+  if (!options.singleton && typeof options.singleton !== 'boolean') {
+    options.singleton = isOldIE();
+  }
+
+  list = list || [];
+  var lastIdentifiers = modulesToDom(list, options);
+  return function update(newList) {
+    newList = newList || [];
+
+    if (Object.prototype.toString.call(newList) !== '[object Array]') {
+      return;
+    }
+
+    for (var i = 0; i < lastIdentifiers.length; i++) {
+      var identifier = lastIdentifiers[i];
+      var index = getIndexByIdentifier(identifier);
+      stylesInDom[index].references--;
+    }
+
+    var newLastIdentifiers = modulesToDom(newList, options);
+
+    for (var _i = 0; _i < lastIdentifiers.length; _i++) {
+      var _identifier = lastIdentifiers[_i];
+
+      var _index = getIndexByIdentifier(_identifier);
+
+      if (stylesInDom[_index].references === 0) {
+        stylesInDom[_index].updater();
+
+        stylesInDom.splice(_index, 1);
+      }
+    }
+
+    lastIdentifiers = newLastIdentifiers;
+  };
+};
+
+/***/ }),
+
 /***/ "./node_modules/vue-loader/dist/exportHelper.js":
 /*!******************************************************!*\
   !*** ./node_modules/vue-loader/dist/exportHelper.js ***!
@@ -28611,7 +30672,7 @@ if (false) {}
 
 /***/ "./resources/js/components/BookingComponent.vue":
 /*!******************************************************!*\
-  !*** ./resources/js/components/ExampleComponent.vue ***!
+  !*** ./resources/js/components/BookingComponent.vue ***!
   \******************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
@@ -28755,32 +30816,160 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ "./resources/js/components/BookingComponent.vue?vue&type=script&lang=js":
 /*!******************************************************************************!*\
-  !*** ./resources/js/components/ExampleComponent.vue?vue&type=script&lang=js ***!
+  !*** ./resources/js/components/BookingComponent.vue?vue&type=script&lang=js ***!
   \******************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_ExampleComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_BookingComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
 /* harmony export */ });
-/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_ExampleComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./ExampleComponent.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/ExampleComponent.vue?vue&type=script&lang=js");
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_BookingComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./BookingComponent.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=script&lang=js");
  
 
 /***/ }),
 
-/***/ "./resources/js/components/ExampleComponent.vue?vue&type=template&id=299e239e":
+/***/ "./resources/js/components/Dashboard.vue?vue&type=script&lang=js":
+/*!***********************************************************************!*\
+  !*** ./resources/js/components/Dashboard.vue?vue&type=script&lang=js ***!
+  \***********************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_Dashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_Dashboard_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./Dashboard.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/Dashboard.vue?vue&type=script&lang=js");
+ 
+
+/***/ }),
+
+/***/ "./resources/js/components/LoginComponent.vue?vue&type=script&lang=js":
+/*!****************************************************************************!*\
+  !*** ./resources/js/components/LoginComponent.vue?vue&type=script&lang=js ***!
+  \****************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_LoginComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_LoginComponent_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./LoginComponent.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/LoginComponent.vue?vue&type=script&lang=js");
+ 
+
+/***/ }),
+
+/***/ "./resources/js/components/RegisterForm.vue?vue&type=script&lang=js":
+/*!**************************************************************************!*\
+  !*** ./resources/js/components/RegisterForm.vue?vue&type=script&lang=js ***!
+  \**************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_RegisterForm_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__["default"])
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_RegisterForm_vue_vue_type_script_lang_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./RegisterForm.vue?vue&type=script&lang=js */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/RegisterForm.vue?vue&type=script&lang=js");
+ 
+
+/***/ }),
+
+/***/ "./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0":
+/*!**********************************************************************************!*\
+  !*** ./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0 ***!
+  \**********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AdminDashboard_vue_vue_type_template_id_1d9b30b0__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./AdminDashboard.vue?vue&type=template&id=1d9b30b0 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AdminDashboard.vue?vue&type=template&id=1d9b30b0");
+
+
+/***/ }),
+
+/***/ "./resources/js/components/AppComponent.vue?vue&type=template&id=cd268472":
+/*!********************************************************************************!*\
+  !*** ./resources/js/components/AppComponent.vue?vue&type=template&id=cd268472 ***!
+  \********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AppComponent_vue_vue_type_template_id_cd268472__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_AppComponent_vue_vue_type_template_id_cd268472__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./AppComponent.vue?vue&type=template&id=cd268472 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/AppComponent.vue?vue&type=template&id=cd268472");
+
+
+/***/ }),
+
+/***/ "./resources/js/components/BookingComponent.vue?vue&type=template&id=ba51ade2":
 /*!************************************************************************************!*\
-  !*** ./resources/js/components/ExampleComponent.vue?vue&type=template&id=299e239e ***!
+  !*** ./resources/js/components/BookingComponent.vue?vue&type=template&id=ba51ade2 ***!
   \************************************************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_ExampleComponent_vue_vue_type_template_id_299e239e__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_BookingComponent_vue_vue_type_template_id_ba51ade2__WEBPACK_IMPORTED_MODULE_0__.render)
 /* harmony export */ });
-/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_ExampleComponent_vue_vue_type_template_id_299e239e__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./ExampleComponent.vue?vue&type=template&id=299e239e */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/ExampleComponent.vue?vue&type=template&id=299e239e");
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_BookingComponent_vue_vue_type_template_id_ba51ade2__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./BookingComponent.vue?vue&type=template&id=ba51ade2 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/BookingComponent.vue?vue&type=template&id=ba51ade2");
+
+
+/***/ }),
+
+/***/ "./resources/js/components/Dashboard.vue?vue&type=template&id=040e2ab9":
+/*!*****************************************************************************!*\
+  !*** ./resources/js/components/Dashboard.vue?vue&type=template&id=040e2ab9 ***!
+  \*****************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_Dashboard_vue_vue_type_template_id_040e2ab9__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_Dashboard_vue_vue_type_template_id_040e2ab9__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./Dashboard.vue?vue&type=template&id=040e2ab9 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/Dashboard.vue?vue&type=template&id=040e2ab9");
+
+
+/***/ }),
+
+/***/ "./resources/js/components/LoginComponent.vue?vue&type=template&id=4d2414bf":
+/*!**********************************************************************************!*\
+  !*** ./resources/js/components/LoginComponent.vue?vue&type=template&id=4d2414bf ***!
+  \**********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_LoginComponent_vue_vue_type_template_id_4d2414bf__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_LoginComponent_vue_vue_type_template_id_4d2414bf__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./LoginComponent.vue?vue&type=template&id=4d2414bf */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/LoginComponent.vue?vue&type=template&id=4d2414bf");
+
+
+/***/ }),
+
+/***/ "./resources/js/components/RegisterForm.vue?vue&type=template&id=7942be72":
+/*!********************************************************************************!*\
+  !*** ./resources/js/components/RegisterForm.vue?vue&type=template&id=7942be72 ***!
+  \********************************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   render: () => (/* reexport safe */ _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_RegisterForm_vue_vue_type_template_id_7942be72__WEBPACK_IMPORTED_MODULE_0__.render)
+/* harmony export */ });
+/* harmony import */ var _node_modules_babel_loader_lib_index_js_clonedRuleSet_5_use_0_node_modules_vue_loader_dist_templateLoader_js_ruleSet_1_rules_2_node_modules_vue_loader_dist_index_js_ruleSet_0_use_0_RegisterForm_vue_vue_type_template_id_7942be72__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!../../../node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!../../../node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./RegisterForm.vue?vue&type=template&id=7942be72 */ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5.use[0]!./node_modules/vue-loader/dist/templateLoader.js??ruleSet[1].rules[2]!./node_modules/vue-loader/dist/index.js??ruleSet[0].use[0]!./resources/js/components/RegisterForm.vue?vue&type=template&id=7942be72");
 
 
 /***/ }),
@@ -33208,13 +35397,23 @@ const isThenable = (thing) =>
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _bootstrap_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./bootstrap.js */ "./resources/js/bootstrap.js");
-/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
-/* harmony import */ var _components_ExampleComponent_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/ExampleComponent.vue */ "./resources/js/components/ExampleComponent.vue");
+/* harmony import */ var v_calendar__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! v-calendar */ "./node_modules/v-calendar/dist/es/index.js");
+/* harmony import */ var v_calendar_dist_style_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! v-calendar/dist/style.css */ "./node_modules/v-calendar/dist/style.css");
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+/* harmony import */ var _components_RegisterForm_vue__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/RegisterForm.vue */ "./resources/js/components/RegisterForm.vue");
+/* harmony import */ var _components_Dashboard_vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/Dashboard.vue */ "./resources/js/components/Dashboard.vue");
+/* harmony import */ var _components_LoginComponent_vue__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/LoginComponent.vue */ "./resources/js/components/LoginComponent.vue");
+/* harmony import */ var _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/BookingComponent.vue */ "./resources/js/components/BookingComponent.vue");
+/* harmony import */ var _components_AdminDashboard_vue__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/AdminDashboard.vue */ "./resources/js/components/AdminDashboard.vue");
+/* harmony import */ var _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./components/AppComponent.vue */ "./resources/js/components/AppComponent.vue");
+/* harmony import */ var _router_index_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./router/index.js */ "./resources/js/router/index.js");
 /**
  * First we will load all of this project's JavaScript dependencies which
  * includes Vue and other libraries. It is a great starting point when
  * building robust, powerful web applications using Vue and Laravel.
  */
+
+
 
 
 
@@ -33225,9 +35424,22 @@ __webpack_require__.r(__webpack_exports__);
  * to use in your application's views. An example is included for you.
  */
 
-var app = (0,vue__WEBPACK_IMPORTED_MODULE_1__.createApp)({});
+var app = (0,vue__WEBPACK_IMPORTED_MODULE_3__.createApp)({});
 
-app.component('example-component', _components_ExampleComponent_vue__WEBPACK_IMPORTED_MODULE_2__["default"]);
+app.component('register-form', _components_RegisterForm_vue__WEBPACK_IMPORTED_MODULE_4__["default"]);
+
+app.component('dashboard', _components_Dashboard_vue__WEBPACK_IMPORTED_MODULE_5__["default"]);
+
+app.component('login-component', _components_LoginComponent_vue__WEBPACK_IMPORTED_MODULE_6__["default"]);
+
+app.component('booking-component', _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_7__["default"]);
+
+app.component('admin-dashboard', _components_AdminDashboard_vue__WEBPACK_IMPORTED_MODULE_8__["default"]);
+
+app.component('app-component', _components_AppComponent_vue__WEBPACK_IMPORTED_MODULE_9__["default"]);
+
+app.use(v_calendar__WEBPACK_IMPORTED_MODULE_1__["default"], {});
+app.use(_router_index_js__WEBPACK_IMPORTED_MODULE_10__["default"]);
 
 /**
  * The following block of code may be used to automatically register your
@@ -33260,7 +35472,9 @@ app.mount('#app');
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var bootstrap__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! bootstrap */ "./node_modules/bootstrap/dist/js/bootstrap.esm.js");
-/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+/* harmony import */ var bootstrap_dist_css_bootstrap_min_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! bootstrap/dist/css/bootstrap.min.css */ "./node_modules/bootstrap/dist/css/bootstrap.min.css");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! axios */ "./node_modules/axios/lib/axios.js");
+
 
 
 /**
@@ -33269,9 +35483,13 @@ __webpack_require__.r(__webpack_exports__);
  * CSRF token as a header based on the value of the "XSRF" token cookie.
  */
 
+// resources/js/bootstrap.js
 
-window.axios = axios__WEBPACK_IMPORTED_MODULE_1__["default"];
-window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+window.axios = axios__WEBPACK_IMPORTED_MODULE_2__["default"];
+axios__WEBPACK_IMPORTED_MODULE_2__["default"].defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+// Set the CSRF token
+axios__WEBPACK_IMPORTED_MODULE_2__["default"].defaults.headers.common['X-CSRF-TOKEN'] = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening
@@ -33295,6 +35513,12011 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 //     enabledTransports: ['ws', 'wss'],
 // });
 
+/***/ }),
+
+/***/ "./resources/js/router/index.js":
+/*!**************************************!*\
+  !*** ./resources/js/router/index.js ***!
+  \**************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var vue_router__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! vue-router */ "./node_modules/vue-router/dist/vue-router.mjs");
+/* harmony import */ var _components_LoginComponent_vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../components/LoginComponent.vue */ "./resources/js/components/LoginComponent.vue");
+/* harmony import */ var _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../components/BookingComponent.vue */ "./resources/js/components/BookingComponent.vue");
+/* harmony import */ var _components_Dashboard_vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../components/Dashboard.vue */ "./resources/js/components/Dashboard.vue");
+/* provided dependency */ var process = __webpack_require__(/*! process/browser.js */ "./node_modules/process/browser.js");
+
+
+
+
+var routes = [{
+  path: '/login',
+  name: 'Login',
+  component: _components_LoginComponent_vue__WEBPACK_IMPORTED_MODULE_0__["default"]
+}, {
+  path: '/',
+  component: _components_Dashboard_vue__WEBPACK_IMPORTED_MODULE_2__["default"],
+  name: 'dashboard'
+}, {
+  path: '/booking',
+  component: _components_BookingComponent_vue__WEBPACK_IMPORTED_MODULE_1__["default"],
+  name: 'booking'
+}];
+var router = (0,vue_router__WEBPACK_IMPORTED_MODULE_3__.createRouter)({
+  history: (0,vue_router__WEBPACK_IMPORTED_MODULE_3__.createWebHistory)(process.env.BASE_URL),
+  routes: routes
+});
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (router);
+
+/***/ }),
+
+/***/ "./node_modules/v-calendar/dist/es/index.js":
+/*!**************************************************!*\
+  !*** ./node_modules/v-calendar/dist/es/index.js ***!
+  \**************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Calendar: () => (/* binding */ Calendar),
+/* harmony export */   DatePicker: () => (/* binding */ DatePicker),
+/* harmony export */   Popover: () => (/* binding */ Popover),
+/* harmony export */   PopoverRow: () => (/* binding */ _sfc_main$j),
+/* harmony export */   createCalendar: () => (/* binding */ createCalendar),
+/* harmony export */   createDatePicker: () => (/* binding */ createDatePicker),
+/* harmony export */   "default": () => (/* binding */ index),
+/* harmony export */   popoverDirective: () => (/* binding */ popoverDirective),
+/* harmony export */   setupCalendar: () => (/* binding */ setupDefaults),
+/* harmony export */   useCalendar: () => (/* binding */ useCalendar),
+/* harmony export */   useDatePicker: () => (/* binding */ useDatePicker)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+/* harmony import */ var _popperjs_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @popperjs/core */ "./node_modules/@popperjs/core/lib/popper.js");
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
+};
+
+
+var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+function getDefaultExportFromCjs(x) {
+  return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, "default") ? x["default"] : x;
+}
+var objectProto$g = Object.prototype;
+var hasOwnProperty$d = objectProto$g.hasOwnProperty;
+function baseHas$1(object, key) {
+  return object != null && hasOwnProperty$d.call(object, key);
+}
+var _baseHas = baseHas$1;
+var isArray$c = Array.isArray;
+var isArray_1 = isArray$c;
+var freeGlobal$1 = typeof commonjsGlobal == "object" && commonjsGlobal && commonjsGlobal.Object === Object && commonjsGlobal;
+var _freeGlobal = freeGlobal$1;
+var freeGlobal = _freeGlobal;
+var freeSelf = typeof self == "object" && self && self.Object === Object && self;
+var root$8 = freeGlobal || freeSelf || Function("return this")();
+var _root = root$8;
+var root$7 = _root;
+var Symbol$5 = root$7.Symbol;
+var _Symbol = Symbol$5;
+var Symbol$4 = _Symbol;
+var objectProto$f = Object.prototype;
+var hasOwnProperty$c = objectProto$f.hasOwnProperty;
+var nativeObjectToString$1 = objectProto$f.toString;
+var symToStringTag$1 = Symbol$4 ? Symbol$4.toStringTag : void 0;
+function getRawTag$1(value) {
+  var isOwn = hasOwnProperty$c.call(value, symToStringTag$1), tag = value[symToStringTag$1];
+  try {
+    value[symToStringTag$1] = void 0;
+    var unmasked = true;
+  } catch (e) {
+  }
+  var result = nativeObjectToString$1.call(value);
+  if (unmasked) {
+    if (isOwn) {
+      value[symToStringTag$1] = tag;
+    } else {
+      delete value[symToStringTag$1];
+    }
+  }
+  return result;
+}
+var _getRawTag = getRawTag$1;
+var objectProto$e = Object.prototype;
+var nativeObjectToString = objectProto$e.toString;
+function objectToString$1(value) {
+  return nativeObjectToString.call(value);
+}
+var _objectToString = objectToString$1;
+var Symbol$3 = _Symbol, getRawTag = _getRawTag, objectToString = _objectToString;
+var nullTag = "[object Null]", undefinedTag = "[object Undefined]";
+var symToStringTag = Symbol$3 ? Symbol$3.toStringTag : void 0;
+function baseGetTag$a(value) {
+  if (value == null) {
+    return value === void 0 ? undefinedTag : nullTag;
+  }
+  return symToStringTag && symToStringTag in Object(value) ? getRawTag(value) : objectToString(value);
+}
+var _baseGetTag = baseGetTag$a;
+function isObjectLike$b(value) {
+  return value != null && typeof value == "object";
+}
+var isObjectLike_1 = isObjectLike$b;
+var baseGetTag$9 = _baseGetTag, isObjectLike$a = isObjectLike_1;
+var symbolTag$1 = "[object Symbol]";
+function isSymbol$3(value) {
+  return typeof value == "symbol" || isObjectLike$a(value) && baseGetTag$9(value) == symbolTag$1;
+}
+var isSymbol_1 = isSymbol$3;
+var isArray$b = isArray_1, isSymbol$2 = isSymbol_1;
+var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/, reIsPlainProp = /^\w*$/;
+function isKey$3(value, object) {
+  if (isArray$b(value)) {
+    return false;
+  }
+  var type = typeof value;
+  if (type == "number" || type == "symbol" || type == "boolean" || value == null || isSymbol$2(value)) {
+    return true;
+  }
+  return reIsPlainProp.test(value) || !reIsDeepProp.test(value) || object != null && value in Object(object);
+}
+var _isKey = isKey$3;
+function isObject$a(value) {
+  var type = typeof value;
+  return value != null && (type == "object" || type == "function");
+}
+var isObject_1 = isObject$a;
+var baseGetTag$8 = _baseGetTag, isObject$9 = isObject_1;
+var asyncTag = "[object AsyncFunction]", funcTag$1 = "[object Function]", genTag = "[object GeneratorFunction]", proxyTag = "[object Proxy]";
+function isFunction$3(value) {
+  if (!isObject$9(value)) {
+    return false;
+  }
+  var tag = baseGetTag$8(value);
+  return tag == funcTag$1 || tag == genTag || tag == asyncTag || tag == proxyTag;
+}
+var isFunction_1 = isFunction$3;
+var root$6 = _root;
+var coreJsData$1 = root$6["__core-js_shared__"];
+var _coreJsData = coreJsData$1;
+var coreJsData = _coreJsData;
+var maskSrcKey = function() {
+  var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || "");
+  return uid ? "Symbol(src)_1." + uid : "";
+}();
+function isMasked$1(func) {
+  return !!maskSrcKey && maskSrcKey in func;
+}
+var _isMasked = isMasked$1;
+var funcProto$2 = Function.prototype;
+var funcToString$2 = funcProto$2.toString;
+function toSource$2(func) {
+  if (func != null) {
+    try {
+      return funcToString$2.call(func);
+    } catch (e) {
+    }
+    try {
+      return func + "";
+    } catch (e) {
+    }
+  }
+  return "";
+}
+var _toSource = toSource$2;
+var isFunction$2 = isFunction_1, isMasked = _isMasked, isObject$8 = isObject_1, toSource$1 = _toSource;
+var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
+var reIsHostCtor = /^\[object .+?Constructor\]$/;
+var funcProto$1 = Function.prototype, objectProto$d = Object.prototype;
+var funcToString$1 = funcProto$1.toString;
+var hasOwnProperty$b = objectProto$d.hasOwnProperty;
+var reIsNative = RegExp(
+  "^" + funcToString$1.call(hasOwnProperty$b).replace(reRegExpChar, "\\$&").replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, "$1.*?") + "$"
+);
+function baseIsNative$1(value) {
+  if (!isObject$8(value) || isMasked(value)) {
+    return false;
+  }
+  var pattern = isFunction$2(value) ? reIsNative : reIsHostCtor;
+  return pattern.test(toSource$1(value));
+}
+var _baseIsNative = baseIsNative$1;
+function getValue$1(object, key) {
+  return object == null ? void 0 : object[key];
+}
+var _getValue = getValue$1;
+var baseIsNative = _baseIsNative, getValue = _getValue;
+function getNative$7(object, key) {
+  var value = getValue(object, key);
+  return baseIsNative(value) ? value : void 0;
+}
+var _getNative = getNative$7;
+var getNative$6 = _getNative;
+var nativeCreate$4 = getNative$6(Object, "create");
+var _nativeCreate = nativeCreate$4;
+var nativeCreate$3 = _nativeCreate;
+function hashClear$1() {
+  this.__data__ = nativeCreate$3 ? nativeCreate$3(null) : {};
+  this.size = 0;
+}
+var _hashClear = hashClear$1;
+function hashDelete$1(key) {
+  var result = this.has(key) && delete this.__data__[key];
+  this.size -= result ? 1 : 0;
+  return result;
+}
+var _hashDelete = hashDelete$1;
+var nativeCreate$2 = _nativeCreate;
+var HASH_UNDEFINED$2 = "__lodash_hash_undefined__";
+var objectProto$c = Object.prototype;
+var hasOwnProperty$a = objectProto$c.hasOwnProperty;
+function hashGet$1(key) {
+  var data2 = this.__data__;
+  if (nativeCreate$2) {
+    var result = data2[key];
+    return result === HASH_UNDEFINED$2 ? void 0 : result;
+  }
+  return hasOwnProperty$a.call(data2, key) ? data2[key] : void 0;
+}
+var _hashGet = hashGet$1;
+var nativeCreate$1 = _nativeCreate;
+var objectProto$b = Object.prototype;
+var hasOwnProperty$9 = objectProto$b.hasOwnProperty;
+function hashHas$1(key) {
+  var data2 = this.__data__;
+  return nativeCreate$1 ? data2[key] !== void 0 : hasOwnProperty$9.call(data2, key);
+}
+var _hashHas = hashHas$1;
+var nativeCreate = _nativeCreate;
+var HASH_UNDEFINED$1 = "__lodash_hash_undefined__";
+function hashSet$1(key, value) {
+  var data2 = this.__data__;
+  this.size += this.has(key) ? 0 : 1;
+  data2[key] = nativeCreate && value === void 0 ? HASH_UNDEFINED$1 : value;
+  return this;
+}
+var _hashSet = hashSet$1;
+var hashClear = _hashClear, hashDelete = _hashDelete, hashGet = _hashGet, hashHas = _hashHas, hashSet = _hashSet;
+function Hash$1(entries) {
+  var index2 = -1, length = entries == null ? 0 : entries.length;
+  this.clear();
+  while (++index2 < length) {
+    var entry = entries[index2];
+    this.set(entry[0], entry[1]);
+  }
+}
+Hash$1.prototype.clear = hashClear;
+Hash$1.prototype["delete"] = hashDelete;
+Hash$1.prototype.get = hashGet;
+Hash$1.prototype.has = hashHas;
+Hash$1.prototype.set = hashSet;
+var _Hash = Hash$1;
+function listCacheClear$1() {
+  this.__data__ = [];
+  this.size = 0;
+}
+var _listCacheClear = listCacheClear$1;
+function eq$6(value, other) {
+  return value === other || value !== value && other !== other;
+}
+var eq_1 = eq$6;
+var eq$5 = eq_1;
+function assocIndexOf$4(array, key) {
+  var length = array.length;
+  while (length--) {
+    if (eq$5(array[length][0], key)) {
+      return length;
+    }
+  }
+  return -1;
+}
+var _assocIndexOf = assocIndexOf$4;
+var assocIndexOf$3 = _assocIndexOf;
+var arrayProto = Array.prototype;
+var splice = arrayProto.splice;
+function listCacheDelete$1(key) {
+  var data2 = this.__data__, index2 = assocIndexOf$3(data2, key);
+  if (index2 < 0) {
+    return false;
+  }
+  var lastIndex = data2.length - 1;
+  if (index2 == lastIndex) {
+    data2.pop();
+  } else {
+    splice.call(data2, index2, 1);
+  }
+  --this.size;
+  return true;
+}
+var _listCacheDelete = listCacheDelete$1;
+var assocIndexOf$2 = _assocIndexOf;
+function listCacheGet$1(key) {
+  var data2 = this.__data__, index2 = assocIndexOf$2(data2, key);
+  return index2 < 0 ? void 0 : data2[index2][1];
+}
+var _listCacheGet = listCacheGet$1;
+var assocIndexOf$1 = _assocIndexOf;
+function listCacheHas$1(key) {
+  return assocIndexOf$1(this.__data__, key) > -1;
+}
+var _listCacheHas = listCacheHas$1;
+var assocIndexOf = _assocIndexOf;
+function listCacheSet$1(key, value) {
+  var data2 = this.__data__, index2 = assocIndexOf(data2, key);
+  if (index2 < 0) {
+    ++this.size;
+    data2.push([key, value]);
+  } else {
+    data2[index2][1] = value;
+  }
+  return this;
+}
+var _listCacheSet = listCacheSet$1;
+var listCacheClear = _listCacheClear, listCacheDelete = _listCacheDelete, listCacheGet = _listCacheGet, listCacheHas = _listCacheHas, listCacheSet = _listCacheSet;
+function ListCache$4(entries) {
+  var index2 = -1, length = entries == null ? 0 : entries.length;
+  this.clear();
+  while (++index2 < length) {
+    var entry = entries[index2];
+    this.set(entry[0], entry[1]);
+  }
+}
+ListCache$4.prototype.clear = listCacheClear;
+ListCache$4.prototype["delete"] = listCacheDelete;
+ListCache$4.prototype.get = listCacheGet;
+ListCache$4.prototype.has = listCacheHas;
+ListCache$4.prototype.set = listCacheSet;
+var _ListCache = ListCache$4;
+var getNative$5 = _getNative, root$5 = _root;
+var Map$3 = getNative$5(root$5, "Map");
+var _Map = Map$3;
+var Hash = _Hash, ListCache$3 = _ListCache, Map$2 = _Map;
+function mapCacheClear$1() {
+  this.size = 0;
+  this.__data__ = {
+    "hash": new Hash(),
+    "map": new (Map$2 || ListCache$3)(),
+    "string": new Hash()
+  };
+}
+var _mapCacheClear = mapCacheClear$1;
+function isKeyable$1(value) {
+  var type = typeof value;
+  return type == "string" || type == "number" || type == "symbol" || type == "boolean" ? value !== "__proto__" : value === null;
+}
+var _isKeyable = isKeyable$1;
+var isKeyable = _isKeyable;
+function getMapData$4(map, key) {
+  var data2 = map.__data__;
+  return isKeyable(key) ? data2[typeof key == "string" ? "string" : "hash"] : data2.map;
+}
+var _getMapData = getMapData$4;
+var getMapData$3 = _getMapData;
+function mapCacheDelete$1(key) {
+  var result = getMapData$3(this, key)["delete"](key);
+  this.size -= result ? 1 : 0;
+  return result;
+}
+var _mapCacheDelete = mapCacheDelete$1;
+var getMapData$2 = _getMapData;
+function mapCacheGet$1(key) {
+  return getMapData$2(this, key).get(key);
+}
+var _mapCacheGet = mapCacheGet$1;
+var getMapData$1 = _getMapData;
+function mapCacheHas$1(key) {
+  return getMapData$1(this, key).has(key);
+}
+var _mapCacheHas = mapCacheHas$1;
+var getMapData = _getMapData;
+function mapCacheSet$1(key, value) {
+  var data2 = getMapData(this, key), size = data2.size;
+  data2.set(key, value);
+  this.size += data2.size == size ? 0 : 1;
+  return this;
+}
+var _mapCacheSet = mapCacheSet$1;
+var mapCacheClear = _mapCacheClear, mapCacheDelete = _mapCacheDelete, mapCacheGet = _mapCacheGet, mapCacheHas = _mapCacheHas, mapCacheSet = _mapCacheSet;
+function MapCache$3(entries) {
+  var index2 = -1, length = entries == null ? 0 : entries.length;
+  this.clear();
+  while (++index2 < length) {
+    var entry = entries[index2];
+    this.set(entry[0], entry[1]);
+  }
+}
+MapCache$3.prototype.clear = mapCacheClear;
+MapCache$3.prototype["delete"] = mapCacheDelete;
+MapCache$3.prototype.get = mapCacheGet;
+MapCache$3.prototype.has = mapCacheHas;
+MapCache$3.prototype.set = mapCacheSet;
+var _MapCache = MapCache$3;
+var MapCache$2 = _MapCache;
+var FUNC_ERROR_TEXT = "Expected a function";
+function memoize$1(func, resolver) {
+  if (typeof func != "function" || resolver != null && typeof resolver != "function") {
+    throw new TypeError(FUNC_ERROR_TEXT);
+  }
+  var memoized = function() {
+    var args = arguments, key = resolver ? resolver.apply(this, args) : args[0], cache = memoized.cache;
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    var result = func.apply(this, args);
+    memoized.cache = cache.set(key, result) || cache;
+    return result;
+  };
+  memoized.cache = new (memoize$1.Cache || MapCache$2)();
+  return memoized;
+}
+memoize$1.Cache = MapCache$2;
+var memoize_1 = memoize$1;
+var memoize = memoize_1;
+var MAX_MEMOIZE_SIZE = 500;
+function memoizeCapped$1(func) {
+  var result = memoize(func, function(key) {
+    if (cache.size === MAX_MEMOIZE_SIZE) {
+      cache.clear();
+    }
+    return key;
+  });
+  var cache = result.cache;
+  return result;
+}
+var _memoizeCapped = memoizeCapped$1;
+var memoizeCapped = _memoizeCapped;
+var rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g;
+var reEscapeChar = /\\(\\)?/g;
+var stringToPath$1 = memoizeCapped(function(string) {
+  var result = [];
+  if (string.charCodeAt(0) === 46) {
+    result.push("");
+  }
+  string.replace(rePropName, function(match, number, quote, subString) {
+    result.push(quote ? subString.replace(reEscapeChar, "$1") : number || match);
+  });
+  return result;
+});
+var _stringToPath = stringToPath$1;
+function arrayMap$1(array, iteratee) {
+  var index2 = -1, length = array == null ? 0 : array.length, result = Array(length);
+  while (++index2 < length) {
+    result[index2] = iteratee(array[index2], index2, array);
+  }
+  return result;
+}
+var _arrayMap = arrayMap$1;
+var Symbol$2 = _Symbol, arrayMap = _arrayMap, isArray$a = isArray_1, isSymbol$1 = isSymbol_1;
+var INFINITY$1 = 1 / 0;
+var symbolProto$1 = Symbol$2 ? Symbol$2.prototype : void 0, symbolToString = symbolProto$1 ? symbolProto$1.toString : void 0;
+function baseToString$1(value) {
+  if (typeof value == "string") {
+    return value;
+  }
+  if (isArray$a(value)) {
+    return arrayMap(value, baseToString$1) + "";
+  }
+  if (isSymbol$1(value)) {
+    return symbolToString ? symbolToString.call(value) : "";
+  }
+  var result = value + "";
+  return result == "0" && 1 / value == -INFINITY$1 ? "-0" : result;
+}
+var _baseToString = baseToString$1;
+var baseToString = _baseToString;
+function toString$1(value) {
+  return value == null ? "" : baseToString(value);
+}
+var toString_1 = toString$1;
+var isArray$9 = isArray_1, isKey$2 = _isKey, stringToPath = _stringToPath, toString = toString_1;
+function castPath$2(value, object) {
+  if (isArray$9(value)) {
+    return value;
+  }
+  return isKey$2(value, object) ? [value] : stringToPath(toString(value));
+}
+var _castPath = castPath$2;
+var baseGetTag$7 = _baseGetTag, isObjectLike$9 = isObjectLike_1;
+var argsTag$2 = "[object Arguments]";
+function baseIsArguments$1(value) {
+  return isObjectLike$9(value) && baseGetTag$7(value) == argsTag$2;
+}
+var _baseIsArguments = baseIsArguments$1;
+var baseIsArguments = _baseIsArguments, isObjectLike$8 = isObjectLike_1;
+var objectProto$a = Object.prototype;
+var hasOwnProperty$8 = objectProto$a.hasOwnProperty;
+var propertyIsEnumerable$1 = objectProto$a.propertyIsEnumerable;
+var isArguments$3 = baseIsArguments(function() {
+  return arguments;
+}()) ? baseIsArguments : function(value) {
+  return isObjectLike$8(value) && hasOwnProperty$8.call(value, "callee") && !propertyIsEnumerable$1.call(value, "callee");
+};
+var isArguments_1 = isArguments$3;
+var MAX_SAFE_INTEGER$1 = 9007199254740991;
+var reIsUint = /^(?:0|[1-9]\d*)$/;
+function isIndex$3(value, length) {
+  var type = typeof value;
+  length = length == null ? MAX_SAFE_INTEGER$1 : length;
+  return !!length && (type == "number" || type != "symbol" && reIsUint.test(value)) && (value > -1 && value % 1 == 0 && value < length);
+}
+var _isIndex = isIndex$3;
+var MAX_SAFE_INTEGER = 9007199254740991;
+function isLength$3(value) {
+  return typeof value == "number" && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+}
+var isLength_1 = isLength$3;
+var isSymbol = isSymbol_1;
+var INFINITY = 1 / 0;
+function toKey$4(value) {
+  if (typeof value == "string" || isSymbol(value)) {
+    return value;
+  }
+  var result = value + "";
+  return result == "0" && 1 / value == -INFINITY ? "-0" : result;
+}
+var _toKey = toKey$4;
+var castPath$1 = _castPath, isArguments$2 = isArguments_1, isArray$8 = isArray_1, isIndex$2 = _isIndex, isLength$2 = isLength_1, toKey$3 = _toKey;
+function hasPath$2(object, path, hasFunc) {
+  path = castPath$1(path, object);
+  var index2 = -1, length = path.length, result = false;
+  while (++index2 < length) {
+    var key = toKey$3(path[index2]);
+    if (!(result = object != null && hasFunc(object, key))) {
+      break;
+    }
+    object = object[key];
+  }
+  if (result || ++index2 != length) {
+    return result;
+  }
+  length = object == null ? 0 : object.length;
+  return !!length && isLength$2(length) && isIndex$2(key, length) && (isArray$8(object) || isArguments$2(object));
+}
+var _hasPath = hasPath$2;
+var baseHas = _baseHas, hasPath$1 = _hasPath;
+function has$1(object, path) {
+  return object != null && hasPath$1(object, path, baseHas);
+}
+var has_1 = has$1;
+var baseGetTag$6 = _baseGetTag, isObjectLike$7 = isObjectLike_1;
+var dateTag$2 = "[object Date]";
+function baseIsDate$1(value) {
+  return isObjectLike$7(value) && baseGetTag$6(value) == dateTag$2;
+}
+var _baseIsDate = baseIsDate$1;
+function baseUnary$2(func) {
+  return function(value) {
+    return func(value);
+  };
+}
+var _baseUnary = baseUnary$2;
+var _nodeUtilExports = {};
+var _nodeUtil = {
+  get exports() {
+    return _nodeUtilExports;
+  },
+  set exports(v) {
+    _nodeUtilExports = v;
+  }
+};
+(function(module, exports) {
+  var freeGlobal2 = _freeGlobal;
+  var freeExports = exports && !exports.nodeType && exports;
+  var freeModule = freeExports && true && module && !module.nodeType && module;
+  var moduleExports = freeModule && freeModule.exports === freeExports;
+  var freeProcess = moduleExports && freeGlobal2.process;
+  var nodeUtil2 = function() {
+    try {
+      var types = freeModule && freeModule.require && freeModule.require("util").types;
+      if (types) {
+        return types;
+      }
+      return freeProcess && freeProcess.binding && freeProcess.binding("util");
+    } catch (e) {
+    }
+  }();
+  module.exports = nodeUtil2;
+})(_nodeUtil, _nodeUtilExports);
+var baseIsDate = _baseIsDate, baseUnary$1 = _baseUnary, nodeUtil$1 = _nodeUtilExports;
+var nodeIsDate = nodeUtil$1 && nodeUtil$1.isDate;
+var isDate$1 = nodeIsDate ? baseUnary$1(nodeIsDate) : baseIsDate;
+var isDate_1 = isDate$1;
+var baseGetTag$5 = _baseGetTag, isArray$7 = isArray_1, isObjectLike$6 = isObjectLike_1;
+var stringTag$2 = "[object String]";
+function isString(value) {
+  return typeof value == "string" || !isArray$7(value) && isObjectLike$6(value) && baseGetTag$5(value) == stringTag$2;
+}
+var isString_1 = isString;
+function arraySome$2(array, predicate) {
+  var index2 = -1, length = array == null ? 0 : array.length;
+  while (++index2 < length) {
+    if (predicate(array[index2], index2, array)) {
+      return true;
+    }
+  }
+  return false;
+}
+var _arraySome = arraySome$2;
+var ListCache$2 = _ListCache;
+function stackClear$1() {
+  this.__data__ = new ListCache$2();
+  this.size = 0;
+}
+var _stackClear = stackClear$1;
+function stackDelete$1(key) {
+  var data2 = this.__data__, result = data2["delete"](key);
+  this.size = data2.size;
+  return result;
+}
+var _stackDelete = stackDelete$1;
+function stackGet$1(key) {
+  return this.__data__.get(key);
+}
+var _stackGet = stackGet$1;
+function stackHas$1(key) {
+  return this.__data__.has(key);
+}
+var _stackHas = stackHas$1;
+var ListCache$1 = _ListCache, Map$1 = _Map, MapCache$1 = _MapCache;
+var LARGE_ARRAY_SIZE = 200;
+function stackSet$1(key, value) {
+  var data2 = this.__data__;
+  if (data2 instanceof ListCache$1) {
+    var pairs = data2.__data__;
+    if (!Map$1 || pairs.length < LARGE_ARRAY_SIZE - 1) {
+      pairs.push([key, value]);
+      this.size = ++data2.size;
+      return this;
+    }
+    data2 = this.__data__ = new MapCache$1(pairs);
+  }
+  data2.set(key, value);
+  this.size = data2.size;
+  return this;
+}
+var _stackSet = stackSet$1;
+var ListCache = _ListCache, stackClear = _stackClear, stackDelete = _stackDelete, stackGet = _stackGet, stackHas = _stackHas, stackSet = _stackSet;
+function Stack$3(entries) {
+  var data2 = this.__data__ = new ListCache(entries);
+  this.size = data2.size;
+}
+Stack$3.prototype.clear = stackClear;
+Stack$3.prototype["delete"] = stackDelete;
+Stack$3.prototype.get = stackGet;
+Stack$3.prototype.has = stackHas;
+Stack$3.prototype.set = stackSet;
+var _Stack = Stack$3;
+var HASH_UNDEFINED = "__lodash_hash_undefined__";
+function setCacheAdd$1(value) {
+  this.__data__.set(value, HASH_UNDEFINED);
+  return this;
+}
+var _setCacheAdd = setCacheAdd$1;
+function setCacheHas$1(value) {
+  return this.__data__.has(value);
+}
+var _setCacheHas = setCacheHas$1;
+var MapCache = _MapCache, setCacheAdd = _setCacheAdd, setCacheHas = _setCacheHas;
+function SetCache$1(values) {
+  var index2 = -1, length = values == null ? 0 : values.length;
+  this.__data__ = new MapCache();
+  while (++index2 < length) {
+    this.add(values[index2]);
+  }
+}
+SetCache$1.prototype.add = SetCache$1.prototype.push = setCacheAdd;
+SetCache$1.prototype.has = setCacheHas;
+var _SetCache = SetCache$1;
+function cacheHas$1(cache, key) {
+  return cache.has(key);
+}
+var _cacheHas = cacheHas$1;
+var SetCache = _SetCache, arraySome$1 = _arraySome, cacheHas = _cacheHas;
+var COMPARE_PARTIAL_FLAG$5 = 1, COMPARE_UNORDERED_FLAG$3 = 2;
+function equalArrays$2(array, other, bitmask, customizer, equalFunc, stack) {
+  var isPartial = bitmask & COMPARE_PARTIAL_FLAG$5, arrLength = array.length, othLength = other.length;
+  if (arrLength != othLength && !(isPartial && othLength > arrLength)) {
+    return false;
+  }
+  var arrStacked = stack.get(array);
+  var othStacked = stack.get(other);
+  if (arrStacked && othStacked) {
+    return arrStacked == other && othStacked == array;
+  }
+  var index2 = -1, result = true, seen = bitmask & COMPARE_UNORDERED_FLAG$3 ? new SetCache() : void 0;
+  stack.set(array, other);
+  stack.set(other, array);
+  while (++index2 < arrLength) {
+    var arrValue = array[index2], othValue = other[index2];
+    if (customizer) {
+      var compared = isPartial ? customizer(othValue, arrValue, index2, other, array, stack) : customizer(arrValue, othValue, index2, array, other, stack);
+    }
+    if (compared !== void 0) {
+      if (compared) {
+        continue;
+      }
+      result = false;
+      break;
+    }
+    if (seen) {
+      if (!arraySome$1(other, function(othValue2, othIndex) {
+        if (!cacheHas(seen, othIndex) && (arrValue === othValue2 || equalFunc(arrValue, othValue2, bitmask, customizer, stack))) {
+          return seen.push(othIndex);
+        }
+      })) {
+        result = false;
+        break;
+      }
+    } else if (!(arrValue === othValue || equalFunc(arrValue, othValue, bitmask, customizer, stack))) {
+      result = false;
+      break;
+    }
+  }
+  stack["delete"](array);
+  stack["delete"](other);
+  return result;
+}
+var _equalArrays = equalArrays$2;
+var root$4 = _root;
+var Uint8Array$2 = root$4.Uint8Array;
+var _Uint8Array = Uint8Array$2;
+function mapToArray$1(map) {
+  var index2 = -1, result = Array(map.size);
+  map.forEach(function(value, key) {
+    result[++index2] = [key, value];
+  });
+  return result;
+}
+var _mapToArray = mapToArray$1;
+function setToArray$1(set) {
+  var index2 = -1, result = Array(set.size);
+  set.forEach(function(value) {
+    result[++index2] = value;
+  });
+  return result;
+}
+var _setToArray = setToArray$1;
+var Symbol$1 = _Symbol, Uint8Array$1 = _Uint8Array, eq$4 = eq_1, equalArrays$1 = _equalArrays, mapToArray = _mapToArray, setToArray = _setToArray;
+var COMPARE_PARTIAL_FLAG$4 = 1, COMPARE_UNORDERED_FLAG$2 = 2;
+var boolTag$2 = "[object Boolean]", dateTag$1 = "[object Date]", errorTag$1 = "[object Error]", mapTag$2 = "[object Map]", numberTag$2 = "[object Number]", regexpTag$1 = "[object RegExp]", setTag$2 = "[object Set]", stringTag$1 = "[object String]", symbolTag = "[object Symbol]";
+var arrayBufferTag$1 = "[object ArrayBuffer]", dataViewTag$2 = "[object DataView]";
+var symbolProto = Symbol$1 ? Symbol$1.prototype : void 0, symbolValueOf = symbolProto ? symbolProto.valueOf : void 0;
+function equalByTag$1(object, other, tag, bitmask, customizer, equalFunc, stack) {
+  switch (tag) {
+    case dataViewTag$2:
+      if (object.byteLength != other.byteLength || object.byteOffset != other.byteOffset) {
+        return false;
+      }
+      object = object.buffer;
+      other = other.buffer;
+    case arrayBufferTag$1:
+      if (object.byteLength != other.byteLength || !equalFunc(new Uint8Array$1(object), new Uint8Array$1(other))) {
+        return false;
+      }
+      return true;
+    case boolTag$2:
+    case dateTag$1:
+    case numberTag$2:
+      return eq$4(+object, +other);
+    case errorTag$1:
+      return object.name == other.name && object.message == other.message;
+    case regexpTag$1:
+    case stringTag$1:
+      return object == other + "";
+    case mapTag$2:
+      var convert = mapToArray;
+    case setTag$2:
+      var isPartial = bitmask & COMPARE_PARTIAL_FLAG$4;
+      convert || (convert = setToArray);
+      if (object.size != other.size && !isPartial) {
+        return false;
+      }
+      var stacked = stack.get(object);
+      if (stacked) {
+        return stacked == other;
+      }
+      bitmask |= COMPARE_UNORDERED_FLAG$2;
+      stack.set(object, other);
+      var result = equalArrays$1(convert(object), convert(other), bitmask, customizer, equalFunc, stack);
+      stack["delete"](object);
+      return result;
+    case symbolTag:
+      if (symbolValueOf) {
+        return symbolValueOf.call(object) == symbolValueOf.call(other);
+      }
+  }
+  return false;
+}
+var _equalByTag = equalByTag$1;
+function arrayPush$1(array, values) {
+  var index2 = -1, length = values.length, offset = array.length;
+  while (++index2 < length) {
+    array[offset + index2] = values[index2];
+  }
+  return array;
+}
+var _arrayPush = arrayPush$1;
+var arrayPush = _arrayPush, isArray$6 = isArray_1;
+function baseGetAllKeys$1(object, keysFunc, symbolsFunc) {
+  var result = keysFunc(object);
+  return isArray$6(object) ? result : arrayPush(result, symbolsFunc(object));
+}
+var _baseGetAllKeys = baseGetAllKeys$1;
+function arrayFilter$1(array, predicate) {
+  var index2 = -1, length = array == null ? 0 : array.length, resIndex = 0, result = [];
+  while (++index2 < length) {
+    var value = array[index2];
+    if (predicate(value, index2, array)) {
+      result[resIndex++] = value;
+    }
+  }
+  return result;
+}
+var _arrayFilter = arrayFilter$1;
+function stubArray$1() {
+  return [];
+}
+var stubArray_1 = stubArray$1;
+var arrayFilter = _arrayFilter, stubArray = stubArray_1;
+var objectProto$9 = Object.prototype;
+var propertyIsEnumerable = objectProto$9.propertyIsEnumerable;
+var nativeGetSymbols = Object.getOwnPropertySymbols;
+var getSymbols$1 = !nativeGetSymbols ? stubArray : function(object) {
+  if (object == null) {
+    return [];
+  }
+  object = Object(object);
+  return arrayFilter(nativeGetSymbols(object), function(symbol) {
+    return propertyIsEnumerable.call(object, symbol);
+  });
+};
+var _getSymbols = getSymbols$1;
+function baseTimes$1(n, iteratee) {
+  var index2 = -1, result = Array(n);
+  while (++index2 < n) {
+    result[index2] = iteratee(index2);
+  }
+  return result;
+}
+var _baseTimes = baseTimes$1;
+var isBufferExports = {};
+var isBuffer$3 = {
+  get exports() {
+    return isBufferExports;
+  },
+  set exports(v) {
+    isBufferExports = v;
+  }
+};
+function stubFalse() {
+  return false;
+}
+var stubFalse_1 = stubFalse;
+(function(module, exports) {
+  var root2 = _root, stubFalse2 = stubFalse_1;
+  var freeExports = exports && !exports.nodeType && exports;
+  var freeModule = freeExports && true && module && !module.nodeType && module;
+  var moduleExports = freeModule && freeModule.exports === freeExports;
+  var Buffer2 = moduleExports ? root2.Buffer : void 0;
+  var nativeIsBuffer = Buffer2 ? Buffer2.isBuffer : void 0;
+  var isBuffer2 = nativeIsBuffer || stubFalse2;
+  module.exports = isBuffer2;
+})(isBuffer$3, isBufferExports);
+var baseGetTag$4 = _baseGetTag, isLength$1 = isLength_1, isObjectLike$5 = isObjectLike_1;
+var argsTag$1 = "[object Arguments]", arrayTag$1 = "[object Array]", boolTag$1 = "[object Boolean]", dateTag = "[object Date]", errorTag = "[object Error]", funcTag = "[object Function]", mapTag$1 = "[object Map]", numberTag$1 = "[object Number]", objectTag$3 = "[object Object]", regexpTag = "[object RegExp]", setTag$1 = "[object Set]", stringTag = "[object String]", weakMapTag$1 = "[object WeakMap]";
+var arrayBufferTag = "[object ArrayBuffer]", dataViewTag$1 = "[object DataView]", float32Tag = "[object Float32Array]", float64Tag = "[object Float64Array]", int8Tag = "[object Int8Array]", int16Tag = "[object Int16Array]", int32Tag = "[object Int32Array]", uint8Tag = "[object Uint8Array]", uint8ClampedTag = "[object Uint8ClampedArray]", uint16Tag = "[object Uint16Array]", uint32Tag = "[object Uint32Array]";
+var typedArrayTags = {};
+typedArrayTags[float32Tag] = typedArrayTags[float64Tag] = typedArrayTags[int8Tag] = typedArrayTags[int16Tag] = typedArrayTags[int32Tag] = typedArrayTags[uint8Tag] = typedArrayTags[uint8ClampedTag] = typedArrayTags[uint16Tag] = typedArrayTags[uint32Tag] = true;
+typedArrayTags[argsTag$1] = typedArrayTags[arrayTag$1] = typedArrayTags[arrayBufferTag] = typedArrayTags[boolTag$1] = typedArrayTags[dataViewTag$1] = typedArrayTags[dateTag] = typedArrayTags[errorTag] = typedArrayTags[funcTag] = typedArrayTags[mapTag$1] = typedArrayTags[numberTag$1] = typedArrayTags[objectTag$3] = typedArrayTags[regexpTag] = typedArrayTags[setTag$1] = typedArrayTags[stringTag] = typedArrayTags[weakMapTag$1] = false;
+function baseIsTypedArray$1(value) {
+  return isObjectLike$5(value) && isLength$1(value.length) && !!typedArrayTags[baseGetTag$4(value)];
+}
+var _baseIsTypedArray = baseIsTypedArray$1;
+var baseIsTypedArray = _baseIsTypedArray, baseUnary = _baseUnary, nodeUtil = _nodeUtilExports;
+var nodeIsTypedArray = nodeUtil && nodeUtil.isTypedArray;
+var isTypedArray$3 = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedArray;
+var isTypedArray_1 = isTypedArray$3;
+var baseTimes = _baseTimes, isArguments$1 = isArguments_1, isArray$5 = isArray_1, isBuffer$2 = isBufferExports, isIndex$1 = _isIndex, isTypedArray$2 = isTypedArray_1;
+var objectProto$8 = Object.prototype;
+var hasOwnProperty$7 = objectProto$8.hasOwnProperty;
+function arrayLikeKeys$2(value, inherited) {
+  var isArr = isArray$5(value), isArg = !isArr && isArguments$1(value), isBuff = !isArr && !isArg && isBuffer$2(value), isType = !isArr && !isArg && !isBuff && isTypedArray$2(value), skipIndexes = isArr || isArg || isBuff || isType, result = skipIndexes ? baseTimes(value.length, String) : [], length = result.length;
+  for (var key in value) {
+    if ((inherited || hasOwnProperty$7.call(value, key)) && !(skipIndexes && // Safari 9 has enumerable `arguments.length` in strict mode.
+    (key == "length" || // Node.js 0.10 has enumerable non-index properties on buffers.
+    isBuff && (key == "offset" || key == "parent") || // PhantomJS 2 has enumerable non-index properties on typed arrays.
+    isType && (key == "buffer" || key == "byteLength" || key == "byteOffset") || // Skip index properties.
+    isIndex$1(key, length)))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+var _arrayLikeKeys = arrayLikeKeys$2;
+var objectProto$7 = Object.prototype;
+function isPrototype$3(value) {
+  var Ctor = value && value.constructor, proto = typeof Ctor == "function" && Ctor.prototype || objectProto$7;
+  return value === proto;
+}
+var _isPrototype = isPrototype$3;
+function overArg$2(func, transform) {
+  return function(arg) {
+    return func(transform(arg));
+  };
+}
+var _overArg = overArg$2;
+var overArg$1 = _overArg;
+var nativeKeys$1 = overArg$1(Object.keys, Object);
+var _nativeKeys = nativeKeys$1;
+var isPrototype$2 = _isPrototype, nativeKeys = _nativeKeys;
+var objectProto$6 = Object.prototype;
+var hasOwnProperty$6 = objectProto$6.hasOwnProperty;
+function baseKeys$1(object) {
+  if (!isPrototype$2(object)) {
+    return nativeKeys(object);
+  }
+  var result = [];
+  for (var key in Object(object)) {
+    if (hasOwnProperty$6.call(object, key) && key != "constructor") {
+      result.push(key);
+    }
+  }
+  return result;
+}
+var _baseKeys = baseKeys$1;
+var isFunction$1 = isFunction_1, isLength = isLength_1;
+function isArrayLike$5(value) {
+  return value != null && isLength(value.length) && !isFunction$1(value);
+}
+var isArrayLike_1 = isArrayLike$5;
+var arrayLikeKeys$1 = _arrayLikeKeys, baseKeys = _baseKeys, isArrayLike$4 = isArrayLike_1;
+function keys$3(object) {
+  return isArrayLike$4(object) ? arrayLikeKeys$1(object) : baseKeys(object);
+}
+var keys_1 = keys$3;
+var baseGetAllKeys = _baseGetAllKeys, getSymbols = _getSymbols, keys$2 = keys_1;
+function getAllKeys$1(object) {
+  return baseGetAllKeys(object, keys$2, getSymbols);
+}
+var _getAllKeys = getAllKeys$1;
+var getAllKeys = _getAllKeys;
+var COMPARE_PARTIAL_FLAG$3 = 1;
+var objectProto$5 = Object.prototype;
+var hasOwnProperty$5 = objectProto$5.hasOwnProperty;
+function equalObjects$1(object, other, bitmask, customizer, equalFunc, stack) {
+  var isPartial = bitmask & COMPARE_PARTIAL_FLAG$3, objProps = getAllKeys(object), objLength = objProps.length, othProps = getAllKeys(other), othLength = othProps.length;
+  if (objLength != othLength && !isPartial) {
+    return false;
+  }
+  var index2 = objLength;
+  while (index2--) {
+    var key = objProps[index2];
+    if (!(isPartial ? key in other : hasOwnProperty$5.call(other, key))) {
+      return false;
+    }
+  }
+  var objStacked = stack.get(object);
+  var othStacked = stack.get(other);
+  if (objStacked && othStacked) {
+    return objStacked == other && othStacked == object;
+  }
+  var result = true;
+  stack.set(object, other);
+  stack.set(other, object);
+  var skipCtor = isPartial;
+  while (++index2 < objLength) {
+    key = objProps[index2];
+    var objValue = object[key], othValue = other[key];
+    if (customizer) {
+      var compared = isPartial ? customizer(othValue, objValue, key, other, object, stack) : customizer(objValue, othValue, key, object, other, stack);
+    }
+    if (!(compared === void 0 ? objValue === othValue || equalFunc(objValue, othValue, bitmask, customizer, stack) : compared)) {
+      result = false;
+      break;
+    }
+    skipCtor || (skipCtor = key == "constructor");
+  }
+  if (result && !skipCtor) {
+    var objCtor = object.constructor, othCtor = other.constructor;
+    if (objCtor != othCtor && ("constructor" in object && "constructor" in other) && !(typeof objCtor == "function" && objCtor instanceof objCtor && typeof othCtor == "function" && othCtor instanceof othCtor)) {
+      result = false;
+    }
+  }
+  stack["delete"](object);
+  stack["delete"](other);
+  return result;
+}
+var _equalObjects = equalObjects$1;
+var getNative$4 = _getNative, root$3 = _root;
+var DataView$1 = getNative$4(root$3, "DataView");
+var _DataView = DataView$1;
+var getNative$3 = _getNative, root$2 = _root;
+var Promise$2 = getNative$3(root$2, "Promise");
+var _Promise = Promise$2;
+var getNative$2 = _getNative, root$1 = _root;
+var Set$1 = getNative$2(root$1, "Set");
+var _Set = Set$1;
+var getNative$1 = _getNative, root = _root;
+var WeakMap$1 = getNative$1(root, "WeakMap");
+var _WeakMap = WeakMap$1;
+var DataView = _DataView, Map = _Map, Promise$1 = _Promise, Set = _Set, WeakMap = _WeakMap, baseGetTag$3 = _baseGetTag, toSource = _toSource;
+var mapTag = "[object Map]", objectTag$2 = "[object Object]", promiseTag = "[object Promise]", setTag = "[object Set]", weakMapTag = "[object WeakMap]";
+var dataViewTag = "[object DataView]";
+var dataViewCtorString = toSource(DataView), mapCtorString = toSource(Map), promiseCtorString = toSource(Promise$1), setCtorString = toSource(Set), weakMapCtorString = toSource(WeakMap);
+var getTag$1 = baseGetTag$3;
+if (DataView && getTag$1(new DataView(new ArrayBuffer(1))) != dataViewTag || Map && getTag$1(new Map()) != mapTag || Promise$1 && getTag$1(Promise$1.resolve()) != promiseTag || Set && getTag$1(new Set()) != setTag || WeakMap && getTag$1(new WeakMap()) != weakMapTag) {
+  getTag$1 = function(value) {
+    var result = baseGetTag$3(value), Ctor = result == objectTag$2 ? value.constructor : void 0, ctorString = Ctor ? toSource(Ctor) : "";
+    if (ctorString) {
+      switch (ctorString) {
+        case dataViewCtorString:
+          return dataViewTag;
+        case mapCtorString:
+          return mapTag;
+        case promiseCtorString:
+          return promiseTag;
+        case setCtorString:
+          return setTag;
+        case weakMapCtorString:
+          return weakMapTag;
+      }
+    }
+    return result;
+  };
+}
+var _getTag = getTag$1;
+var Stack$2 = _Stack, equalArrays = _equalArrays, equalByTag = _equalByTag, equalObjects = _equalObjects, getTag = _getTag, isArray$4 = isArray_1, isBuffer$1 = isBufferExports, isTypedArray$1 = isTypedArray_1;
+var COMPARE_PARTIAL_FLAG$2 = 1;
+var argsTag = "[object Arguments]", arrayTag = "[object Array]", objectTag$1 = "[object Object]";
+var objectProto$4 = Object.prototype;
+var hasOwnProperty$4 = objectProto$4.hasOwnProperty;
+function baseIsEqualDeep$1(object, other, bitmask, customizer, equalFunc, stack) {
+  var objIsArr = isArray$4(object), othIsArr = isArray$4(other), objTag = objIsArr ? arrayTag : getTag(object), othTag = othIsArr ? arrayTag : getTag(other);
+  objTag = objTag == argsTag ? objectTag$1 : objTag;
+  othTag = othTag == argsTag ? objectTag$1 : othTag;
+  var objIsObj = objTag == objectTag$1, othIsObj = othTag == objectTag$1, isSameTag = objTag == othTag;
+  if (isSameTag && isBuffer$1(object)) {
+    if (!isBuffer$1(other)) {
+      return false;
+    }
+    objIsArr = true;
+    objIsObj = false;
+  }
+  if (isSameTag && !objIsObj) {
+    stack || (stack = new Stack$2());
+    return objIsArr || isTypedArray$1(object) ? equalArrays(object, other, bitmask, customizer, equalFunc, stack) : equalByTag(object, other, objTag, bitmask, customizer, equalFunc, stack);
+  }
+  if (!(bitmask & COMPARE_PARTIAL_FLAG$2)) {
+    var objIsWrapped = objIsObj && hasOwnProperty$4.call(object, "__wrapped__"), othIsWrapped = othIsObj && hasOwnProperty$4.call(other, "__wrapped__");
+    if (objIsWrapped || othIsWrapped) {
+      var objUnwrapped = objIsWrapped ? object.value() : object, othUnwrapped = othIsWrapped ? other.value() : other;
+      stack || (stack = new Stack$2());
+      return equalFunc(objUnwrapped, othUnwrapped, bitmask, customizer, stack);
+    }
+  }
+  if (!isSameTag) {
+    return false;
+  }
+  stack || (stack = new Stack$2());
+  return equalObjects(object, other, bitmask, customizer, equalFunc, stack);
+}
+var _baseIsEqualDeep = baseIsEqualDeep$1;
+var baseIsEqualDeep = _baseIsEqualDeep, isObjectLike$4 = isObjectLike_1;
+function baseIsEqual$2(value, other, bitmask, customizer, stack) {
+  if (value === other) {
+    return true;
+  }
+  if (value == null || other == null || !isObjectLike$4(value) && !isObjectLike$4(other)) {
+    return value !== value && other !== other;
+  }
+  return baseIsEqualDeep(value, other, bitmask, customizer, baseIsEqual$2, stack);
+}
+var _baseIsEqual = baseIsEqual$2;
+var Stack$1 = _Stack, baseIsEqual$1 = _baseIsEqual;
+var COMPARE_PARTIAL_FLAG$1 = 1, COMPARE_UNORDERED_FLAG$1 = 2;
+function baseIsMatch$1(object, source, matchData, customizer) {
+  var index2 = matchData.length, length = index2, noCustomizer = !customizer;
+  if (object == null) {
+    return !length;
+  }
+  object = Object(object);
+  while (index2--) {
+    var data2 = matchData[index2];
+    if (noCustomizer && data2[2] ? data2[1] !== object[data2[0]] : !(data2[0] in object)) {
+      return false;
+    }
+  }
+  while (++index2 < length) {
+    data2 = matchData[index2];
+    var key = data2[0], objValue = object[key], srcValue = data2[1];
+    if (noCustomizer && data2[2]) {
+      if (objValue === void 0 && !(key in object)) {
+        return false;
+      }
+    } else {
+      var stack = new Stack$1();
+      if (customizer) {
+        var result = customizer(objValue, srcValue, key, object, source, stack);
+      }
+      if (!(result === void 0 ? baseIsEqual$1(srcValue, objValue, COMPARE_PARTIAL_FLAG$1 | COMPARE_UNORDERED_FLAG$1, customizer, stack) : result)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+var _baseIsMatch = baseIsMatch$1;
+var isObject$7 = isObject_1;
+function isStrictComparable$2(value) {
+  return value === value && !isObject$7(value);
+}
+var _isStrictComparable = isStrictComparable$2;
+var isStrictComparable$1 = _isStrictComparable, keys$1 = keys_1;
+function getMatchData$1(object) {
+  var result = keys$1(object), length = result.length;
+  while (length--) {
+    var key = result[length], value = object[key];
+    result[length] = [key, value, isStrictComparable$1(value)];
+  }
+  return result;
+}
+var _getMatchData = getMatchData$1;
+function matchesStrictComparable$2(key, srcValue) {
+  return function(object) {
+    if (object == null) {
+      return false;
+    }
+    return object[key] === srcValue && (srcValue !== void 0 || key in Object(object));
+  };
+}
+var _matchesStrictComparable = matchesStrictComparable$2;
+var baseIsMatch = _baseIsMatch, getMatchData = _getMatchData, matchesStrictComparable$1 = _matchesStrictComparable;
+function baseMatches$1(source) {
+  var matchData = getMatchData(source);
+  if (matchData.length == 1 && matchData[0][2]) {
+    return matchesStrictComparable$1(matchData[0][0], matchData[0][1]);
+  }
+  return function(object) {
+    return object === source || baseIsMatch(object, source, matchData);
+  };
+}
+var _baseMatches = baseMatches$1;
+var castPath = _castPath, toKey$2 = _toKey;
+function baseGet$2(object, path) {
+  path = castPath(path, object);
+  var index2 = 0, length = path.length;
+  while (object != null && index2 < length) {
+    object = object[toKey$2(path[index2++])];
+  }
+  return index2 && index2 == length ? object : void 0;
+}
+var _baseGet = baseGet$2;
+var baseGet$1 = _baseGet;
+function get$1(object, path, defaultValue) {
+  var result = object == null ? void 0 : baseGet$1(object, path);
+  return result === void 0 ? defaultValue : result;
+}
+var get_1 = get$1;
+function baseHasIn$1(object, key) {
+  return object != null && key in Object(object);
+}
+var _baseHasIn = baseHasIn$1;
+var baseHasIn = _baseHasIn, hasPath = _hasPath;
+function hasIn$1(object, path) {
+  return object != null && hasPath(object, path, baseHasIn);
+}
+var hasIn_1 = hasIn$1;
+var baseIsEqual = _baseIsEqual, get = get_1, hasIn = hasIn_1, isKey$1 = _isKey, isStrictComparable = _isStrictComparable, matchesStrictComparable = _matchesStrictComparable, toKey$1 = _toKey;
+var COMPARE_PARTIAL_FLAG = 1, COMPARE_UNORDERED_FLAG = 2;
+function baseMatchesProperty$1(path, srcValue) {
+  if (isKey$1(path) && isStrictComparable(srcValue)) {
+    return matchesStrictComparable(toKey$1(path), srcValue);
+  }
+  return function(object) {
+    var objValue = get(object, path);
+    return objValue === void 0 && objValue === srcValue ? hasIn(object, path) : baseIsEqual(srcValue, objValue, COMPARE_PARTIAL_FLAG | COMPARE_UNORDERED_FLAG);
+  };
+}
+var _baseMatchesProperty = baseMatchesProperty$1;
+function identity$3(value) {
+  return value;
+}
+var identity_1 = identity$3;
+function baseProperty$1(key) {
+  return function(object) {
+    return object == null ? void 0 : object[key];
+  };
+}
+var _baseProperty = baseProperty$1;
+var baseGet = _baseGet;
+function basePropertyDeep$1(path) {
+  return function(object) {
+    return baseGet(object, path);
+  };
+}
+var _basePropertyDeep = basePropertyDeep$1;
+var baseProperty = _baseProperty, basePropertyDeep = _basePropertyDeep, isKey = _isKey, toKey = _toKey;
+function property$1(path) {
+  return isKey(path) ? baseProperty(toKey(path)) : basePropertyDeep(path);
+}
+var property_1 = property$1;
+var baseMatches = _baseMatches, baseMatchesProperty = _baseMatchesProperty, identity$2 = identity_1, isArray$3 = isArray_1, property = property_1;
+function baseIteratee$2(value) {
+  if (typeof value == "function") {
+    return value;
+  }
+  if (value == null) {
+    return identity$2;
+  }
+  if (typeof value == "object") {
+    return isArray$3(value) ? baseMatchesProperty(value[0], value[1]) : baseMatches(value);
+  }
+  return property(value);
+}
+var _baseIteratee = baseIteratee$2;
+function createBaseFor$1(fromRight) {
+  return function(object, iteratee, keysFunc) {
+    var index2 = -1, iterable = Object(object), props = keysFunc(object), length = props.length;
+    while (length--) {
+      var key = props[fromRight ? length : ++index2];
+      if (iteratee(iterable[key], key, iterable) === false) {
+        break;
+      }
+    }
+    return object;
+  };
+}
+var _createBaseFor = createBaseFor$1;
+var createBaseFor = _createBaseFor;
+var baseFor$2 = createBaseFor();
+var _baseFor = baseFor$2;
+var baseFor$1 = _baseFor, keys = keys_1;
+function baseForOwn$2(object, iteratee) {
+  return object && baseFor$1(object, iteratee, keys);
+}
+var _baseForOwn = baseForOwn$2;
+var isArrayLike$3 = isArrayLike_1;
+function createBaseEach$1(eachFunc, fromRight) {
+  return function(collection, iteratee) {
+    if (collection == null) {
+      return collection;
+    }
+    if (!isArrayLike$3(collection)) {
+      return eachFunc(collection, iteratee);
+    }
+    var length = collection.length, index2 = fromRight ? length : -1, iterable = Object(collection);
+    while (fromRight ? index2-- : ++index2 < length) {
+      if (iteratee(iterable[index2], index2, iterable) === false) {
+        break;
+      }
+    }
+    return collection;
+  };
+}
+var _createBaseEach = createBaseEach$1;
+var baseForOwn$1 = _baseForOwn, createBaseEach = _createBaseEach;
+var baseEach$1 = createBaseEach(baseForOwn$1);
+var _baseEach = baseEach$1;
+var baseEach = _baseEach;
+function baseSome$1(collection, predicate) {
+  var result;
+  baseEach(collection, function(value, index2, collection2) {
+    result = predicate(value, index2, collection2);
+    return !result;
+  });
+  return !!result;
+}
+var _baseSome = baseSome$1;
+var eq$3 = eq_1, isArrayLike$2 = isArrayLike_1, isIndex = _isIndex, isObject$6 = isObject_1;
+function isIterateeCall$3(value, index2, object) {
+  if (!isObject$6(object)) {
+    return false;
+  }
+  var type = typeof index2;
+  if (type == "number" ? isArrayLike$2(object) && isIndex(index2, object.length) : type == "string" && index2 in object) {
+    return eq$3(object[index2], value);
+  }
+  return false;
+}
+var _isIterateeCall = isIterateeCall$3;
+var arraySome = _arraySome, baseIteratee$1 = _baseIteratee, baseSome = _baseSome, isArray$2 = isArray_1, isIterateeCall$2 = _isIterateeCall;
+function some(collection, predicate, guard) {
+  var func = isArray$2(collection) ? arraySome : baseSome;
+  if (guard && isIterateeCall$2(collection, predicate, guard)) {
+    predicate = void 0;
+  }
+  return func(collection, baseIteratee$1(predicate));
+}
+var some_1 = some;
+var baseGetTag$2 = _baseGetTag, isObjectLike$3 = isObjectLike_1;
+var boolTag = "[object Boolean]";
+function isBoolean(value) {
+  return value === true || value === false || isObjectLike$3(value) && baseGetTag$2(value) == boolTag;
+}
+var isBoolean_1 = isBoolean;
+var baseGetTag$1 = _baseGetTag, isObjectLike$2 = isObjectLike_1;
+var numberTag = "[object Number]";
+function isNumber(value) {
+  return typeof value == "number" || isObjectLike$2(value) && baseGetTag$1(value) == numberTag;
+}
+var isNumber_1 = isNumber;
+var getNative = _getNative;
+var defineProperty$2 = function() {
+  try {
+    var func = getNative(Object, "defineProperty");
+    func({}, "", {});
+    return func;
+  } catch (e) {
+  }
+}();
+var _defineProperty = defineProperty$2;
+var defineProperty$1 = _defineProperty;
+function baseAssignValue$4(object, key, value) {
+  if (key == "__proto__" && defineProperty$1) {
+    defineProperty$1(object, key, {
+      "configurable": true,
+      "enumerable": true,
+      "value": value,
+      "writable": true
+    });
+  } else {
+    object[key] = value;
+  }
+}
+var _baseAssignValue = baseAssignValue$4;
+var baseAssignValue$3 = _baseAssignValue, eq$2 = eq_1;
+var objectProto$3 = Object.prototype;
+var hasOwnProperty$3 = objectProto$3.hasOwnProperty;
+function assignValue$1(object, key, value) {
+  var objValue = object[key];
+  if (!(hasOwnProperty$3.call(object, key) && eq$2(objValue, value)) || value === void 0 && !(key in object)) {
+    baseAssignValue$3(object, key, value);
+  }
+}
+var _assignValue = assignValue$1;
+var baseAssignValue$2 = _baseAssignValue, baseForOwn = _baseForOwn, baseIteratee = _baseIteratee;
+function mapValues(object, iteratee) {
+  var result = {};
+  iteratee = baseIteratee(iteratee);
+  baseForOwn(object, function(value, key, object2) {
+    baseAssignValue$2(result, key, iteratee(value, key, object2));
+  });
+  return result;
+}
+var mapValues_1 = mapValues;
+function apply$2(func, thisArg, args) {
+  switch (args.length) {
+    case 0:
+      return func.call(thisArg);
+    case 1:
+      return func.call(thisArg, args[0]);
+    case 2:
+      return func.call(thisArg, args[0], args[1]);
+    case 3:
+      return func.call(thisArg, args[0], args[1], args[2]);
+  }
+  return func.apply(thisArg, args);
+}
+var _apply = apply$2;
+var apply$1 = _apply;
+var nativeMax = Math.max;
+function overRest$1(func, start, transform) {
+  start = nativeMax(start === void 0 ? func.length - 1 : start, 0);
+  return function() {
+    var args = arguments, index2 = -1, length = nativeMax(args.length - start, 0), array = Array(length);
+    while (++index2 < length) {
+      array[index2] = args[start + index2];
+    }
+    index2 = -1;
+    var otherArgs = Array(start + 1);
+    while (++index2 < start) {
+      otherArgs[index2] = args[index2];
+    }
+    otherArgs[start] = transform(array);
+    return apply$1(func, this, otherArgs);
+  };
+}
+var _overRest = overRest$1;
+function constant$1(value) {
+  return function() {
+    return value;
+  };
+}
+var constant_1 = constant$1;
+var constant = constant_1, defineProperty = _defineProperty, identity$1 = identity_1;
+var baseSetToString$1 = !defineProperty ? identity$1 : function(func, string) {
+  return defineProperty(func, "toString", {
+    "configurable": true,
+    "enumerable": false,
+    "value": constant(string),
+    "writable": true
+  });
+};
+var _baseSetToString = baseSetToString$1;
+var HOT_COUNT = 800, HOT_SPAN = 16;
+var nativeNow = Date.now;
+function shortOut$1(func) {
+  var count = 0, lastCalled = 0;
+  return function() {
+    var stamp = nativeNow(), remaining = HOT_SPAN - (stamp - lastCalled);
+    lastCalled = stamp;
+    if (remaining > 0) {
+      if (++count >= HOT_COUNT) {
+        return arguments[0];
+      }
+    } else {
+      count = 0;
+    }
+    return func.apply(void 0, arguments);
+  };
+}
+var _shortOut = shortOut$1;
+var baseSetToString = _baseSetToString, shortOut = _shortOut;
+var setToString$1 = shortOut(baseSetToString);
+var _setToString = setToString$1;
+var identity = identity_1, overRest = _overRest, setToString = _setToString;
+function baseRest$3(func, start) {
+  return setToString(overRest(func, start, identity), func + "");
+}
+var _baseRest = baseRest$3;
+function nativeKeysIn$1(object) {
+  var result = [];
+  if (object != null) {
+    for (var key in Object(object)) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+var _nativeKeysIn = nativeKeysIn$1;
+var isObject$5 = isObject_1, isPrototype$1 = _isPrototype, nativeKeysIn = _nativeKeysIn;
+var objectProto$2 = Object.prototype;
+var hasOwnProperty$2 = objectProto$2.hasOwnProperty;
+function baseKeysIn$1(object) {
+  if (!isObject$5(object)) {
+    return nativeKeysIn(object);
+  }
+  var isProto = isPrototype$1(object), result = [];
+  for (var key in object) {
+    if (!(key == "constructor" && (isProto || !hasOwnProperty$2.call(object, key)))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+var _baseKeysIn = baseKeysIn$1;
+var arrayLikeKeys = _arrayLikeKeys, baseKeysIn = _baseKeysIn, isArrayLike$1 = isArrayLike_1;
+function keysIn$3(object) {
+  return isArrayLike$1(object) ? arrayLikeKeys(object, true) : baseKeysIn(object);
+}
+var keysIn_1 = keysIn$3;
+var baseRest$2 = _baseRest, eq$1 = eq_1, isIterateeCall$1 = _isIterateeCall, keysIn$2 = keysIn_1;
+var objectProto$1 = Object.prototype;
+var hasOwnProperty$1 = objectProto$1.hasOwnProperty;
+var defaults = baseRest$2(function(object, sources) {
+  object = Object(object);
+  var index2 = -1;
+  var length = sources.length;
+  var guard = length > 2 ? sources[2] : void 0;
+  if (guard && isIterateeCall$1(sources[0], sources[1], guard)) {
+    length = 1;
+  }
+  while (++index2 < length) {
+    var source = sources[index2];
+    var props = keysIn$2(source);
+    var propsIndex = -1;
+    var propsLength = props.length;
+    while (++propsIndex < propsLength) {
+      var key = props[propsIndex];
+      var value = object[key];
+      if (value === void 0 || eq$1(value, objectProto$1[key]) && !hasOwnProperty$1.call(object, key)) {
+        object[key] = source[key];
+      }
+    }
+  }
+  return object;
+});
+var defaults_1 = defaults;
+var baseAssignValue$1 = _baseAssignValue, eq = eq_1;
+function assignMergeValue$2(object, key, value) {
+  if (value !== void 0 && !eq(object[key], value) || value === void 0 && !(key in object)) {
+    baseAssignValue$1(object, key, value);
+  }
+}
+var _assignMergeValue = assignMergeValue$2;
+var _cloneBufferExports = {};
+var _cloneBuffer = {
+  get exports() {
+    return _cloneBufferExports;
+  },
+  set exports(v) {
+    _cloneBufferExports = v;
+  }
+};
+(function(module, exports) {
+  var root2 = _root;
+  var freeExports = exports && !exports.nodeType && exports;
+  var freeModule = freeExports && true && module && !module.nodeType && module;
+  var moduleExports = freeModule && freeModule.exports === freeExports;
+  var Buffer2 = moduleExports ? root2.Buffer : void 0, allocUnsafe = Buffer2 ? Buffer2.allocUnsafe : void 0;
+  function cloneBuffer2(buffer, isDeep) {
+    if (isDeep) {
+      return buffer.slice();
+    }
+    var length = buffer.length, result = allocUnsafe ? allocUnsafe(length) : new buffer.constructor(length);
+    buffer.copy(result);
+    return result;
+  }
+  module.exports = cloneBuffer2;
+})(_cloneBuffer, _cloneBufferExports);
+var Uint8Array2 = _Uint8Array;
+function cloneArrayBuffer$1(arrayBuffer) {
+  var result = new arrayBuffer.constructor(arrayBuffer.byteLength);
+  new Uint8Array2(result).set(new Uint8Array2(arrayBuffer));
+  return result;
+}
+var _cloneArrayBuffer = cloneArrayBuffer$1;
+var cloneArrayBuffer = _cloneArrayBuffer;
+function cloneTypedArray$1(typedArray, isDeep) {
+  var buffer = isDeep ? cloneArrayBuffer(typedArray.buffer) : typedArray.buffer;
+  return new typedArray.constructor(buffer, typedArray.byteOffset, typedArray.length);
+}
+var _cloneTypedArray = cloneTypedArray$1;
+function copyArray$1(source, array) {
+  var index2 = -1, length = source.length;
+  array || (array = Array(length));
+  while (++index2 < length) {
+    array[index2] = source[index2];
+  }
+  return array;
+}
+var _copyArray = copyArray$1;
+var isObject$4 = isObject_1;
+var objectCreate = Object.create;
+var baseCreate$1 = function() {
+  function object() {
+  }
+  return function(proto) {
+    if (!isObject$4(proto)) {
+      return {};
+    }
+    if (objectCreate) {
+      return objectCreate(proto);
+    }
+    object.prototype = proto;
+    var result = new object();
+    object.prototype = void 0;
+    return result;
+  };
+}();
+var _baseCreate = baseCreate$1;
+var overArg = _overArg;
+var getPrototype$2 = overArg(Object.getPrototypeOf, Object);
+var _getPrototype = getPrototype$2;
+var baseCreate = _baseCreate, getPrototype$1 = _getPrototype, isPrototype = _isPrototype;
+function initCloneObject$1(object) {
+  return typeof object.constructor == "function" && !isPrototype(object) ? baseCreate(getPrototype$1(object)) : {};
+}
+var _initCloneObject = initCloneObject$1;
+var isArrayLike = isArrayLike_1, isObjectLike$1 = isObjectLike_1;
+function isArrayLikeObject$1(value) {
+  return isObjectLike$1(value) && isArrayLike(value);
+}
+var isArrayLikeObject_1 = isArrayLikeObject$1;
+var baseGetTag = _baseGetTag, getPrototype = _getPrototype, isObjectLike = isObjectLike_1;
+var objectTag = "[object Object]";
+var funcProto = Function.prototype, objectProto = Object.prototype;
+var funcToString = funcProto.toString;
+var hasOwnProperty = objectProto.hasOwnProperty;
+var objectCtorString = funcToString.call(Object);
+function isPlainObject$1(value) {
+  if (!isObjectLike(value) || baseGetTag(value) != objectTag) {
+    return false;
+  }
+  var proto = getPrototype(value);
+  if (proto === null) {
+    return true;
+  }
+  var Ctor = hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  return typeof Ctor == "function" && Ctor instanceof Ctor && funcToString.call(Ctor) == objectCtorString;
+}
+var isPlainObject_1 = isPlainObject$1;
+function safeGet$2(object, key) {
+  if (key === "constructor" && typeof object[key] === "function") {
+    return;
+  }
+  if (key == "__proto__") {
+    return;
+  }
+  return object[key];
+}
+var _safeGet = safeGet$2;
+var assignValue = _assignValue, baseAssignValue = _baseAssignValue;
+function copyObject$1(source, props, object, customizer) {
+  var isNew = !object;
+  object || (object = {});
+  var index2 = -1, length = props.length;
+  while (++index2 < length) {
+    var key = props[index2];
+    var newValue = customizer ? customizer(object[key], source[key], key, object, source) : void 0;
+    if (newValue === void 0) {
+      newValue = source[key];
+    }
+    if (isNew) {
+      baseAssignValue(object, key, newValue);
+    } else {
+      assignValue(object, key, newValue);
+    }
+  }
+  return object;
+}
+var _copyObject = copyObject$1;
+var copyObject = _copyObject, keysIn$1 = keysIn_1;
+function toPlainObject$1(value) {
+  return copyObject(value, keysIn$1(value));
+}
+var toPlainObject_1 = toPlainObject$1;
+var assignMergeValue$1 = _assignMergeValue, cloneBuffer = _cloneBufferExports, cloneTypedArray = _cloneTypedArray, copyArray = _copyArray, initCloneObject = _initCloneObject, isArguments = isArguments_1, isArray$1 = isArray_1, isArrayLikeObject = isArrayLikeObject_1, isBuffer = isBufferExports, isFunction = isFunction_1, isObject$3 = isObject_1, isPlainObject = isPlainObject_1, isTypedArray = isTypedArray_1, safeGet$1 = _safeGet, toPlainObject = toPlainObject_1;
+function baseMergeDeep$1(object, source, key, srcIndex, mergeFunc, customizer, stack) {
+  var objValue = safeGet$1(object, key), srcValue = safeGet$1(source, key), stacked = stack.get(srcValue);
+  if (stacked) {
+    assignMergeValue$1(object, key, stacked);
+    return;
+  }
+  var newValue = customizer ? customizer(objValue, srcValue, key + "", object, source, stack) : void 0;
+  var isCommon = newValue === void 0;
+  if (isCommon) {
+    var isArr = isArray$1(srcValue), isBuff = !isArr && isBuffer(srcValue), isTyped = !isArr && !isBuff && isTypedArray(srcValue);
+    newValue = srcValue;
+    if (isArr || isBuff || isTyped) {
+      if (isArray$1(objValue)) {
+        newValue = objValue;
+      } else if (isArrayLikeObject(objValue)) {
+        newValue = copyArray(objValue);
+      } else if (isBuff) {
+        isCommon = false;
+        newValue = cloneBuffer(srcValue, true);
+      } else if (isTyped) {
+        isCommon = false;
+        newValue = cloneTypedArray(srcValue, true);
+      } else {
+        newValue = [];
+      }
+    } else if (isPlainObject(srcValue) || isArguments(srcValue)) {
+      newValue = objValue;
+      if (isArguments(objValue)) {
+        newValue = toPlainObject(objValue);
+      } else if (!isObject$3(objValue) || isFunction(objValue)) {
+        newValue = initCloneObject(srcValue);
+      }
+    } else {
+      isCommon = false;
+    }
+  }
+  if (isCommon) {
+    stack.set(srcValue, newValue);
+    mergeFunc(newValue, srcValue, srcIndex, customizer, stack);
+    stack["delete"](srcValue);
+  }
+  assignMergeValue$1(object, key, newValue);
+}
+var _baseMergeDeep = baseMergeDeep$1;
+var Stack = _Stack, assignMergeValue = _assignMergeValue, baseFor = _baseFor, baseMergeDeep = _baseMergeDeep, isObject$2 = isObject_1, keysIn = keysIn_1, safeGet = _safeGet;
+function baseMerge$2(object, source, srcIndex, customizer, stack) {
+  if (object === source) {
+    return;
+  }
+  baseFor(source, function(srcValue, key) {
+    stack || (stack = new Stack());
+    if (isObject$2(srcValue)) {
+      baseMergeDeep(object, source, key, srcIndex, baseMerge$2, customizer, stack);
+    } else {
+      var newValue = customizer ? customizer(safeGet(object, key), srcValue, key + "", object, source, stack) : void 0;
+      if (newValue === void 0) {
+        newValue = srcValue;
+      }
+      assignMergeValue(object, key, newValue);
+    }
+  }, keysIn);
+}
+var _baseMerge = baseMerge$2;
+var baseMerge$1 = _baseMerge, isObject$1 = isObject_1;
+function customDefaultsMerge$1(objValue, srcValue, key, object, source, stack) {
+  if (isObject$1(objValue) && isObject$1(srcValue)) {
+    stack.set(srcValue, objValue);
+    baseMerge$1(objValue, srcValue, void 0, customDefaultsMerge$1, stack);
+    stack["delete"](srcValue);
+  }
+  return objValue;
+}
+var _customDefaultsMerge = customDefaultsMerge$1;
+var baseRest$1 = _baseRest, isIterateeCall = _isIterateeCall;
+function createAssigner$1(assigner) {
+  return baseRest$1(function(object, sources) {
+    var index2 = -1, length = sources.length, customizer = length > 1 ? sources[length - 1] : void 0, guard = length > 2 ? sources[2] : void 0;
+    customizer = assigner.length > 3 && typeof customizer == "function" ? (length--, customizer) : void 0;
+    if (guard && isIterateeCall(sources[0], sources[1], guard)) {
+      customizer = length < 3 ? void 0 : customizer;
+      length = 1;
+    }
+    object = Object(object);
+    while (++index2 < length) {
+      var source = sources[index2];
+      if (source) {
+        assigner(object, source, index2, customizer);
+      }
+    }
+    return object;
+  });
+}
+var _createAssigner = createAssigner$1;
+var baseMerge = _baseMerge, createAssigner = _createAssigner;
+var mergeWith$1 = createAssigner(function(object, source, srcIndex, customizer) {
+  baseMerge(object, source, srcIndex, customizer);
+});
+var mergeWith_1 = mergeWith$1;
+var apply = _apply, baseRest = _baseRest, customDefaultsMerge = _customDefaultsMerge, mergeWith = mergeWith_1;
+var defaultsDeep = baseRest(function(args) {
+  args.push(void 0, customDefaultsMerge);
+  return apply(mergeWith, void 0, args);
+});
+var defaultsDeep_1 = defaultsDeep;
+function head(array) {
+  return array && array.length ? array[0] : void 0;
+}
+var head_1 = head;
+function last(array) {
+  var length = array == null ? 0 : array.length;
+  return length ? array[length - 1] : void 0;
+}
+var last_1 = last;
+const getType = (value) => Object.prototype.toString.call(value).slice(8, -1);
+const isDate = (value) => isDate_1(value) && !isNaN(value.getTime());
+const isObject = (value) => getType(value) === "Object";
+const has = has_1;
+const hasAny = (obj, props) => some_1(props, (p) => has_1(obj, p));
+const pad = (val, len, char = "0") => {
+  val = val !== null && val !== void 0 ? String(val) : "";
+  len = len || 2;
+  while (val.length < len) {
+    val = `${char}${val}`;
+  }
+  return val;
+};
+const isArray = (val) => Array.isArray(val);
+const arrayHasItems = (array) => isArray(array) && array.length > 0;
+const resolveEl = (target) => {
+  if (target == null)
+    return null;
+  if (document && isString_1(target))
+    return document.querySelector(target);
+  return target.$el ?? target;
+};
+const off = (element, event, handler, opts = void 0) => {
+  element.removeEventListener(event, handler, opts);
+};
+const on = (element, event, handler, opts = void 0) => {
+  element.addEventListener(event, handler, opts);
+  return () => off(element, event, handler, opts);
+};
+const elementContains = (element, child) => !!element && !!child && (element === child || element.contains(child));
+const onSpaceOrEnter = (event, handler) => {
+  if (event.key === " " || event.key === "Enter") {
+    handler(event);
+    event.preventDefault();
+  }
+};
+const omit = (obj, ...keys2) => {
+  const ret = {};
+  let key;
+  for (key in obj) {
+    if (!keys2.includes(key)) {
+      ret[key] = obj[key];
+    }
+  }
+  return ret;
+};
+const pick = (obj, keys2) => {
+  const ret = {};
+  keys2.forEach((key) => {
+    if (key in obj)
+      ret[key] = obj[key];
+  });
+  return ret;
+};
+function clamp(num, min, max) {
+  return Math.min(Math.max(num, min), max);
+}
+var toIntegerExports = {};
+var toInteger$2 = {
+  get exports() {
+    return toIntegerExports;
+  },
+  set exports(v) {
+    toIntegerExports = v;
+  }
+};
+(function(module, exports) {
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.default = toInteger2;
+  function toInteger2(dirtyNumber) {
+    if (dirtyNumber === null || dirtyNumber === true || dirtyNumber === false) {
+      return NaN;
+    }
+    var number = Number(dirtyNumber);
+    if (isNaN(number)) {
+      return number;
+    }
+    return number < 0 ? Math.ceil(number) : Math.floor(number);
+  }
+  module.exports = exports.default;
+})(toInteger$2, toIntegerExports);
+const toInteger$1 = /* @__PURE__ */ getDefaultExportFromCjs(toIntegerExports);
+var getTimezoneOffsetInMillisecondsExports = {};
+var getTimezoneOffsetInMilliseconds$2 = {
+  get exports() {
+    return getTimezoneOffsetInMillisecondsExports;
+  },
+  set exports(v) {
+    getTimezoneOffsetInMillisecondsExports = v;
+  }
+};
+(function(module, exports) {
+  Object.defineProperty(exports, "__esModule", {
+    value: true
+  });
+  exports.default = getTimezoneOffsetInMilliseconds2;
+  function getTimezoneOffsetInMilliseconds2(date) {
+    var utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds()));
+    utcDate.setUTCFullYear(date.getFullYear());
+    return date.getTime() - utcDate.getTime();
+  }
+  module.exports = exports.default;
+})(getTimezoneOffsetInMilliseconds$2, getTimezoneOffsetInMillisecondsExports);
+const getTimezoneOffsetInMilliseconds$1 = /* @__PURE__ */ getDefaultExportFromCjs(getTimezoneOffsetInMillisecondsExports);
+function tzTokenizeDate(date, timeZone) {
+  var dtf = getDateTimeFormat(timeZone);
+  return dtf.formatToParts ? partsOffset(dtf, date) : hackyOffset(dtf, date);
+}
+var typeToPos = {
+  year: 0,
+  month: 1,
+  day: 2,
+  hour: 3,
+  minute: 4,
+  second: 5
+};
+function partsOffset(dtf, date) {
+  try {
+    var formatted = dtf.formatToParts(date);
+    var filled = [];
+    for (var i = 0; i < formatted.length; i++) {
+      var pos = typeToPos[formatted[i].type];
+      if (pos >= 0) {
+        filled[pos] = parseInt(formatted[i].value, 10);
+      }
+    }
+    return filled;
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return [NaN];
+    }
+    throw error;
+  }
+}
+function hackyOffset(dtf, date) {
+  var formatted = dtf.format(date).replace(/\u200E/g, "");
+  var parsed = /(\d+)\/(\d+)\/(\d+),? (\d+):(\d+):(\d+)/.exec(formatted);
+  return [parsed[3], parsed[1], parsed[2], parsed[4], parsed[5], parsed[6]];
+}
+var dtfCache = {};
+function getDateTimeFormat(timeZone) {
+  if (!dtfCache[timeZone]) {
+    var testDateFormatted = new Intl.DateTimeFormat("en-US", {
+      hour12: false,
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "numeric",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }).format(/* @__PURE__ */ new Date("2014-06-25T04:00:00.123Z"));
+    var hourCycleSupported = testDateFormatted === "06/25/2014, 00:00:00" || testDateFormatted === "‎06‎/‎25‎/‎2014‎ ‎00‎:‎00‎:‎00";
+    dtfCache[timeZone] = hourCycleSupported ? new Intl.DateTimeFormat("en-US", {
+      hour12: false,
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }) : new Intl.DateTimeFormat("en-US", {
+      hourCycle: "h23",
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  }
+  return dtfCache[timeZone];
+}
+function newDateUTC(fullYear, month, day, hour, minute, second, millisecond) {
+  var utcDate = /* @__PURE__ */ new Date(0);
+  utcDate.setUTCFullYear(fullYear, month, day);
+  utcDate.setUTCHours(hour, minute, second, millisecond);
+  return utcDate;
+}
+var MILLISECONDS_IN_HOUR$1 = 36e5;
+var MILLISECONDS_IN_MINUTE$1 = 6e4;
+var patterns$1 = {
+  timezone: /([Z+-].*)$/,
+  timezoneZ: /^(Z)$/,
+  timezoneHH: /^([+-]\d{2})$/,
+  timezoneHHMM: /^([+-]\d{2}):?(\d{2})$/
+};
+function tzParseTimezone(timezoneString, date, isUtcDate) {
+  var token2;
+  var absoluteOffset;
+  if (!timezoneString) {
+    return 0;
+  }
+  token2 = patterns$1.timezoneZ.exec(timezoneString);
+  if (token2) {
+    return 0;
+  }
+  var hours2;
+  token2 = patterns$1.timezoneHH.exec(timezoneString);
+  if (token2) {
+    hours2 = parseInt(token2[1], 10);
+    if (!validateTimezone(hours2)) {
+      return NaN;
+    }
+    return -(hours2 * MILLISECONDS_IN_HOUR$1);
+  }
+  token2 = patterns$1.timezoneHHMM.exec(timezoneString);
+  if (token2) {
+    hours2 = parseInt(token2[1], 10);
+    var minutes = parseInt(token2[2], 10);
+    if (!validateTimezone(hours2, minutes)) {
+      return NaN;
+    }
+    absoluteOffset = Math.abs(hours2) * MILLISECONDS_IN_HOUR$1 + minutes * MILLISECONDS_IN_MINUTE$1;
+    return hours2 > 0 ? -absoluteOffset : absoluteOffset;
+  }
+  if (isValidTimezoneIANAString(timezoneString)) {
+    date = new Date(date || Date.now());
+    var utcDate = isUtcDate ? date : toUtcDate(date);
+    var offset = calcOffset(utcDate, timezoneString);
+    var fixedOffset = isUtcDate ? offset : fixOffset(date, offset, timezoneString);
+    return -fixedOffset;
+  }
+  return NaN;
+}
+function toUtcDate(date) {
+  return newDateUTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds(),
+    date.getMilliseconds()
+  );
+}
+function calcOffset(date, timezoneString) {
+  var tokens = tzTokenizeDate(date, timezoneString);
+  var asUTC = newDateUTC(
+    tokens[0],
+    tokens[1] - 1,
+    tokens[2],
+    tokens[3] % 24,
+    tokens[4],
+    tokens[5],
+    0
+  ).getTime();
+  var asTS = date.getTime();
+  var over = asTS % 1e3;
+  asTS -= over >= 0 ? over : 1e3 + over;
+  return asUTC - asTS;
+}
+function fixOffset(date, offset, timezoneString) {
+  var localTS = date.getTime();
+  var utcGuess = localTS - offset;
+  var o2 = calcOffset(new Date(utcGuess), timezoneString);
+  if (offset === o2) {
+    return offset;
+  }
+  utcGuess -= o2 - offset;
+  var o3 = calcOffset(new Date(utcGuess), timezoneString);
+  if (o2 === o3) {
+    return o2;
+  }
+  return Math.max(o2, o3);
+}
+function validateTimezone(hours2, minutes) {
+  return -23 <= hours2 && hours2 <= 23 && (minutes == null || 0 <= minutes && minutes <= 59);
+}
+var validIANATimezoneCache = {};
+function isValidTimezoneIANAString(timeZoneString) {
+  if (validIANATimezoneCache[timeZoneString])
+    return true;
+  try {
+    new Intl.DateTimeFormat(void 0, { timeZone: timeZoneString });
+    validIANATimezoneCache[timeZoneString] = true;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+var tzPattern = /(Z|[+-]\d{2}(?::?\d{2})?| UTC| [a-zA-Z]+\/[a-zA-Z_]+(?:\/[a-zA-Z_]+)?)$/;
+const tzPattern$1 = tzPattern;
+var MILLISECONDS_IN_HOUR = 36e5;
+var MILLISECONDS_IN_MINUTE = 6e4;
+var DEFAULT_ADDITIONAL_DIGITS = 2;
+var patterns = {
+  dateTimePattern: /^([0-9W+-]+)(T| )(.*)/,
+  datePattern: /^([0-9W+-]+)(.*)/,
+  plainTime: /:/,
+  // year tokens
+  YY: /^(\d{2})$/,
+  YYY: [
+    /^([+-]\d{2})$/,
+    // 0 additional digits
+    /^([+-]\d{3})$/,
+    // 1 additional digit
+    /^([+-]\d{4})$/
+    // 2 additional digits
+  ],
+  YYYY: /^(\d{4})/,
+  YYYYY: [
+    /^([+-]\d{4})/,
+    // 0 additional digits
+    /^([+-]\d{5})/,
+    // 1 additional digit
+    /^([+-]\d{6})/
+    // 2 additional digits
+  ],
+  // date tokens
+  MM: /^-(\d{2})$/,
+  DDD: /^-?(\d{3})$/,
+  MMDD: /^-?(\d{2})-?(\d{2})$/,
+  Www: /^-?W(\d{2})$/,
+  WwwD: /^-?W(\d{2})-?(\d{1})$/,
+  HH: /^(\d{2}([.,]\d*)?)$/,
+  HHMM: /^(\d{2}):?(\d{2}([.,]\d*)?)$/,
+  HHMMSS: /^(\d{2}):?(\d{2}):?(\d{2}([.,]\d*)?)$/,
+  // time zone tokens (to identify the presence of a tz)
+  timeZone: tzPattern$1
+};
+function toDate$1(argument, dirtyOptions) {
+  if (arguments.length < 1) {
+    throw new TypeError("1 argument required, but only " + arguments.length + " present");
+  }
+  if (argument === null) {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+  var options = dirtyOptions || {};
+  var additionalDigits = options.additionalDigits == null ? DEFAULT_ADDITIONAL_DIGITS : toInteger$1(options.additionalDigits);
+  if (additionalDigits !== 2 && additionalDigits !== 1 && additionalDigits !== 0) {
+    throw new RangeError("additionalDigits must be 0, 1 or 2");
+  }
+  if (argument instanceof Date || typeof argument === "object" && Object.prototype.toString.call(argument) === "[object Date]") {
+    return new Date(argument.getTime());
+  } else if (typeof argument === "number" || Object.prototype.toString.call(argument) === "[object Number]") {
+    return new Date(argument);
+  } else if (!(typeof argument === "string" || Object.prototype.toString.call(argument) === "[object String]")) {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+  var dateStrings = splitDateString(argument);
+  var parseYearResult = parseYear(dateStrings.date, additionalDigits);
+  var year = parseYearResult.year;
+  var restDateString = parseYearResult.restDateString;
+  var date = parseDate$1(restDateString, year);
+  if (isNaN(date)) {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+  if (date) {
+    var timestamp = date.getTime();
+    var time = 0;
+    var offset;
+    if (dateStrings.time) {
+      time = parseTime(dateStrings.time);
+      if (isNaN(time)) {
+        return /* @__PURE__ */ new Date(NaN);
+      }
+    }
+    if (dateStrings.timeZone || options.timeZone) {
+      offset = tzParseTimezone(dateStrings.timeZone || options.timeZone, new Date(timestamp + time));
+      if (isNaN(offset)) {
+        return /* @__PURE__ */ new Date(NaN);
+      }
+    } else {
+      offset = getTimezoneOffsetInMilliseconds$1(new Date(timestamp + time));
+      offset = getTimezoneOffsetInMilliseconds$1(new Date(timestamp + time + offset));
+    }
+    return new Date(timestamp + time + offset);
+  } else {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+}
+function splitDateString(dateString) {
+  var dateStrings = {};
+  var parts = patterns.dateTimePattern.exec(dateString);
+  var timeString;
+  if (!parts) {
+    parts = patterns.datePattern.exec(dateString);
+    if (parts) {
+      dateStrings.date = parts[1];
+      timeString = parts[2];
+    } else {
+      dateStrings.date = null;
+      timeString = dateString;
+    }
+  } else {
+    dateStrings.date = parts[1];
+    timeString = parts[3];
+  }
+  if (timeString) {
+    var token2 = patterns.timeZone.exec(timeString);
+    if (token2) {
+      dateStrings.time = timeString.replace(token2[1], "");
+      dateStrings.timeZone = token2[1].trim();
+    } else {
+      dateStrings.time = timeString;
+    }
+  }
+  return dateStrings;
+}
+function parseYear(dateString, additionalDigits) {
+  var patternYYY = patterns.YYY[additionalDigits];
+  var patternYYYYY = patterns.YYYYY[additionalDigits];
+  var token2;
+  token2 = patterns.YYYY.exec(dateString) || patternYYYYY.exec(dateString);
+  if (token2) {
+    var yearString = token2[1];
+    return {
+      year: parseInt(yearString, 10),
+      restDateString: dateString.slice(yearString.length)
+    };
+  }
+  token2 = patterns.YY.exec(dateString) || patternYYY.exec(dateString);
+  if (token2) {
+    var centuryString = token2[1];
+    return {
+      year: parseInt(centuryString, 10) * 100,
+      restDateString: dateString.slice(centuryString.length)
+    };
+  }
+  return {
+    year: null
+  };
+}
+function parseDate$1(dateString, year) {
+  if (year === null) {
+    return null;
+  }
+  var token2;
+  var date;
+  var month;
+  var week;
+  if (dateString.length === 0) {
+    date = /* @__PURE__ */ new Date(0);
+    date.setUTCFullYear(year);
+    return date;
+  }
+  token2 = patterns.MM.exec(dateString);
+  if (token2) {
+    date = /* @__PURE__ */ new Date(0);
+    month = parseInt(token2[1], 10) - 1;
+    if (!validateDate(year, month)) {
+      return /* @__PURE__ */ new Date(NaN);
+    }
+    date.setUTCFullYear(year, month);
+    return date;
+  }
+  token2 = patterns.DDD.exec(dateString);
+  if (token2) {
+    date = /* @__PURE__ */ new Date(0);
+    var dayOfYear = parseInt(token2[1], 10);
+    if (!validateDayOfYearDate(year, dayOfYear)) {
+      return /* @__PURE__ */ new Date(NaN);
+    }
+    date.setUTCFullYear(year, 0, dayOfYear);
+    return date;
+  }
+  token2 = patterns.MMDD.exec(dateString);
+  if (token2) {
+    date = /* @__PURE__ */ new Date(0);
+    month = parseInt(token2[1], 10) - 1;
+    var day = parseInt(token2[2], 10);
+    if (!validateDate(year, month, day)) {
+      return /* @__PURE__ */ new Date(NaN);
+    }
+    date.setUTCFullYear(year, month, day);
+    return date;
+  }
+  token2 = patterns.Www.exec(dateString);
+  if (token2) {
+    week = parseInt(token2[1], 10) - 1;
+    if (!validateWeekDate(year, week)) {
+      return /* @__PURE__ */ new Date(NaN);
+    }
+    return dayOfISOWeekYear(year, week);
+  }
+  token2 = patterns.WwwD.exec(dateString);
+  if (token2) {
+    week = parseInt(token2[1], 10) - 1;
+    var dayOfWeek = parseInt(token2[2], 10) - 1;
+    if (!validateWeekDate(year, week, dayOfWeek)) {
+      return /* @__PURE__ */ new Date(NaN);
+    }
+    return dayOfISOWeekYear(year, week, dayOfWeek);
+  }
+  return null;
+}
+function parseTime(timeString) {
+  var token2;
+  var hours2;
+  var minutes;
+  token2 = patterns.HH.exec(timeString);
+  if (token2) {
+    hours2 = parseFloat(token2[1].replace(",", "."));
+    if (!validateTime(hours2)) {
+      return NaN;
+    }
+    return hours2 % 24 * MILLISECONDS_IN_HOUR;
+  }
+  token2 = patterns.HHMM.exec(timeString);
+  if (token2) {
+    hours2 = parseInt(token2[1], 10);
+    minutes = parseFloat(token2[2].replace(",", "."));
+    if (!validateTime(hours2, minutes)) {
+      return NaN;
+    }
+    return hours2 % 24 * MILLISECONDS_IN_HOUR + minutes * MILLISECONDS_IN_MINUTE;
+  }
+  token2 = patterns.HHMMSS.exec(timeString);
+  if (token2) {
+    hours2 = parseInt(token2[1], 10);
+    minutes = parseInt(token2[2], 10);
+    var seconds = parseFloat(token2[3].replace(",", "."));
+    if (!validateTime(hours2, minutes, seconds)) {
+      return NaN;
+    }
+    return hours2 % 24 * MILLISECONDS_IN_HOUR + minutes * MILLISECONDS_IN_MINUTE + seconds * 1e3;
+  }
+  return null;
+}
+function dayOfISOWeekYear(isoWeekYear, week, day) {
+  week = week || 0;
+  day = day || 0;
+  var date = /* @__PURE__ */ new Date(0);
+  date.setUTCFullYear(isoWeekYear, 0, 4);
+  var fourthOfJanuaryDay = date.getUTCDay() || 7;
+  var diff = week * 7 + day + 1 - fourthOfJanuaryDay;
+  date.setUTCDate(date.getUTCDate() + diff);
+  return date;
+}
+var DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+var DAYS_IN_MONTH_LEAP_YEAR = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+function isLeapYearIndex(year) {
+  return year % 400 === 0 || year % 4 === 0 && year % 100 !== 0;
+}
+function validateDate(year, month, date) {
+  if (month < 0 || month > 11) {
+    return false;
+  }
+  if (date != null) {
+    if (date < 1) {
+      return false;
+    }
+    var isLeapYear = isLeapYearIndex(year);
+    if (isLeapYear && date > DAYS_IN_MONTH_LEAP_YEAR[month]) {
+      return false;
+    }
+    if (!isLeapYear && date > DAYS_IN_MONTH[month]) {
+      return false;
+    }
+  }
+  return true;
+}
+function validateDayOfYearDate(year, dayOfYear) {
+  if (dayOfYear < 1) {
+    return false;
+  }
+  var isLeapYear = isLeapYearIndex(year);
+  if (isLeapYear && dayOfYear > 366) {
+    return false;
+  }
+  if (!isLeapYear && dayOfYear > 365) {
+    return false;
+  }
+  return true;
+}
+function validateWeekDate(year, week, day) {
+  if (week < 0 || week > 52) {
+    return false;
+  }
+  if (day != null && (day < 0 || day > 6)) {
+    return false;
+  }
+  return true;
+}
+function validateTime(hours2, minutes, seconds) {
+  if (hours2 != null && (hours2 < 0 || hours2 >= 25)) {
+    return false;
+  }
+  if (minutes != null && (minutes < 0 || minutes >= 60)) {
+    return false;
+  }
+  if (seconds != null && (seconds < 0 || seconds >= 60)) {
+    return false;
+  }
+  return true;
+}
+function requiredArgs(required, args) {
+  if (args.length < required) {
+    throw new TypeError(required + " argument" + (required > 1 ? "s" : "") + " required, but only " + args.length + " present");
+  }
+}
+function _typeof(obj) {
+  "@babel/helpers - typeof";
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function _typeof2(obj2) {
+      return typeof obj2;
+    };
+  } else {
+    _typeof = function _typeof2(obj2) {
+      return obj2 && typeof Symbol === "function" && obj2.constructor === Symbol && obj2 !== Symbol.prototype ? "symbol" : typeof obj2;
+    };
+  }
+  return _typeof(obj);
+}
+function toDate(argument) {
+  requiredArgs(1, arguments);
+  var argStr = Object.prototype.toString.call(argument);
+  if (argument instanceof Date || _typeof(argument) === "object" && argStr === "[object Date]") {
+    return new Date(argument.getTime());
+  } else if (typeof argument === "number" || argStr === "[object Number]") {
+    return new Date(argument);
+  } else {
+    if ((typeof argument === "string" || argStr === "[object String]") && typeof console !== "undefined") {
+      console.warn("Starting with v2.0.0-beta.1 date-fns doesn't accept strings as date arguments. Please use `parseISO` to parse strings. See: https://github.com/date-fns/date-fns/blob/master/docs/upgradeGuide.md#string-arguments");
+      console.warn(new Error().stack);
+    }
+    return /* @__PURE__ */ new Date(NaN);
+  }
+}
+function toInteger(dirtyNumber) {
+  if (dirtyNumber === null || dirtyNumber === true || dirtyNumber === false) {
+    return NaN;
+  }
+  var number = Number(dirtyNumber);
+  if (isNaN(number)) {
+    return number;
+  }
+  return number < 0 ? Math.ceil(number) : Math.floor(number);
+}
+var defaultOptions = {};
+function getDefaultOptions() {
+  return defaultOptions;
+}
+function startOfWeek$1(dirtyDate, options) {
+  var _ref, _ref2, _ref3, _options$weekStartsOn, _options$locale, _options$locale$optio, _defaultOptions$local, _defaultOptions$local2;
+  requiredArgs(1, arguments);
+  var defaultOptions2 = getDefaultOptions();
+  var weekStartsOn = toInteger((_ref = (_ref2 = (_ref3 = (_options$weekStartsOn = options === null || options === void 0 ? void 0 : options.weekStartsOn) !== null && _options$weekStartsOn !== void 0 ? _options$weekStartsOn : options === null || options === void 0 ? void 0 : (_options$locale = options.locale) === null || _options$locale === void 0 ? void 0 : (_options$locale$optio = _options$locale.options) === null || _options$locale$optio === void 0 ? void 0 : _options$locale$optio.weekStartsOn) !== null && _ref3 !== void 0 ? _ref3 : defaultOptions2.weekStartsOn) !== null && _ref2 !== void 0 ? _ref2 : (_defaultOptions$local = defaultOptions2.locale) === null || _defaultOptions$local === void 0 ? void 0 : (_defaultOptions$local2 = _defaultOptions$local.options) === null || _defaultOptions$local2 === void 0 ? void 0 : _defaultOptions$local2.weekStartsOn) !== null && _ref !== void 0 ? _ref : 0);
+  if (!(weekStartsOn >= 0 && weekStartsOn <= 6)) {
+    throw new RangeError("weekStartsOn must be between 0 and 6 inclusively");
+  }
+  var date = toDate(dirtyDate);
+  var day = date.getDay();
+  var diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+  date.setDate(date.getDate() - diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+function getTimezoneOffsetInMilliseconds(date) {
+  var utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds()));
+  utcDate.setUTCFullYear(date.getFullYear());
+  return date.getTime() - utcDate.getTime();
+}
+var MILLISECONDS_IN_WEEK$2 = 6048e5;
+function differenceInCalendarWeeks(dirtyDateLeft, dirtyDateRight, options) {
+  requiredArgs(2, arguments);
+  var startOfWeekLeft = startOfWeek$1(dirtyDateLeft, options);
+  var startOfWeekRight = startOfWeek$1(dirtyDateRight, options);
+  var timestampLeft = startOfWeekLeft.getTime() - getTimezoneOffsetInMilliseconds(startOfWeekLeft);
+  var timestampRight = startOfWeekRight.getTime() - getTimezoneOffsetInMilliseconds(startOfWeekRight);
+  return Math.round((timestampLeft - timestampRight) / MILLISECONDS_IN_WEEK$2);
+}
+function lastDayOfMonth(dirtyDate) {
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  var month = date.getMonth();
+  date.setFullYear(date.getFullYear(), month + 1, 0);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+function startOfMonth(dirtyDate) {
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  date.setDate(1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+function getWeeksInMonth(date, options) {
+  requiredArgs(1, arguments);
+  return differenceInCalendarWeeks(lastDayOfMonth(date), startOfMonth(date), options) + 1;
+}
+function getWeekYear(dirtyDate, options) {
+  var _ref, _ref2, _ref3, _options$firstWeekCon, _options$locale, _options$locale$optio, _defaultOptions$local, _defaultOptions$local2;
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  var year = date.getFullYear();
+  var defaultOptions2 = getDefaultOptions();
+  var firstWeekContainsDate = toInteger((_ref = (_ref2 = (_ref3 = (_options$firstWeekCon = options === null || options === void 0 ? void 0 : options.firstWeekContainsDate) !== null && _options$firstWeekCon !== void 0 ? _options$firstWeekCon : options === null || options === void 0 ? void 0 : (_options$locale = options.locale) === null || _options$locale === void 0 ? void 0 : (_options$locale$optio = _options$locale.options) === null || _options$locale$optio === void 0 ? void 0 : _options$locale$optio.firstWeekContainsDate) !== null && _ref3 !== void 0 ? _ref3 : defaultOptions2.firstWeekContainsDate) !== null && _ref2 !== void 0 ? _ref2 : (_defaultOptions$local = defaultOptions2.locale) === null || _defaultOptions$local === void 0 ? void 0 : (_defaultOptions$local2 = _defaultOptions$local.options) === null || _defaultOptions$local2 === void 0 ? void 0 : _defaultOptions$local2.firstWeekContainsDate) !== null && _ref !== void 0 ? _ref : 1);
+  if (!(firstWeekContainsDate >= 1 && firstWeekContainsDate <= 7)) {
+    throw new RangeError("firstWeekContainsDate must be between 1 and 7 inclusively");
+  }
+  var firstWeekOfNextYear = /* @__PURE__ */ new Date(0);
+  firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
+  firstWeekOfNextYear.setHours(0, 0, 0, 0);
+  var startOfNextYear = startOfWeek$1(firstWeekOfNextYear, options);
+  var firstWeekOfThisYear = /* @__PURE__ */ new Date(0);
+  firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
+  firstWeekOfThisYear.setHours(0, 0, 0, 0);
+  var startOfThisYear = startOfWeek$1(firstWeekOfThisYear, options);
+  if (date.getTime() >= startOfNextYear.getTime()) {
+    return year + 1;
+  } else if (date.getTime() >= startOfThisYear.getTime()) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+function startOfWeekYear(dirtyDate, options) {
+  var _ref, _ref2, _ref3, _options$firstWeekCon, _options$locale, _options$locale$optio, _defaultOptions$local, _defaultOptions$local2;
+  requiredArgs(1, arguments);
+  var defaultOptions2 = getDefaultOptions();
+  var firstWeekContainsDate = toInteger((_ref = (_ref2 = (_ref3 = (_options$firstWeekCon = options === null || options === void 0 ? void 0 : options.firstWeekContainsDate) !== null && _options$firstWeekCon !== void 0 ? _options$firstWeekCon : options === null || options === void 0 ? void 0 : (_options$locale = options.locale) === null || _options$locale === void 0 ? void 0 : (_options$locale$optio = _options$locale.options) === null || _options$locale$optio === void 0 ? void 0 : _options$locale$optio.firstWeekContainsDate) !== null && _ref3 !== void 0 ? _ref3 : defaultOptions2.firstWeekContainsDate) !== null && _ref2 !== void 0 ? _ref2 : (_defaultOptions$local = defaultOptions2.locale) === null || _defaultOptions$local === void 0 ? void 0 : (_defaultOptions$local2 = _defaultOptions$local.options) === null || _defaultOptions$local2 === void 0 ? void 0 : _defaultOptions$local2.firstWeekContainsDate) !== null && _ref !== void 0 ? _ref : 1);
+  var year = getWeekYear(dirtyDate, options);
+  var firstWeek = /* @__PURE__ */ new Date(0);
+  firstWeek.setFullYear(year, 0, firstWeekContainsDate);
+  firstWeek.setHours(0, 0, 0, 0);
+  var date = startOfWeek$1(firstWeek, options);
+  return date;
+}
+var MILLISECONDS_IN_WEEK$1 = 6048e5;
+function getWeek(dirtyDate, options) {
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  var diff = startOfWeek$1(date, options).getTime() - startOfWeekYear(date, options).getTime();
+  return Math.round(diff / MILLISECONDS_IN_WEEK$1) + 1;
+}
+function startOfISOWeek(dirtyDate) {
+  requiredArgs(1, arguments);
+  return startOfWeek$1(dirtyDate, {
+    weekStartsOn: 1
+  });
+}
+function getISOWeekYear(dirtyDate) {
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  var year = date.getFullYear();
+  var fourthOfJanuaryOfNextYear = /* @__PURE__ */ new Date(0);
+  fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
+  fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
+  var startOfNextYear = startOfISOWeek(fourthOfJanuaryOfNextYear);
+  var fourthOfJanuaryOfThisYear = /* @__PURE__ */ new Date(0);
+  fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
+  fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
+  var startOfThisYear = startOfISOWeek(fourthOfJanuaryOfThisYear);
+  if (date.getTime() >= startOfNextYear.getTime()) {
+    return year + 1;
+  } else if (date.getTime() >= startOfThisYear.getTime()) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+function startOfISOWeekYear(dirtyDate) {
+  requiredArgs(1, arguments);
+  var year = getISOWeekYear(dirtyDate);
+  var fourthOfJanuary = /* @__PURE__ */ new Date(0);
+  fourthOfJanuary.setFullYear(year, 0, 4);
+  fourthOfJanuary.setHours(0, 0, 0, 0);
+  var date = startOfISOWeek(fourthOfJanuary);
+  return date;
+}
+var MILLISECONDS_IN_WEEK = 6048e5;
+function getISOWeek(dirtyDate) {
+  requiredArgs(1, arguments);
+  var date = toDate(dirtyDate);
+  var diff = startOfISOWeek(date).getTime() - startOfISOWeekYear(date).getTime();
+  return Math.round(diff / MILLISECONDS_IN_WEEK) + 1;
+}
+function addDays(dirtyDate, dirtyAmount) {
+  requiredArgs(2, arguments);
+  var date = toDate(dirtyDate);
+  var amount = toInteger(dirtyAmount);
+  if (isNaN(amount)) {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+  if (!amount) {
+    return date;
+  }
+  date.setDate(date.getDate() + amount);
+  return date;
+}
+function addMonths(dirtyDate, dirtyAmount) {
+  requiredArgs(2, arguments);
+  var date = toDate(dirtyDate);
+  var amount = toInteger(dirtyAmount);
+  if (isNaN(amount)) {
+    return /* @__PURE__ */ new Date(NaN);
+  }
+  if (!amount) {
+    return date;
+  }
+  var dayOfMonth = date.getDate();
+  var endOfDesiredMonth = new Date(date.getTime());
+  endOfDesiredMonth.setMonth(date.getMonth() + amount + 1, 0);
+  var daysInMonth = endOfDesiredMonth.getDate();
+  if (dayOfMonth >= daysInMonth) {
+    return endOfDesiredMonth;
+  } else {
+    date.setFullYear(endOfDesiredMonth.getFullYear(), endOfDesiredMonth.getMonth(), dayOfMonth);
+    return date;
+  }
+}
+function addYears(dirtyDate, dirtyAmount) {
+  requiredArgs(2, arguments);
+  var amount = toInteger(dirtyAmount);
+  return addMonths(dirtyDate, amount * 12);
+}
+const viewAddressKeys = {
+  daily: ["year", "month", "day"],
+  weekly: ["year", "month", "week"],
+  monthly: ["year", "month"]
+};
+function getDays({
+  monthComps,
+  prevMonthComps,
+  nextMonthComps
+}, locale) {
+  const days = [];
+  const {
+    firstDayOfWeek,
+    firstWeekday,
+    isoWeeknumbers,
+    weeknumbers,
+    numDays,
+    numWeeks
+  } = monthComps;
+  const prevMonthDaysToShow = firstWeekday + (firstWeekday < firstDayOfWeek ? daysInWeek : 0) - firstDayOfWeek;
+  let prevMonth = true;
+  let thisMonth = false;
+  let nextMonth = false;
+  let position = 0;
+  const formatter = new Intl.DateTimeFormat(locale.id, {
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+  let day = prevMonthComps.numDays - prevMonthDaysToShow + 1;
+  let dayFromEnd = prevMonthComps.numDays - day + 1;
+  let weekdayOrdinal = Math.floor((day - 1) / daysInWeek + 1);
+  let weekdayOrdinalFromEnd = 1;
+  let week = prevMonthComps.numWeeks;
+  let weekFromEnd = 1;
+  let month = prevMonthComps.month;
+  let year = prevMonthComps.year;
+  const today = /* @__PURE__ */ new Date();
+  const todayDay = today.getDate();
+  const todayMonth = today.getMonth() + 1;
+  const todayYear = today.getFullYear();
+  for (let w = 1; w <= weeksInMonth; w++) {
+    for (let i = 1, weekday = firstDayOfWeek; i <= daysInWeek; i++, weekday += weekday === daysInWeek ? 1 - daysInWeek : 1) {
+      if (prevMonth && weekday === firstWeekday) {
+        day = 1;
+        dayFromEnd = monthComps.numDays;
+        weekdayOrdinal = Math.floor((day - 1) / daysInWeek + 1);
+        weekdayOrdinalFromEnd = Math.floor((numDays - day) / daysInWeek + 1);
+        week = 1;
+        weekFromEnd = numWeeks;
+        month = monthComps.month;
+        year = monthComps.year;
+        prevMonth = false;
+        thisMonth = true;
+      }
+      const startDate = locale.getDateFromParams(year, month, day, 0, 0, 0, 0);
+      const noonDate = locale.getDateFromParams(year, month, day, 12, 0, 0, 0);
+      const endDate = locale.getDateFromParams(
+        year,
+        month,
+        day,
+        23,
+        59,
+        59,
+        999
+      );
+      const date = startDate;
+      const id = `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}`;
+      const weekdayPosition = i;
+      const weekdayPositionFromEnd = daysInWeek - i;
+      const weeknumber = weeknumbers[w - 1];
+      const isoWeeknumber = isoWeeknumbers[w - 1];
+      const isToday = day === todayDay && month === todayMonth && year === todayYear;
+      const isFirstDay = thisMonth && day === 1;
+      const isLastDay = thisMonth && day === numDays;
+      const onTop = w === 1;
+      const onBottom = w === numWeeks;
+      const onLeft = i === 1;
+      const onRight = i === daysInWeek;
+      const dayIndex = getDayIndex(year, month, day);
+      days.push({
+        locale,
+        id,
+        position: ++position,
+        label: day.toString(),
+        ariaLabel: formatter.format(new Date(year, month - 1, day)),
+        day,
+        dayFromEnd,
+        weekday,
+        weekdayPosition,
+        weekdayPositionFromEnd,
+        weekdayOrdinal,
+        weekdayOrdinalFromEnd,
+        week,
+        weekFromEnd,
+        weekPosition: w,
+        weeknumber,
+        isoWeeknumber,
+        month,
+        year,
+        date,
+        startDate,
+        endDate,
+        noonDate,
+        dayIndex,
+        isToday,
+        isFirstDay,
+        isLastDay,
+        isDisabled: !thisMonth,
+        isFocusable: !thisMonth,
+        isFocused: false,
+        inMonth: thisMonth,
+        inPrevMonth: prevMonth,
+        inNextMonth: nextMonth,
+        onTop,
+        onBottom,
+        onLeft,
+        onRight,
+        classes: [
+          `id-${id}`,
+          `day-${day}`,
+          `day-from-end-${dayFromEnd}`,
+          `weekday-${weekday}`,
+          `weekday-position-${weekdayPosition}`,
+          `weekday-ordinal-${weekdayOrdinal}`,
+          `weekday-ordinal-from-end-${weekdayOrdinalFromEnd}`,
+          `week-${week}`,
+          `week-from-end-${weekFromEnd}`,
+          {
+            "is-today": isToday,
+            "is-first-day": isFirstDay,
+            "is-last-day": isLastDay,
+            "in-month": thisMonth,
+            "in-prev-month": prevMonth,
+            "in-next-month": nextMonth,
+            "on-top": onTop,
+            "on-bottom": onBottom,
+            "on-left": onLeft,
+            "on-right": onRight
+          }
+        ]
+      });
+      if (thisMonth && isLastDay) {
+        thisMonth = false;
+        nextMonth = true;
+        day = 1;
+        dayFromEnd = numDays;
+        weekdayOrdinal = 1;
+        weekdayOrdinalFromEnd = Math.floor((numDays - day) / daysInWeek + 1);
+        week = 1;
+        weekFromEnd = nextMonthComps.numWeeks;
+        month = nextMonthComps.month;
+        year = nextMonthComps.year;
+      } else {
+        day++;
+        dayFromEnd--;
+        weekdayOrdinal = Math.floor((day - 1) / daysInWeek + 1);
+        weekdayOrdinalFromEnd = Math.floor((numDays - day) / daysInWeek + 1);
+      }
+    }
+    week++;
+    weekFromEnd--;
+  }
+  return days;
+}
+function getWeeks(days, showWeeknumbers, showIsoWeeknumbers, locale) {
+  const result = days.reduce((result2, day, i) => {
+    const weekIndex = Math.floor(i / 7);
+    let week = result2[weekIndex];
+    if (!week) {
+      week = {
+        id: `week-${weekIndex + 1}`,
+        title: "",
+        week: day.week,
+        weekPosition: day.weekPosition,
+        weeknumber: day.weeknumber,
+        isoWeeknumber: day.isoWeeknumber,
+        weeknumberDisplay: showWeeknumbers ? day.weeknumber : showIsoWeeknumbers ? day.isoWeeknumber : void 0,
+        days: []
+      };
+      result2[weekIndex] = week;
+    }
+    week.days.push(day);
+    return result2;
+  }, Array(days.length / daysInWeek));
+  result.forEach((week) => {
+    const fromDay = week.days[0];
+    const toDay = week.days[week.days.length - 1];
+    if (fromDay.month === toDay.month) {
+      week.title = `${locale.formatDate(fromDay.date, "MMMM YYYY")}`;
+    } else if (fromDay.year === toDay.year) {
+      week.title = `${locale.formatDate(
+        fromDay.date,
+        "MMM"
+      )} - ${locale.formatDate(toDay.date, "MMM YYYY")}`;
+    } else {
+      week.title = `${locale.formatDate(
+        fromDay.date,
+        "MMM YYYY"
+      )} - ${locale.formatDate(toDay.date, "MMM YYYY")}`;
+    }
+  });
+  return result;
+}
+function getWeekdays(week, locale) {
+  return week.days.map((day) => ({
+    label: locale.formatDate(day.date, locale.masks.weekdays),
+    weekday: day.weekday
+  }));
+}
+function getPageId(month, year) {
+  return `${year}.${pad(month, 2)}`;
+}
+function getPageAddressForDate(date, view, locale) {
+  return pick(
+    locale.getDateParts(locale.toDate(date)),
+    viewAddressKeys[view]
+  );
+}
+function addPages({ day, week, month, year }, count, view, locale) {
+  if (view === "daily" && day) {
+    const date = new Date(year, month - 1, day);
+    const newDate = addDays(date, count);
+    return {
+      day: newDate.getDate(),
+      month: newDate.getMonth() + 1,
+      year: newDate.getFullYear()
+    };
+  } else if (view === "weekly" && week) {
+    const comps = locale.getMonthParts(month, year);
+    const date = comps.firstDayOfMonth;
+    const newDate = addDays(date, (week - 1 + count) * 7);
+    const parts = locale.getDateParts(newDate);
+    return {
+      week: parts.week,
+      month: parts.month,
+      year: parts.year
+    };
+  } else {
+    const date = new Date(year, month - 1, 1);
+    const newDate = addMonths(date, count);
+    return {
+      month: newDate.getMonth() + 1,
+      year: newDate.getFullYear()
+    };
+  }
+}
+function pageIsValid(page) {
+  return page != null && page.month != null && page.year != null;
+}
+function pageIsBeforePage(page, comparePage) {
+  if (!pageIsValid(page) || !pageIsValid(comparePage))
+    return false;
+  page = page;
+  comparePage = comparePage;
+  if (page.year !== comparePage.year)
+    return page.year < comparePage.year;
+  if (page.month && comparePage.month && page.month !== comparePage.month)
+    return page.month < comparePage.month;
+  if (page.week && comparePage.week && page.week !== comparePage.week) {
+    return page.week < comparePage.week;
+  }
+  if (page.day && comparePage.day && page.day !== comparePage.day) {
+    return page.day < comparePage.day;
+  }
+  return false;
+}
+function pageIsAfterPage(page, comparePage) {
+  if (!pageIsValid(page) || !pageIsValid(comparePage))
+    return false;
+  page = page;
+  comparePage = comparePage;
+  if (page.year !== comparePage.year) {
+    return page.year > comparePage.year;
+  }
+  if (page.month && comparePage.month && page.month !== comparePage.month) {
+    return page.month > comparePage.month;
+  }
+  if (page.week && comparePage.week && page.week !== comparePage.week) {
+    return page.week > comparePage.week;
+  }
+  if (page.day && comparePage.day && page.day !== comparePage.day) {
+    return page.day > comparePage.day;
+  }
+  return false;
+}
+function pageIsBetweenPages(page, fromPage, toPage) {
+  return (page || false) && !pageIsBeforePage(page, fromPage) && !pageIsAfterPage(page, toPage);
+}
+function pageIsEqualToPage(aPage, bPage) {
+  if (!aPage && bPage)
+    return false;
+  if (aPage && !bPage)
+    return false;
+  if (!aPage && !bPage)
+    return true;
+  aPage = aPage;
+  bPage = bPage;
+  return aPage.year === bPage.year && aPage.month === bPage.month && aPage.week === bPage.week && aPage.day === bPage.day;
+}
+function pageRangeToArray(from, to, view, locale) {
+  if (!pageIsValid(from) || !pageIsValid(to))
+    return [];
+  const result = [];
+  while (!pageIsAfterPage(from, to)) {
+    result.push(from);
+    from = addPages(from, 1, view, locale);
+  }
+  return result;
+}
+function getPageKey(config) {
+  const { day, week, month, year } = config;
+  let id = `${year}-${pad(month, 2)}`;
+  if (week)
+    id = `${id}-w${week}`;
+  if (day)
+    id = `${id}-${pad(day, 2)}`;
+  return id;
+}
+function getCachedPage(config, locale) {
+  const { month, year, showWeeknumbers, showIsoWeeknumbers } = config;
+  const date = new Date(year, month - 1, 15);
+  const monthComps = locale.getMonthParts(month, year);
+  const prevMonthComps = locale.getPrevMonthParts(month, year);
+  const nextMonthComps = locale.getNextMonthParts(month, year);
+  const days = getDays({ monthComps, prevMonthComps, nextMonthComps }, locale);
+  const weeks = getWeeks(days, showWeeknumbers, showIsoWeeknumbers, locale);
+  const weekdays2 = getWeekdays(weeks[0], locale);
+  return {
+    id: getPageKey(config),
+    month,
+    year,
+    monthTitle: locale.formatDate(date, locale.masks.title),
+    shortMonthLabel: locale.formatDate(date, "MMM"),
+    monthLabel: locale.formatDate(date, "MMMM"),
+    shortYearLabel: year.toString().substring(2),
+    yearLabel: year.toString(),
+    monthComps,
+    prevMonthComps,
+    nextMonthComps,
+    days,
+    weeks,
+    weekdays: weekdays2
+  };
+}
+function getPage(config, cachedPage) {
+  const { day, week, view, trimWeeks } = config;
+  const page = {
+    ...cachedPage,
+    ...config,
+    title: "",
+    viewDays: [],
+    viewWeeks: []
+  };
+  switch (view) {
+    case "daily": {
+      let dayObj = page.days.find((d) => d.inMonth);
+      if (day) {
+        dayObj = page.days.find((d) => d.day === day && d.inMonth) || dayObj;
+      } else if (week) {
+        dayObj = page.days.find((d) => d.week === week && d.inMonth);
+      }
+      const weekObj = page.weeks[dayObj.week - 1];
+      page.viewWeeks = [weekObj];
+      page.viewDays = [dayObj];
+      page.week = dayObj.week;
+      page.weekTitle = weekObj.title;
+      page.day = dayObj.day;
+      page.dayTitle = dayObj.ariaLabel;
+      page.title = page.dayTitle;
+      break;
+    }
+    case "weekly": {
+      page.week = week || 1;
+      const weekObj = page.weeks[page.week - 1];
+      page.viewWeeks = [weekObj];
+      page.viewDays = weekObj.days;
+      page.weekTitle = weekObj.title;
+      page.title = page.weekTitle;
+      break;
+    }
+    default: {
+      page.title = page.monthTitle;
+      page.viewWeeks = page.weeks.slice(
+        0,
+        trimWeeks ? page.monthComps.numWeeks : void 0
+      );
+      page.viewDays = page.days;
+      break;
+    }
+  }
+  return page;
+}
+class Cache {
+  constructor(size, createKey, createItem) {
+    __publicField(this, "keys", []);
+    __publicField(this, "store", {});
+    this.size = size;
+    this.createKey = createKey;
+    this.createItem = createItem;
+  }
+  get(...args) {
+    const key = this.createKey(...args);
+    return this.store[key];
+  }
+  getOrSet(...args) {
+    const key = this.createKey(...args);
+    if (this.store[key])
+      return this.store[key];
+    const item = this.createItem(...args);
+    if (this.keys.length >= this.size) {
+      const removeKey = this.keys.shift();
+      if (removeKey != null) {
+        delete this.store[removeKey];
+      }
+    }
+    this.keys.push(key);
+    this.store[key] = item;
+    return item;
+  }
+}
+class DateRange {
+  constructor(config, locale = new Locale()) {
+    __publicField(this, "order");
+    __publicField(this, "locale");
+    __publicField(this, "start", null);
+    __publicField(this, "end", null);
+    __publicField(this, "repeat", null);
+    var _a;
+    this.locale = locale;
+    const { start, end, span, order, repeat } = config;
+    if (isDate(start)) {
+      this.start = locale.getDateParts(start);
+    }
+    if (isDate(end)) {
+      this.end = locale.getDateParts(end);
+    } else if (this.start != null && span) {
+      this.end = locale.getDateParts(addDays(this.start.date, span - 1));
+    }
+    this.order = order ?? 0;
+    if (repeat) {
+      this.repeat = new DateRepeat(
+        {
+          from: (_a = this.start) == null ? void 0 : _a.date,
+          ...repeat
+        },
+        {
+          locale: this.locale
+        }
+      );
+    }
+  }
+  static fromMany(ranges, locale) {
+    return (isArray(ranges) ? ranges : [ranges]).filter((d) => d).map((d) => DateRange.from(d, locale));
+  }
+  static from(source, locale) {
+    if (source instanceof DateRange)
+      return source;
+    const config = {
+      start: null,
+      end: null
+    };
+    if (source != null) {
+      if (isArray(source)) {
+        config.start = source[0] ?? null;
+        config.end = source[1] ?? null;
+      } else if (isObject(source)) {
+        Object.assign(config, source);
+      } else {
+        config.start = source;
+        config.end = source;
+      }
+    }
+    if (config.start != null)
+      config.start = new Date(config.start);
+    if (config.end != null)
+      config.end = new Date(config.end);
+    return new DateRange(config, locale);
+  }
+  get opts() {
+    const { order, locale } = this;
+    return { order, locale };
+  }
+  get hasRepeat() {
+    return !!this.repeat;
+  }
+  get isSingleDay() {
+    const { start, end } = this;
+    return start && end && start.year === end.year && start.month === end.month && start.day === end.day;
+  }
+  get isMultiDay() {
+    return !this.isSingleDay;
+  }
+  get daySpan() {
+    if (this.start == null || this.end == null) {
+      if (this.hasRepeat)
+        return 1;
+      return Infinity;
+    }
+    return this.end.dayIndex - this.start.dayIndex;
+  }
+  startsOnDay(dayParts) {
+    var _a, _b;
+    return ((_a = this.start) == null ? void 0 : _a.dayIndex) === dayParts.dayIndex || !!((_b = this.repeat) == null ? void 0 : _b.passes(dayParts));
+  }
+  intersectsDay(dayIndex) {
+    return this.intersectsDayRange(dayIndex, dayIndex);
+  }
+  intersectsRange(range) {
+    var _a, _b;
+    return this.intersectsDayRange(
+      ((_a = range.start) == null ? void 0 : _a.dayIndex) ?? -Infinity,
+      ((_b = range.end) == null ? void 0 : _b.dayIndex) ?? Infinity
+    );
+  }
+  intersectsDayRange(startDayIndex, endDayIndex) {
+    if (this.start && this.start.dayIndex > endDayIndex)
+      return false;
+    if (this.end && this.end.dayIndex < startDayIndex)
+      return false;
+    return true;
+  }
+}
+class DateRangeContext {
+  constructor() {
+    __publicField(this, "records", {});
+  }
+  render(data2, range, days) {
+    var _a, _b, _c, _d;
+    let result = null;
+    const startDayIndex = days[0].dayIndex;
+    const endDayIndex = days[days.length - 1].dayIndex;
+    if (range.hasRepeat) {
+      days.forEach((day) => {
+        var _a2, _b2;
+        if (range.startsOnDay(day)) {
+          const span = range.daySpan < Infinity ? range.daySpan : 1;
+          result = {
+            startDay: day.dayIndex,
+            startTime: ((_a2 = range.start) == null ? void 0 : _a2.time) ?? 0,
+            endDay: day.dayIndex + span - 1,
+            endTime: ((_b2 = range.end) == null ? void 0 : _b2.time) ?? MS_PER_DAY
+          };
+          this.getRangeRecords(data2).push(result);
+        }
+      });
+    } else if (range.intersectsDayRange(startDayIndex, endDayIndex)) {
+      result = {
+        startDay: ((_a = range.start) == null ? void 0 : _a.dayIndex) ?? -Infinity,
+        startTime: ((_b = range.start) == null ? void 0 : _b.time) ?? -Infinity,
+        endDay: ((_c = range.end) == null ? void 0 : _c.dayIndex) ?? Infinity,
+        endTime: ((_d = range.end) == null ? void 0 : _d.time) ?? Infinity
+      };
+      this.getRangeRecords(data2).push(result);
+    }
+    return result;
+  }
+  getRangeRecords(data2) {
+    let record = this.records[data2.key];
+    if (!record) {
+      record = {
+        ranges: [],
+        data: data2
+      };
+      this.records[data2.key] = record;
+    }
+    return record.ranges;
+  }
+  getCell(key, day) {
+    const cells = this.getCells(day);
+    const result = cells.find((cell) => cell.data.key === key);
+    return result;
+  }
+  cellExists(key, dayIndex) {
+    const records = this.records[key];
+    if (records == null)
+      return false;
+    return records.ranges.some(
+      (r) => r.startDay <= dayIndex && r.endDay >= dayIndex
+    );
+  }
+  getCells(day) {
+    const records = Object.values(this.records);
+    const result = [];
+    const { dayIndex } = day;
+    records.forEach(({ data: data2, ranges }) => {
+      ranges.filter((r) => r.startDay <= dayIndex && r.endDay >= dayIndex).forEach((range) => {
+        const onStart = dayIndex === range.startDay;
+        const onEnd = dayIndex === range.endDay;
+        const startTime = onStart ? range.startTime : 0;
+        const startDate = new Date(day.startDate.getTime() + startTime);
+        const endTime = onEnd ? range.endTime : MS_PER_DAY;
+        const endDate = new Date(day.endDate.getTime() + endTime);
+        const allDay = startTime === 0 && endTime === MS_PER_DAY;
+        const order = data2.order || 0;
+        result.push({
+          ...range,
+          data: data2,
+          onStart,
+          onEnd,
+          startTime,
+          startDate,
+          endTime,
+          endDate,
+          allDay,
+          order
+        });
+      });
+    });
+    result.sort((a, b) => a.order - b.order);
+    return result;
+  }
+}
+const locales = {
+  // Arabic
+  ar: { dow: 7, L: "D/‏M/‏YYYY" },
+  // Bulgarian
+  bg: { dow: 2, L: "D.MM.YYYY" },
+  // Catalan
+  ca: { dow: 2, L: "DD/MM/YYYY" },
+  // Chinese (China)
+  "zh-CN": { dow: 2, L: "YYYY/MM/DD" },
+  // Chinese (Taiwan)
+  "zh-TW": { dow: 1, L: "YYYY/MM/DD" },
+  // Croatian
+  hr: { dow: 2, L: "DD.MM.YYYY" },
+  // Czech
+  cs: { dow: 2, L: "DD.MM.YYYY" },
+  // Danish
+  da: { dow: 2, L: "DD.MM.YYYY" },
+  // Dutch
+  nl: { dow: 2, L: "DD-MM-YYYY" },
+  // English (US)
+  "en-US": { dow: 1, L: "MM/DD/YYYY" },
+  // English (Australia)
+  "en-AU": { dow: 2, L: "DD/MM/YYYY" },
+  // English (Canada)
+  "en-CA": { dow: 1, L: "YYYY-MM-DD" },
+  // English (Great Britain)
+  "en-GB": { dow: 2, L: "DD/MM/YYYY" },
+  // English (Ireland)
+  "en-IE": { dow: 2, L: "DD-MM-YYYY" },
+  // English (New Zealand)
+  "en-NZ": { dow: 2, L: "DD/MM/YYYY" },
+  // English (South Africa)
+  "en-ZA": { dow: 1, L: "YYYY/MM/DD" },
+  // Esperanto
+  eo: { dow: 2, L: "YYYY-MM-DD" },
+  // Estonian
+  et: { dow: 2, L: "DD.MM.YYYY" },
+  // Finnish
+  fi: { dow: 2, L: "DD.MM.YYYY" },
+  // French
+  fr: { dow: 2, L: "DD/MM/YYYY" },
+  // French (Canada)
+  "fr-CA": { dow: 1, L: "YYYY-MM-DD" },
+  // French (Switzerland)
+  "fr-CH": { dow: 2, L: "DD.MM.YYYY" },
+  // German
+  de: { dow: 2, L: "DD.MM.YYYY" },
+  // Hebrew
+  he: { dow: 1, L: "DD.MM.YYYY" },
+  // Indonesian
+  id: { dow: 2, L: "DD/MM/YYYY" },
+  // Italian
+  it: { dow: 2, L: "DD/MM/YYYY" },
+  // Japanese
+  ja: { dow: 1, L: "YYYY年M月D日" },
+  // Korean
+  ko: { dow: 1, L: "YYYY.MM.DD" },
+  // Latvian
+  lv: { dow: 2, L: "DD.MM.YYYY" },
+  // Lithuanian
+  lt: { dow: 2, L: "DD.MM.YYYY" },
+  // Macedonian
+  mk: { dow: 2, L: "D.MM.YYYY" },
+  // Norwegian
+  nb: { dow: 2, L: "D. MMMM YYYY" },
+  nn: { dow: 2, L: "D. MMMM YYYY" },
+  // Polish
+  pl: { dow: 2, L: "DD.MM.YYYY" },
+  // Portuguese
+  pt: { dow: 2, L: "DD/MM/YYYY" },
+  // Romanian
+  ro: { dow: 2, L: "DD.MM.YYYY" },
+  // Russian
+  ru: { dow: 2, L: "DD.MM.YYYY" },
+  // Slovak
+  sk: { dow: 2, L: "DD.MM.YYYY" },
+  // Spanish (Spain)
+  "es-ES": { dow: 2, L: "DD/MM/YYYY" },
+  // Spanish (Mexico)
+  "es-MX": { dow: 2, L: "DD/MM/YYYY" },
+  // Swedish
+  sv: { dow: 2, L: "YYYY-MM-DD" },
+  // Thai
+  th: { dow: 1, L: "DD/MM/YYYY" },
+  // Turkish
+  tr: { dow: 2, L: "DD.MM.YYYY" },
+  // Ukrainian
+  uk: { dow: 2, L: "DD.MM.YYYY" },
+  // Vietnam
+  vi: { dow: 2, L: "DD/MM/YYYY" }
+};
+locales.en = locales["en-US"];
+locales.es = locales["es-ES"];
+locales.no = locales.nb;
+locales.zh = locales["zh-CN"];
+const localeSettings = Object.entries(locales).reduce(
+  (res, [id, { dow, L }]) => {
+    res[id] = {
+      id,
+      firstDayOfWeek: dow,
+      masks: { L }
+    };
+    return res;
+  },
+  {}
+);
+const title = "MMMM YYYY";
+const weekdays = "W";
+const navMonths = "MMM";
+const hours = "h A";
+const input = [
+  "L",
+  "YYYY-MM-DD",
+  "YYYY/MM/DD"
+];
+const inputDateTime = [
+  "L h:mm A",
+  "YYYY-MM-DD h:mm A",
+  "YYYY/MM/DD h:mm A"
+];
+const inputDateTime24hr = [
+  "L HH:mm",
+  "YYYY-MM-DD HH:mm",
+  "YYYY/MM/DD HH:mm"
+];
+const inputTime = [
+  "h:mm A"
+];
+const inputTime24hr = [
+  "HH:mm"
+];
+const dayPopover = "WWW, MMM D, YYYY";
+const data = [
+  "L",
+  "YYYY-MM-DD",
+  "YYYY/MM/DD"
+];
+const model = "iso";
+const iso = "YYYY-MM-DDTHH:mm:ss.SSSZ";
+const masks = {
+  title,
+  weekdays,
+  navMonths,
+  hours,
+  input,
+  inputDateTime,
+  inputDateTime24hr,
+  inputTime,
+  inputTime24hr,
+  dayPopover,
+  data,
+  model,
+  iso
+};
+const maxSwipeTime = 300;
+const minHorizontalSwipeDistance = 60;
+const maxVerticalSwipeDistance = 80;
+const touch = {
+  maxSwipeTime,
+  minHorizontalSwipeDistance,
+  maxVerticalSwipeDistance
+};
+const defaultConfig = {
+  componentPrefix: "V",
+  color: "blue",
+  isDark: false,
+  navVisibility: "click",
+  titlePosition: "center",
+  transition: "slide-h",
+  touch,
+  masks,
+  locales: localeSettings,
+  datePicker: {
+    updateOnInput: true,
+    inputDebounce: 1e3,
+    popover: {
+      visibility: "hover-focus",
+      placement: "bottom-start",
+      isInteractive: true
+    }
+  }
+};
+const state = (0,vue__WEBPACK_IMPORTED_MODULE_0__.reactive)(defaultConfig);
+const defaultLocales = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+  return mapValues_1(state.locales, (l) => {
+    l.masks = defaultsDeep_1(l.masks, state.masks);
+    return l;
+  });
+});
+const getDefault = (path) => {
+  if (typeof window !== "undefined" && has(window.__vcalendar__, path)) {
+    return get_1(window.__vcalendar__, path);
+  }
+  return get_1(state, path);
+};
+const setupDefaults = (app, userDefaults) => {
+  app.config.globalProperties.$VCalendar = state;
+  return Object.assign(state, defaultsDeep_1(userDefaults, state));
+};
+const DEFAULT_MONTH_CACHE_SIZE = 12;
+const DEFAULT_PAGE_CACHE_SIZE = 5;
+function resolveConfig(config, locales2) {
+  const detLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
+  let id;
+  if (isString_1(config)) {
+    id = config;
+  } else if (has(config, "id")) {
+    id = config.id;
+  }
+  id = (id || detLocale).toLowerCase();
+  const localeKeys = Object.keys(locales2);
+  const validKey = (k) => localeKeys.find((lk) => lk.toLowerCase() === k);
+  id = validKey(id) || validKey(id.substring(0, 2)) || detLocale;
+  const defLocale = {
+    ...locales2["en-IE"],
+    ...locales2[id],
+    id,
+    monthCacheSize: DEFAULT_MONTH_CACHE_SIZE,
+    pageCacheSize: DEFAULT_PAGE_CACHE_SIZE
+  };
+  const result = isObject(config) ? defaultsDeep_1(config, defLocale) : defLocale;
+  return result;
+}
+class Locale {
+  constructor(config = void 0, timezone) {
+    __publicField(this, "id");
+    __publicField(this, "daysInWeek");
+    __publicField(this, "firstDayOfWeek");
+    __publicField(this, "masks");
+    __publicField(this, "timezone");
+    __publicField(this, "hourLabels");
+    __publicField(this, "dayNames");
+    __publicField(this, "dayNamesShort");
+    __publicField(this, "dayNamesShorter");
+    __publicField(this, "dayNamesNarrow");
+    __publicField(this, "monthNames");
+    __publicField(this, "monthNamesShort");
+    __publicField(this, "relativeTimeNames");
+    __publicField(this, "amPm", ["am", "pm"]);
+    __publicField(this, "monthCache");
+    __publicField(this, "pageCache");
+    const { id, firstDayOfWeek, masks: masks2, monthCacheSize, pageCacheSize } = resolveConfig(config, defaultLocales.value);
+    this.monthCache = new Cache(
+      monthCacheSize,
+      getMonthPartsKey,
+      getMonthParts
+    );
+    this.pageCache = new Cache(pageCacheSize, getPageKey, getCachedPage);
+    this.id = id;
+    this.daysInWeek = daysInWeek;
+    this.firstDayOfWeek = clamp(firstDayOfWeek, 1, daysInWeek);
+    this.masks = masks2;
+    this.timezone = timezone || void 0;
+    this.hourLabels = this.getHourLabels();
+    this.dayNames = getDayNames("long", this.id);
+    this.dayNamesShort = getDayNames("short", this.id);
+    this.dayNamesShorter = this.dayNamesShort.map((s) => s.substring(0, 2));
+    this.dayNamesNarrow = getDayNames("narrow", this.id);
+    this.monthNames = getMonthNames("long", this.id);
+    this.monthNamesShort = getMonthNames("short", this.id);
+    this.relativeTimeNames = getRelativeTimeNames(this.id);
+  }
+  formatDate(date, masks2) {
+    return formatDate(date, masks2, this);
+  }
+  parseDate(dateString, mask) {
+    return parseDate(dateString, mask, this);
+  }
+  toDate(d, opts = {}) {
+    const nullDate = /* @__PURE__ */ new Date(NaN);
+    let result = nullDate;
+    const { fillDate, mask, patch, rules } = opts;
+    if (isNumber_1(d)) {
+      opts.type = "number";
+      result = /* @__PURE__ */ new Date(+d);
+    } else if (isString_1(d)) {
+      opts.type = "string";
+      result = d ? parseDate(d, mask || "iso", this) : nullDate;
+    } else if (isDate(d)) {
+      opts.type = "date";
+      result = new Date(d.getTime());
+    } else if (isDateParts(d)) {
+      opts.type = "object";
+      result = this.getDateFromParts(d);
+    }
+    if (result && (patch || rules)) {
+      let parts = this.getDateParts(result);
+      if (patch && fillDate != null) {
+        const fillParts = this.getDateParts(this.toDate(fillDate));
+        parts = this.getDateParts(
+          this.toDate({ ...fillParts, ...pick(parts, DatePatchKeys[patch]) })
+        );
+      }
+      if (rules) {
+        parts = applyRulesForDateParts(parts, rules);
+      }
+      result = this.getDateFromParts(parts);
+    }
+    return result || nullDate;
+  }
+  toDateOrNull(d, opts = {}) {
+    const dte = this.toDate(d, opts);
+    return isNaN(dte.getTime()) ? null : dte;
+  }
+  fromDate(date, { type, mask } = {}) {
+    switch (type) {
+      case "number":
+        return date ? date.getTime() : NaN;
+      case "string":
+        return date ? this.formatDate(date, mask || "iso") : "";
+      case "object":
+        return date ? this.getDateParts(date) : null;
+      default:
+        return date ? new Date(date) : null;
+    }
+  }
+  range(source) {
+    return DateRange.from(source, this);
+  }
+  ranges(ranges) {
+    return DateRange.fromMany(ranges, this);
+  }
+  getDateParts(date) {
+    return getDateParts(date, this);
+  }
+  getDateFromParts(parts) {
+    return getDateFromParts(parts, this.timezone);
+  }
+  getDateFromParams(year, month, day, hours2, minutes, seconds, milliseconds) {
+    return this.getDateFromParts({
+      year,
+      month,
+      day,
+      hours: hours2,
+      minutes,
+      seconds,
+      milliseconds
+    });
+  }
+  getPage(config) {
+    const cachedPage = this.pageCache.getOrSet(config, this);
+    return getPage(config, cachedPage);
+  }
+  getMonthParts(month, year) {
+    const { firstDayOfWeek } = this;
+    return this.monthCache.getOrSet(month, year, firstDayOfWeek);
+  }
+  getThisMonthParts() {
+    const date = /* @__PURE__ */ new Date();
+    return this.getMonthParts(
+      date.getMonth() + 1,
+      date.getFullYear()
+    );
+  }
+  getPrevMonthParts(month, year) {
+    if (month === 1)
+      return this.getMonthParts(12, year - 1);
+    return this.getMonthParts(month - 1, year);
+  }
+  getNextMonthParts(month, year) {
+    if (month === 12)
+      return this.getMonthParts(1, year + 1);
+    return this.getMonthParts(month + 1, year);
+  }
+  getHourLabels() {
+    return getHourDates().map((d) => {
+      return this.formatDate(d, this.masks.hours);
+    });
+  }
+  getDayId(date) {
+    return this.formatDate(date, "YYYY-MM-DD");
+  }
+}
+var GroupRuleType = /* @__PURE__ */ ((GroupRuleType2) => {
+  GroupRuleType2["Any"] = "any";
+  GroupRuleType2["All"] = "all";
+  return GroupRuleType2;
+})(GroupRuleType || {});
+var IntervalRuleType = /* @__PURE__ */ ((IntervalRuleType2) => {
+  IntervalRuleType2["Days"] = "days";
+  IntervalRuleType2["Weeks"] = "weeks";
+  IntervalRuleType2["Months"] = "months";
+  IntervalRuleType2["Years"] = "years";
+  return IntervalRuleType2;
+})(IntervalRuleType || {});
+var ComponentRuleType = /* @__PURE__ */ ((ComponentRuleType2) => {
+  ComponentRuleType2["Days"] = "days";
+  ComponentRuleType2["Weekdays"] = "weekdays";
+  ComponentRuleType2["Weeks"] = "weeks";
+  ComponentRuleType2["Months"] = "months";
+  ComponentRuleType2["Years"] = "years";
+  return ComponentRuleType2;
+})(ComponentRuleType || {});
+var OrdinalComponentRuleType = /* @__PURE__ */ ((OrdinalComponentRuleType2) => {
+  OrdinalComponentRuleType2["OrdinalWeekdays"] = "ordinalWeekdays";
+  return OrdinalComponentRuleType2;
+})(OrdinalComponentRuleType || {});
+class IntervalRule {
+  constructor(type, interval, from) {
+    __publicField(this, "validated", true);
+    this.type = type;
+    this.interval = interval;
+    this.from = from;
+    if (!this.from) {
+      console.error(
+        `A valid "from" date is required for date interval rule. This rule will be skipped.`
+      );
+      this.validated = false;
+    }
+  }
+  passes(dateParts) {
+    if (!this.validated)
+      return true;
+    const { date } = dateParts;
+    switch (this.type) {
+      case "days": {
+        return diffInDays(this.from.date, date) % this.interval === 0;
+      }
+      case "weeks": {
+        return diffInWeeks(this.from.date, date) % this.interval === 0;
+      }
+      case "months": {
+        return diffInMonths(this.from.date, date) % this.interval === 0;
+      }
+      case "years": {
+        return diffInYears(this.from.date, date) % this.interval === 0;
+      }
+      default: {
+        return false;
+      }
+    }
+  }
+}
+class ComponentRule {
+  constructor(type, components2, validator, getter) {
+    __publicField(this, "components", []);
+    this.type = type;
+    this.validator = validator;
+    this.getter = getter;
+    this.components = this.normalizeComponents(components2);
+  }
+  static create(type, config) {
+    switch (type) {
+      case "days":
+        return new DaysRule(config);
+      case "weekdays":
+        return new WeekdaysRule(config);
+      case "weeks":
+        return new WeeksRule(config);
+      case "months":
+        return new MonthsRule(config);
+      case "years":
+        return new YearsRule(config);
+    }
+  }
+  normalizeComponents(components2) {
+    if (this.validator(components2))
+      return [components2];
+    if (!isArray(components2))
+      return [];
+    const result = [];
+    components2.forEach((component) => {
+      if (!this.validator(component)) {
+        console.error(
+          `Component value ${component} in invalid for "${this.type}" rule. This rule will be skipped.`
+        );
+        return;
+      }
+      result.push(component);
+    });
+    return result;
+  }
+  passes(dayParts) {
+    const comps = this.getter(dayParts);
+    const result = comps.some((comp) => this.components.includes(comp));
+    return result;
+  }
+}
+class DaysRule extends ComponentRule {
+  constructor(components2) {
+    super(
+      "days",
+      components2,
+      isDayInMonth,
+      ({ day, dayFromEnd }) => [day, -dayFromEnd]
+    );
+  }
+}
+class WeekdaysRule extends ComponentRule {
+  constructor(components2) {
+    super(
+      "weekdays",
+      components2,
+      isDayOfWeek,
+      ({ weekday }) => [weekday]
+    );
+  }
+}
+class WeeksRule extends ComponentRule {
+  constructor(components2) {
+    super(
+      "weeks",
+      components2,
+      isWeekInMonth,
+      ({ week, weekFromEnd }) => [week, -weekFromEnd]
+    );
+  }
+}
+class MonthsRule extends ComponentRule {
+  constructor(components2) {
+    super("months", components2, isMonthInYear, ({ month }) => [
+      month
+    ]);
+  }
+}
+class YearsRule extends ComponentRule {
+  constructor(components2) {
+    super("years", components2, isNumber_1, ({ year }) => [year]);
+  }
+}
+class OrdinalComponentRule {
+  constructor(type, components2) {
+    __publicField(this, "components");
+    this.type = type;
+    this.components = this.normalizeComponents(components2);
+  }
+  normalizeArrayConfig(config) {
+    const result = [];
+    config.forEach((numOrArray, i) => {
+      if (isNumber_1(numOrArray)) {
+        if (i === 0)
+          return;
+        if (!isOrdinalWeekInMonth(config[0])) {
+          console.error(
+            `Ordinal range for "${this.type}" rule is from -5 to -1 or 1 to 5. This rule will be skipped.`
+          );
+          return;
+        }
+        if (!isDayOfWeek(numOrArray)) {
+          console.error(
+            `Acceptable range for "${this.type}" rule is from 1 to 5. This rule will be skipped`
+          );
+          return;
+        }
+        result.push([config[0], numOrArray]);
+      } else if (isArray(numOrArray)) {
+        result.push(...this.normalizeArrayConfig(numOrArray));
+      }
+    });
+    return result;
+  }
+  normalizeComponents(config) {
+    const result = [];
+    config.forEach((numOrArray, i) => {
+      if (isNumber_1(numOrArray)) {
+        if (i === 0)
+          return;
+        if (!isOrdinalWeekInMonth(config[0])) {
+          console.error(
+            `Ordinal range for "${this.type}" rule is from -5 to -1 or 1 to 5. This rule will be skipped.`
+          );
+          return;
+        }
+        if (!isDayOfWeek(numOrArray)) {
+          console.error(
+            `Acceptable range for "${this.type}" rule is from 1 to 5. This rule will be skipped`
+          );
+          return;
+        }
+        result.push([config[0], numOrArray]);
+      } else if (isArray(numOrArray)) {
+        result.push(...this.normalizeArrayConfig(numOrArray));
+      }
+    });
+    return result;
+  }
+  passes(dayParts) {
+    const { weekday, weekdayOrdinal, weekdayOrdinalFromEnd } = dayParts;
+    return this.components.some(
+      ([ordinalWeek, ordinalWeekday]) => (ordinalWeek === weekdayOrdinal || ordinalWeek === -weekdayOrdinalFromEnd) && weekday === ordinalWeekday
+    );
+  }
+}
+class FunctionRule {
+  constructor(fn) {
+    __publicField(this, "type", "function");
+    __publicField(this, "validated", true);
+    this.fn = fn;
+    if (!isFunction_1(fn)) {
+      console.error(
+        `The function rule requires a valid function. This rule will be skipped.`
+      );
+      this.validated = false;
+    }
+  }
+  passes(dayParts) {
+    if (!this.validated)
+      return true;
+    return this.fn(dayParts);
+  }
+}
+class DateRepeat {
+  constructor(config, options = {}, parent) {
+    __publicField(this, "validated", true);
+    __publicField(this, "config");
+    __publicField(this, "type", GroupRuleType.Any);
+    __publicField(this, "from");
+    __publicField(this, "until");
+    __publicField(this, "rules", []);
+    __publicField(this, "locale", new Locale());
+    this.parent = parent;
+    if (options.locale)
+      this.locale = options.locale;
+    this.config = config;
+    if (isFunction_1(config)) {
+      this.type = GroupRuleType.All;
+      this.rules = [new FunctionRule(config)];
+    } else if (isArray(config)) {
+      this.type = GroupRuleType.Any;
+      this.rules = config.map((c) => new DateRepeat(c, options, this));
+    } else if (isObject(config)) {
+      this.type = GroupRuleType.All;
+      this.from = config.from ? this.locale.getDateParts(config.from) : parent == null ? void 0 : parent.from;
+      this.until = config.until ? this.locale.getDateParts(config.until) : parent == null ? void 0 : parent.until;
+      this.rules = this.getObjectRules(config);
+    } else {
+      console.error("Rule group configuration must be an object or an array.");
+      this.validated = false;
+    }
+  }
+  getObjectRules(config) {
+    const rules = [];
+    if (config.every) {
+      if (isString_1(config.every)) {
+        config.every = [1, `${config.every}s`];
+      }
+      if (isArray(config.every)) {
+        const [interval = 1, type = IntervalRuleType.Days] = config.every;
+        rules.push(new IntervalRule(type, interval, this.from));
+      }
+    }
+    Object.values(ComponentRuleType).forEach((type) => {
+      if (!(type in config))
+        return;
+      rules.push(ComponentRule.create(type, config[type]));
+    });
+    Object.values(OrdinalComponentRuleType).forEach((type) => {
+      if (!(type in config))
+        return;
+      rules.push(new OrdinalComponentRule(type, config[type]));
+    });
+    if (config.on != null) {
+      if (!isArray(config.on))
+        config.on = [config.on];
+      rules.push(
+        new DateRepeat(config.on, { locale: this.locale }, this.parent)
+      );
+    }
+    return rules;
+  }
+  passes(dayParts) {
+    if (!this.validated)
+      return true;
+    if (this.from && dayParts.dayIndex <= this.from.dayIndex)
+      return false;
+    if (this.until && dayParts.dayIndex >= this.until.dayIndex)
+      return false;
+    if (this.type === GroupRuleType.Any) {
+      return this.rules.some((r) => r.passes(dayParts));
+    }
+    return this.rules.every((r) => r.passes(dayParts));
+  }
+}
+function isDayInMonth(dayInMonth) {
+  if (!isNumber_1(dayInMonth))
+    return false;
+  return dayInMonth >= 1 && dayInMonth <= 31;
+}
+function isDayOfWeek(dayOfWeek) {
+  if (!isNumber_1(dayOfWeek))
+    return false;
+  return dayOfWeek >= 1 && dayOfWeek <= 7;
+}
+function isWeekInMonth(weekInMonth) {
+  if (!isNumber_1(weekInMonth))
+    return false;
+  return weekInMonth >= -6 && weekInMonth <= -1 || weekInMonth >= 1 && weekInMonth <= 6;
+}
+function isMonthInYear(monthInYear) {
+  if (!isNumber_1(monthInYear))
+    return false;
+  return monthInYear >= 1 && monthInYear <= 12;
+}
+function isOrdinalWeekInMonth(weekInMonth) {
+  if (!isNumber_1(weekInMonth))
+    return false;
+  if (weekInMonth < -5 || weekInMonth > 5 || weekInMonth === 0)
+    return false;
+  return true;
+}
+const DatePatchKeys = {
+  dateTime: [
+    "year",
+    "month",
+    "day",
+    "hours",
+    "minutes",
+    "seconds",
+    "milliseconds"
+  ],
+  date: ["year", "month", "day"],
+  time: ["hours", "minutes", "seconds", "milliseconds"]
+};
+const daysInWeek = 7;
+const weeksInMonth = 6;
+const MS_PER_SECOND = 1e3;
+const MS_PER_MINUTE = MS_PER_SECOND * 60;
+const MS_PER_HOUR = MS_PER_MINUTE * 60;
+const MS_PER_DAY = MS_PER_HOUR * 24;
+const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const maskMacros = ["L", "iso"];
+const DATE_PART_RANGES = {
+  milliseconds: [0, 999, 3],
+  seconds: [0, 59, 2],
+  minutes: [0, 59, 2],
+  hours: [0, 23, 2]
+};
+const token = /d{1,2}|W{1,4}|M{1,4}|YY(?:YY)?|S{1,3}|Do|Z{1,4}|([HhMsDm])\1?|[aA]|"[^"]*"|'[^']*'/g;
+const literal = /\[([^]*?)\]/gm;
+const formatFlags = {
+  D(d) {
+    return d.day;
+  },
+  DD(d) {
+    return pad(d.day, 2);
+  },
+  // Do(d: DateParts, l: Locale) {
+  //   return l.DoFn(d.day);
+  // },
+  d(d) {
+    return d.weekday - 1;
+  },
+  dd(d) {
+    return pad(d.weekday - 1, 2);
+  },
+  W(d, l) {
+    return l.dayNamesNarrow[d.weekday - 1];
+  },
+  WW(d, l) {
+    return l.dayNamesShorter[d.weekday - 1];
+  },
+  WWW(d, l) {
+    return l.dayNamesShort[d.weekday - 1];
+  },
+  WWWW(d, l) {
+    return l.dayNames[d.weekday - 1];
+  },
+  M(d) {
+    return d.month;
+  },
+  MM(d) {
+    return pad(d.month, 2);
+  },
+  MMM(d, l) {
+    return l.monthNamesShort[d.month - 1];
+  },
+  MMMM(d, l) {
+    return l.monthNames[d.month - 1];
+  },
+  YY(d) {
+    return String(d.year).substr(2);
+  },
+  YYYY(d) {
+    return pad(d.year, 4);
+  },
+  h(d) {
+    return d.hours % 12 || 12;
+  },
+  hh(d) {
+    return pad(d.hours % 12 || 12, 2);
+  },
+  H(d) {
+    return d.hours;
+  },
+  HH(d) {
+    return pad(d.hours, 2);
+  },
+  m(d) {
+    return d.minutes;
+  },
+  mm(d) {
+    return pad(d.minutes, 2);
+  },
+  s(d) {
+    return d.seconds;
+  },
+  ss(d) {
+    return pad(d.seconds, 2);
+  },
+  S(d) {
+    return Math.round(d.milliseconds / 100);
+  },
+  SS(d) {
+    return pad(Math.round(d.milliseconds / 10), 2);
+  },
+  SSS(d) {
+    return pad(d.milliseconds, 3);
+  },
+  a(d, l) {
+    return d.hours < 12 ? l.amPm[0] : l.amPm[1];
+  },
+  A(d, l) {
+    return d.hours < 12 ? l.amPm[0].toUpperCase() : l.amPm[1].toUpperCase();
+  },
+  Z() {
+    return "Z";
+  },
+  ZZ(d) {
+    const o = d.timezoneOffset;
+    return `${o > 0 ? "-" : "+"}${pad(Math.floor(Math.abs(o) / 60), 2)}`;
+  },
+  ZZZ(d) {
+    const o = d.timezoneOffset;
+    return `${o > 0 ? "-" : "+"}${pad(
+      Math.floor(Math.abs(o) / 60) * 100 + Math.abs(o) % 60,
+      4
+    )}`;
+  },
+  ZZZZ(d) {
+    const o = d.timezoneOffset;
+    return `${o > 0 ? "-" : "+"}${pad(Math.floor(Math.abs(o) / 60), 2)}:${pad(
+      Math.abs(o) % 60,
+      2
+    )}`;
+  }
+};
+const twoDigits = /\d\d?/;
+const threeDigits = /\d{3}/;
+const fourDigits = /\d{4}/;
+const word = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+const noop = () => {
+};
+const monthUpdate = (arrName) => (d, v, l) => {
+  const index2 = l[arrName].indexOf(
+    v.charAt(0).toUpperCase() + v.substr(1).toLowerCase()
+  );
+  if (~index2) {
+    d.month = index2;
+  }
+};
+const parseFlags = {
+  D: [
+    twoDigits,
+    (d, v) => {
+      d.day = v;
+    }
+  ],
+  Do: [
+    new RegExp(twoDigits.source + word.source),
+    (d, v) => {
+      d.day = parseInt(v, 10);
+    }
+  ],
+  d: [twoDigits, noop],
+  W: [word, noop],
+  M: [
+    twoDigits,
+    (d, v) => {
+      d.month = v - 1;
+    }
+  ],
+  MMM: [word, monthUpdate("monthNamesShort")],
+  MMMM: [word, monthUpdate("monthNames")],
+  YY: [
+    twoDigits,
+    (d, v) => {
+      const da = /* @__PURE__ */ new Date();
+      const cent = +da.getFullYear().toString().substr(0, 2);
+      d.year = +`${v > 68 ? cent - 1 : cent}${v}`;
+    }
+  ],
+  YYYY: [
+    fourDigits,
+    (d, v) => {
+      d.year = v;
+    }
+  ],
+  S: [
+    /\d/,
+    (d, v) => {
+      d.milliseconds = v * 100;
+    }
+  ],
+  SS: [
+    /\d{2}/,
+    (d, v) => {
+      d.milliseconds = v * 10;
+    }
+  ],
+  SSS: [
+    threeDigits,
+    (d, v) => {
+      d.milliseconds = v;
+    }
+  ],
+  h: [
+    twoDigits,
+    (d, v) => {
+      d.hours = v;
+    }
+  ],
+  m: [
+    twoDigits,
+    (d, v) => {
+      d.minutes = v;
+    }
+  ],
+  s: [
+    twoDigits,
+    (d, v) => {
+      d.seconds = v;
+    }
+  ],
+  a: [
+    word,
+    (d, v, l) => {
+      const val = v.toLowerCase();
+      if (val === l.amPm[0]) {
+        d.isPm = false;
+      } else if (val === l.amPm[1]) {
+        d.isPm = true;
+      }
+    }
+  ],
+  Z: [
+    /[^\s]*?[+-]\d\d:?\d\d|[^\s]*?Z?/,
+    (d, v) => {
+      if (v === "Z")
+        v = "+00:00";
+      const parts = `${v}`.match(/([+-]|\d\d)/gi);
+      if (parts) {
+        const minutes = +parts[1] * 60 + parseInt(parts[2], 10);
+        d.timezoneOffset = parts[0] === "+" ? minutes : -minutes;
+      }
+    }
+  ]
+};
+parseFlags.DD = parseFlags.D;
+parseFlags.dd = parseFlags.d;
+parseFlags.WWWW = parseFlags.WWW = parseFlags.WW = parseFlags.W;
+parseFlags.MM = parseFlags.M;
+parseFlags.mm = parseFlags.m;
+parseFlags.hh = parseFlags.H = parseFlags.HH = parseFlags.h;
+parseFlags.ss = parseFlags.s;
+parseFlags.A = parseFlags.a;
+parseFlags.ZZZZ = parseFlags.ZZZ = parseFlags.ZZ = parseFlags.Z;
+function normalizeMasks(masks2, locale) {
+  return (arrayHasItems(masks2) && masks2 || [
+    isString_1(masks2) && masks2 || "YYYY-MM-DD"
+  ]).map(
+    (m) => maskMacros.reduce(
+      (prev, curr) => prev.replace(curr, locale.masks[curr] || ""),
+      m
+    )
+  );
+}
+function isDateParts(parts) {
+  return isObject(parts) && "year" in parts && "month" in parts && "day" in parts;
+}
+function startOfWeek(date, firstDayOfWeek = 1) {
+  const day = date.getDay() + 1;
+  const daysToAdd = day >= firstDayOfWeek ? firstDayOfWeek - day : -(7 - (firstDayOfWeek - day));
+  return addDays(date, daysToAdd);
+}
+function getDayIndex(year, month, day) {
+  const utcDate = Date.UTC(year, month - 1, day);
+  return diffInDays(/* @__PURE__ */ new Date(0), new Date(utcDate));
+}
+function diffInDays(d1, d2) {
+  return Math.round((d2.getTime() - d1.getTime()) / MS_PER_DAY);
+}
+function diffInWeeks(d1, d2) {
+  return Math.ceil(diffInDays(startOfWeek(d1), startOfWeek(d2)) / 7);
+}
+function diffInYears(d1, d2) {
+  return d2.getUTCFullYear() - d1.getUTCFullYear();
+}
+function diffInMonths(d1, d2) {
+  return diffInYears(d1, d2) * 12 + (d2.getMonth() - d1.getMonth());
+}
+function getDateFromParts(parts, timezone = "") {
+  const d = /* @__PURE__ */ new Date();
+  const {
+    year = d.getFullYear(),
+    month = d.getMonth() + 1,
+    day = d.getDate(),
+    hours: hrs = 0,
+    minutes: min = 0,
+    seconds: sec = 0,
+    milliseconds: ms = 0
+  } = parts;
+  if (timezone) {
+    const dateString = `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}T${pad(
+      hrs,
+      2
+    )}:${pad(min, 2)}:${pad(sec, 2)}.${pad(ms, 3)}`;
+    return toDate$1(dateString, { timeZone: timezone });
+  }
+  return new Date(year, month - 1, day, hrs, min, sec, ms);
+}
+function getDateParts(date, locale) {
+  let tzDate = new Date(date.getTime());
+  if (locale.timezone) {
+    tzDate = new Date(
+      date.toLocaleString("en-US", { timeZone: locale.timezone })
+    );
+    tzDate.setMilliseconds(date.getMilliseconds());
+  }
+  const milliseconds = tzDate.getMilliseconds();
+  const seconds = tzDate.getSeconds();
+  const minutes = tzDate.getMinutes();
+  const hours2 = tzDate.getHours();
+  const time = milliseconds + seconds * MS_PER_SECOND + minutes * MS_PER_MINUTE + hours2 * MS_PER_HOUR;
+  const month = tzDate.getMonth() + 1;
+  const year = tzDate.getFullYear();
+  const monthParts = locale.getMonthParts(month, year);
+  const day = tzDate.getDate();
+  const dayFromEnd = monthParts.numDays - day + 1;
+  const weekday = tzDate.getDay() + 1;
+  const weekdayOrdinal = Math.floor((day - 1) / 7 + 1);
+  const weekdayOrdinalFromEnd = Math.floor((monthParts.numDays - day) / 7 + 1);
+  const week = Math.ceil(
+    (day + Math.abs(monthParts.firstWeekday - monthParts.firstDayOfWeek)) / 7
+  );
+  const weekFromEnd = monthParts.numWeeks - week + 1;
+  const weeknumber = monthParts.weeknumbers[week];
+  const dayIndex = getDayIndex(year, month, day);
+  const parts = {
+    milliseconds,
+    seconds,
+    minutes,
+    hours: hours2,
+    time,
+    day,
+    dayFromEnd,
+    weekday,
+    weekdayOrdinal,
+    weekdayOrdinalFromEnd,
+    week,
+    weekFromEnd,
+    weeknumber,
+    month,
+    year,
+    date: tzDate,
+    dateTime: tzDate.getTime(),
+    dayIndex,
+    timezoneOffset: 0,
+    isValid: true
+  };
+  return parts;
+}
+function getMonthPartsKey(month, year, firstDayOfWeek) {
+  return `${year}-${month}-${firstDayOfWeek}`;
+}
+function getMonthParts(month, year, firstDayOfWeek) {
+  const inLeapYear = year % 4 === 0 && year % 100 !== 0 || year % 400 === 0;
+  const firstDayOfMonth = new Date(year, month - 1, 1);
+  const firstWeekday = firstDayOfMonth.getDay() + 1;
+  const numDays = month === 2 && inLeapYear ? 29 : daysInMonths[month - 1];
+  const weekStartsOn = firstDayOfWeek - 1;
+  const numWeeks = getWeeksInMonth(firstDayOfMonth, {
+    weekStartsOn
+  });
+  const weeknumbers = [];
+  const isoWeeknumbers = [];
+  for (let i = 0; i < numWeeks; i++) {
+    const date = addDays(firstDayOfMonth, i * 7);
+    weeknumbers.push(getWeek(date, { weekStartsOn }));
+    isoWeeknumbers.push(getISOWeek(date));
+  }
+  return {
+    firstDayOfWeek,
+    firstDayOfMonth,
+    inLeapYear,
+    firstWeekday,
+    numDays,
+    numWeeks,
+    month,
+    year,
+    weeknumbers,
+    isoWeeknumbers
+  };
+}
+function getWeekdayDates() {
+  const dates = [];
+  const year = 2020;
+  const month = 1;
+  const day = 5;
+  for (let i = 0; i < daysInWeek; i++) {
+    dates.push(
+      getDateFromParts({
+        year,
+        month,
+        day: day + i,
+        hours: 12
+      })
+    );
+  }
+  return dates;
+}
+function getDayNames(length, localeId = void 0) {
+  const dtf = new Intl.DateTimeFormat(localeId, {
+    weekday: length
+  });
+  return getWeekdayDates().map((d) => dtf.format(d));
+}
+function getHourDates() {
+  const dates = [];
+  for (let i = 0; i <= 24; i++) {
+    dates.push(new Date(2e3, 0, 1, i));
+  }
+  return dates;
+}
+function getRelativeTimeNames(localeId = void 0) {
+  const units = [
+    "second",
+    "minute",
+    "hour",
+    "day",
+    "week",
+    "month",
+    "quarter",
+    "year"
+  ];
+  const rtf = new Intl.RelativeTimeFormat(localeId);
+  return units.reduce((names, unit) => {
+    const parts = rtf.formatToParts(100, unit);
+    names[unit] = parts[1].unit;
+    return names;
+  }, {});
+}
+function getMonthDates() {
+  const dates = [];
+  for (let i = 0; i < 12; i++) {
+    dates.push(new Date(2e3, i, 15));
+  }
+  return dates;
+}
+function getMonthNames(length, localeId = void 0) {
+  const dtf = new Intl.DateTimeFormat(localeId, {
+    month: length,
+    timeZone: "UTC"
+  });
+  return getMonthDates().map((d) => dtf.format(d));
+}
+function datePartIsValid(part, rule, parts) {
+  if (isNumber_1(rule))
+    return rule === part;
+  if (isArray(rule))
+    return rule.includes(part);
+  if (isFunction_1(rule))
+    return rule(part, parts);
+  if (rule.min != null && rule.min > part)
+    return false;
+  if (rule.max != null && rule.max < part)
+    return false;
+  if (rule.interval != null && part % rule.interval !== 0)
+    return false;
+  return true;
+}
+function getDatePartOptions(parts, range, rule) {
+  const options = [];
+  const [min, max, padding] = range;
+  for (let i = min; i <= max; i++) {
+    if (rule == null || datePartIsValid(i, rule, parts)) {
+      options.push({
+        value: i,
+        label: pad(i, padding)
+      });
+    }
+  }
+  return options;
+}
+function getDatePartsOptions(parts, rules) {
+  return {
+    milliseconds: getDatePartOptions(
+      parts,
+      DATE_PART_RANGES.milliseconds,
+      rules.milliseconds
+    ),
+    seconds: getDatePartOptions(parts, DATE_PART_RANGES.seconds, rules.seconds),
+    minutes: getDatePartOptions(parts, DATE_PART_RANGES.minutes, rules.minutes),
+    hours: getDatePartOptions(parts, DATE_PART_RANGES.hours, rules.hours)
+  };
+}
+function getNearestDatePart(parts, range, value, rule) {
+  const options = getDatePartOptions(parts, range, rule);
+  const result = options.reduce((prev, opt) => {
+    if (opt.disabled)
+      return prev;
+    if (isNaN(prev))
+      return opt.value;
+    const diffPrev = Math.abs(prev - value);
+    const diffCurr = Math.abs(opt.value - value);
+    return diffCurr < diffPrev ? opt.value : prev;
+  }, NaN);
+  return isNaN(result) ? value : result;
+}
+function applyRulesForDateParts(dateParts, rules) {
+  const result = { ...dateParts };
+  Object.entries(rules).forEach(([key, rule]) => {
+    const range = DATE_PART_RANGES[key];
+    const value = dateParts[key];
+    result[key] = getNearestDatePart(
+      dateParts,
+      range,
+      value,
+      rule
+    );
+  });
+  return result;
+}
+function parseDate(dateString, mask, locale) {
+  const masks2 = normalizeMasks(mask, locale);
+  return masks2.map((m) => {
+    if (typeof m !== "string") {
+      throw new Error("Invalid mask");
+    }
+    let str = dateString;
+    if (str.length > 1e3) {
+      return false;
+    }
+    let isValid = true;
+    const dp = {};
+    m.replace(token, ($0) => {
+      if (parseFlags[$0]) {
+        const info = parseFlags[$0];
+        const index2 = str.search(info[0]);
+        if (!~index2) {
+          isValid = false;
+        } else {
+          str.replace(info[0], (result) => {
+            info[1](dp, result, locale);
+            str = str.substr(index2 + result.length);
+            return result;
+          });
+        }
+      }
+      return parseFlags[$0] ? "" : $0.slice(1, $0.length - 1);
+    });
+    if (!isValid) {
+      return false;
+    }
+    const today = /* @__PURE__ */ new Date();
+    if (dp.hours != null) {
+      if (dp.isPm === true && +dp.hours !== 12) {
+        dp.hours = +dp.hours + 12;
+      } else if (dp.isPm === false && +dp.hours === 12) {
+        dp.hours = 0;
+      }
+    }
+    let date;
+    if (dp.timezoneOffset != null) {
+      dp.minutes = +(dp.minutes || 0) - +dp.timezoneOffset;
+      date = new Date(
+        Date.UTC(
+          dp.year || today.getFullYear(),
+          dp.month || 0,
+          dp.day || 1,
+          dp.hours || 0,
+          dp.minutes || 0,
+          dp.seconds || 0,
+          dp.milliseconds || 0
+        )
+      );
+    } else {
+      date = locale.getDateFromParts({
+        year: dp.year || today.getFullYear(),
+        month: (dp.month || 0) + 1,
+        day: dp.day || 1,
+        hours: dp.hours || 0,
+        minutes: dp.minutes || 0,
+        seconds: dp.seconds || 0,
+        milliseconds: dp.milliseconds || 0
+      });
+    }
+    return date;
+  }).find((d) => d) || new Date(dateString);
+}
+function formatDate(date, masks2, locale) {
+  if (date == null)
+    return "";
+  let mask = normalizeMasks(masks2, locale)[0];
+  if (/Z$/.test(mask))
+    locale.timezone = "utc";
+  const literals = [];
+  mask = mask.replace(literal, ($0, $1) => {
+    literals.push($1);
+    return "??";
+  });
+  const dateParts = locale.getDateParts(date);
+  mask = mask.replace(
+    token,
+    ($0) => $0 in formatFlags ? formatFlags[$0](dateParts, locale) : $0.slice(1, $0.length - 1)
+  );
+  return mask.replace(/\?\?/g, () => literals.shift());
+}
+let attrKey = 0;
+class Attribute {
+  constructor(config, theme, locale) {
+    __publicField(this, "key", "");
+    __publicField(this, "hashcode", "");
+    __publicField(this, "highlight", null);
+    __publicField(this, "content", null);
+    __publicField(this, "dot", null);
+    __publicField(this, "bar", null);
+    __publicField(this, "event", null);
+    __publicField(this, "popover", null);
+    __publicField(this, "customData", null);
+    __publicField(this, "ranges");
+    __publicField(this, "hasRanges", false);
+    __publicField(this, "order", 0);
+    __publicField(this, "pinPage", false);
+    __publicField(this, "maxRepeatSpan", 0);
+    __publicField(this, "locale");
+    const { dates } = Object.assign(
+      this,
+      { hashcode: "", order: 0, pinPage: false },
+      config
+    );
+    this.key || (this.key = ++attrKey);
+    this.locale = locale;
+    theme.normalizeGlyphs(this);
+    this.ranges = locale.ranges(dates ?? []);
+    this.hasRanges = !!arrayHasItems(this.ranges);
+    this.maxRepeatSpan = this.ranges.filter((r) => r.hasRepeat).map((r) => r.daySpan).reduce((res, curr) => Math.max(res, curr), 0);
+  }
+  intersectsRange({ start, end }) {
+    if (start == null || end == null)
+      return false;
+    const simpleRanges = this.ranges.filter((r) => !r.hasRepeat);
+    for (const range of simpleRanges) {
+      if (range.intersectsDayRange(start.dayIndex, end.dayIndex)) {
+        return true;
+      }
+    }
+    const repeatRanges = this.ranges.filter((r) => r.hasRepeat);
+    if (!repeatRanges.length)
+      return false;
+    let day = start;
+    if (this.maxRepeatSpan > 1) {
+      day = this.locale.getDateParts(addDays(day.date, -this.maxRepeatSpan));
+    }
+    while (day.dayIndex <= end.dayIndex) {
+      for (const range of repeatRanges) {
+        if (range.startsOnDay(day))
+          return true;
+      }
+      day = this.locale.getDateParts(addDays(day.date, 1));
+    }
+    return false;
+  }
+}
+function showPopover(opts) {
+  if (document) {
+    document.dispatchEvent(
+      new CustomEvent("show-popover", {
+        detail: opts
+      })
+    );
+  }
+}
+function hidePopover(opts) {
+  if (document) {
+    document.dispatchEvent(
+      new CustomEvent("hide-popover", {
+        detail: opts
+      })
+    );
+  }
+}
+function togglePopover(opts) {
+  if (document) {
+    document.dispatchEvent(
+      new CustomEvent("toggle-popover", {
+        detail: opts
+      })
+    );
+  }
+}
+function getPopoverEventHandlers(opts) {
+  const { visibility } = opts;
+  const click = visibility === "click";
+  const hover = visibility === "hover";
+  const hoverFocus = visibility === "hover-focus";
+  const focus = visibility === "focus";
+  opts.autoHide = !click;
+  let hovered = false;
+  let focused = false;
+  const clickHandler = (e) => {
+    if (click) {
+      togglePopover({
+        ...opts,
+        target: opts.target || e.currentTarget
+      });
+      e.stopPropagation();
+    }
+  };
+  const mouseMoveHandler = (e) => {
+    if (!hovered) {
+      hovered = true;
+      if (hover || hoverFocus) {
+        showPopover({
+          ...opts,
+          target: opts.target || e.currentTarget
+        });
+      }
+    }
+  };
+  const mouseLeaveHandler = () => {
+    if (hovered) {
+      hovered = false;
+      if (hover || hoverFocus && !focused) {
+        hidePopover(opts);
+      }
+    }
+  };
+  const focusInHandler = (e) => {
+    if (!focused) {
+      focused = true;
+      if (focus || hoverFocus) {
+        showPopover({
+          ...opts,
+          target: opts.target || e.currentTarget
+        });
+      }
+    }
+  };
+  const focusOutHandler = (e) => {
+    if (focused && !elementContains(e.currentTarget, e.relatedTarget)) {
+      focused = false;
+      if (focus || hoverFocus && !hovered) {
+        hidePopover(opts);
+      }
+    }
+  };
+  const handlers = {};
+  switch (opts.visibility) {
+    case "click":
+      handlers.click = clickHandler;
+      break;
+    case "hover":
+      handlers.mousemove = mouseMoveHandler;
+      handlers.mouseleave = mouseLeaveHandler;
+      break;
+    case "focus":
+      handlers.focusin = focusInHandler;
+      handlers.focusout = focusOutHandler;
+      break;
+    case "hover-focus":
+      handlers.mousemove = mouseMoveHandler;
+      handlers.mouseleave = mouseLeaveHandler;
+      handlers.focusin = focusInHandler;
+      handlers.focusout = focusOutHandler;
+      break;
+  }
+  return handlers;
+}
+const removeHandlers = (target) => {
+  const el = resolveEl(target);
+  if (el == null)
+    return;
+  const handlers = el.popoverHandlers;
+  if (!handlers || !handlers.length)
+    return;
+  handlers.forEach((handler) => handler());
+  delete el.popoverHandlers;
+};
+const addHandlers = (target, opts) => {
+  const el = resolveEl(target);
+  if (el == null)
+    return;
+  const remove = [];
+  const handlers = getPopoverEventHandlers(opts);
+  Object.entries(handlers).forEach(([event, handler]) => {
+    remove.push(on(el, event, handler));
+  });
+  el.popoverHandlers = remove;
+};
+const popoverDirective = {
+  mounted(el, binding) {
+    const { value } = binding;
+    if (!value)
+      return;
+    addHandlers(el, value);
+  },
+  updated(el, binding) {
+    const { oldValue, value } = binding;
+    const oldVisibility = oldValue == null ? void 0 : oldValue.visibility;
+    const newVisibility = value == null ? void 0 : value.visibility;
+    if (oldVisibility !== newVisibility) {
+      if (oldVisibility) {
+        removeHandlers(el);
+        if (!newVisibility)
+          hidePopover(oldValue);
+      }
+      if (newVisibility) {
+        addHandlers(el, value);
+      }
+    }
+  },
+  unmounted(el) {
+    removeHandlers(el);
+  }
+};
+const addHorizontalSwipeHandler = (element, handler, {
+  maxSwipeTime: maxSwipeTime2,
+  minHorizontalSwipeDistance: minHorizontalSwipeDistance2,
+  maxVerticalSwipeDistance: maxVerticalSwipeDistance2
+}) => {
+  if (!element || !element.addEventListener || !isFunction_1(handler)) {
+    return null;
+  }
+  let startX = 0;
+  let startY = 0;
+  let startTime = null;
+  let isSwiping = false;
+  function touchStart(e) {
+    const t = e.changedTouches[0];
+    startX = t.screenX;
+    startY = t.screenY;
+    startTime = (/* @__PURE__ */ new Date()).getTime();
+    isSwiping = true;
+  }
+  function touchEnd(e) {
+    if (!isSwiping || !startTime)
+      return;
+    isSwiping = false;
+    const t = e.changedTouches[0];
+    const deltaX = t.screenX - startX;
+    const deltaY = t.screenY - startY;
+    const deltaTime = (/* @__PURE__ */ new Date()).getTime() - startTime;
+    if (deltaTime < maxSwipeTime2) {
+      if (Math.abs(deltaX) >= minHorizontalSwipeDistance2 && Math.abs(deltaY) <= maxVerticalSwipeDistance2) {
+        const arg = { toLeft: false, toRight: false };
+        if (deltaX < 0) {
+          arg.toLeft = true;
+        } else {
+          arg.toRight = true;
+        }
+        handler(arg);
+      }
+    }
+  }
+  on(element, "touchstart", touchStart, { passive: true });
+  on(element, "touchend", touchEnd, { passive: true });
+  return () => {
+    off(element, "touchstart", touchStart);
+    off(element, "touchend", touchEnd);
+  };
+};
+const watchSkippers = {};
+const skipWatcher = (watcher, durationMs = 10) => {
+  watchSkippers[watcher] = Date.now() + durationMs;
+};
+const handleWatcher = (watcher, handler) => {
+  if (watcher in watchSkippers) {
+    const dateTime = watchSkippers[watcher];
+    if (Date.now() < dateTime)
+      return;
+    delete watchSkippers[watcher];
+  }
+  handler();
+};
+function windowExists() {
+  return typeof window !== "undefined";
+}
+function windowHasFeature(feature) {
+  return windowExists() && feature in window;
+}
+function useDarkMode(config) {
+  const isDark = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
+  const displayMode = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => isDark.value ? "dark" : "light");
+  let mediaQuery;
+  let mutationObserver;
+  function mqListener(ev) {
+    isDark.value = ev.matches;
+  }
+  function setupSystem() {
+    if (windowHasFeature("matchMedia")) {
+      mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      mediaQuery.addEventListener("change", mqListener);
+      isDark.value = mediaQuery.matches;
+    }
+  }
+  function moListener() {
+    const { selector = ":root", darkClass = "dark" } = config.value;
+    const el = document.querySelector(selector);
+    isDark.value = el.classList.contains(darkClass);
+  }
+  function setupClass(config2) {
+    const { selector = ":root", darkClass = "dark" } = config2;
+    if (windowExists() && selector && darkClass) {
+      const el = document.querySelector(selector);
+      if (el) {
+        mutationObserver = new MutationObserver(moListener);
+        mutationObserver.observe(el, {
+          attributes: true,
+          attributeFilter: ["class"]
+        });
+        isDark.value = el.classList.contains(darkClass);
+      }
+    }
+  }
+  function setup() {
+    stopObservers();
+    const type = typeof config.value;
+    if (type === "string" && config.value.toLowerCase() === "system") {
+      setupSystem();
+    } else if (type === "object") {
+      setupClass(config.value);
+    } else {
+      isDark.value = !!config.value;
+    }
+  }
+  const stopWatch = (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => config.value, () => setup(), {
+    immediate: true
+  });
+  function stopObservers() {
+    if (mediaQuery) {
+      mediaQuery.removeEventListener("change", mqListener);
+      mediaQuery = void 0;
+    }
+    if (mutationObserver) {
+      mutationObserver.disconnect();
+      mutationObserver = void 0;
+    }
+  }
+  function cleanup() {
+    stopObservers();
+    stopWatch();
+  }
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.onUnmounted)(() => cleanup());
+  return {
+    isDark,
+    displayMode,
+    cleanup
+  };
+}
+const targetProps = ["base", "start", "end", "startEnd"];
+const displayProps = [
+  "class",
+  "wrapperClass",
+  "contentClass",
+  "style",
+  "contentStyle",
+  "color",
+  "fillMode"
+];
+const _defaultProfile = { base: {}, start: {}, end: {} };
+function normalizeConfig(color, config, defaultProfile = _defaultProfile) {
+  let rootColor = color;
+  let root2 = {};
+  if (config === true || isString_1(config)) {
+    rootColor = isString_1(config) ? config : rootColor;
+    root2 = { ...defaultProfile };
+  } else if (isObject(config)) {
+    if (hasAny(config, targetProps)) {
+      root2 = { ...config };
+    } else {
+      root2 = {
+        base: { ...config },
+        start: { ...config },
+        end: { ...config }
+      };
+    }
+  }
+  const result = defaultsDeep_1(
+    root2,
+    { start: root2.startEnd, end: root2.startEnd },
+    defaultProfile
+  );
+  Object.entries(result).forEach(([targetType, targetConfig]) => {
+    let targetColor = rootColor;
+    if (targetConfig === true || isString_1(targetConfig)) {
+      targetColor = isString_1(targetConfig) ? targetConfig : targetColor;
+      result[targetType] = { color: targetColor };
+    } else if (isObject(targetConfig)) {
+      if (hasAny(targetConfig, displayProps)) {
+        result[targetType] = { ...targetConfig };
+      } else {
+        result[targetType] = {};
+      }
+    }
+    defaultsDeep_1(result[targetType], { color: targetColor });
+  });
+  return result;
+}
+class HighlightRenderer {
+  constructor() {
+    __publicField(this, "type", "highlight");
+  }
+  normalizeConfig(color, config) {
+    return normalizeConfig(color, config, {
+      base: { fillMode: "light" },
+      start: { fillMode: "solid" },
+      end: { fillMode: "solid" }
+    });
+  }
+  prepareRender(glyphs) {
+    glyphs.highlights = [];
+    if (!glyphs.content)
+      glyphs.content = [];
+  }
+  render({ data: data2, onStart, onEnd }, glyphs) {
+    const { key, highlight } = data2;
+    if (!highlight)
+      return;
+    const { highlights } = glyphs;
+    const { base, start, end } = highlight;
+    if (onStart && onEnd) {
+      highlights.push({
+        ...start,
+        key,
+        wrapperClass: `vc-day-layer vc-day-box-center-center vc-attr vc-${start.color}`,
+        class: [`vc-highlight vc-highlight-bg-${start.fillMode}`, start.class],
+        contentClass: [
+          `vc-attr vc-highlight-content-${start.fillMode} vc-${start.color}`,
+          start.contentClass
+        ]
+      });
+    } else if (onStart) {
+      highlights.push({
+        ...base,
+        key: `${key}-base`,
+        wrapperClass: `vc-day-layer vc-day-box-right-center vc-attr vc-${base.color}`,
+        class: [
+          `vc-highlight vc-highlight-base-start vc-highlight-bg-${base.fillMode}`,
+          base.class
+        ]
+      });
+      highlights.push({
+        ...start,
+        key,
+        wrapperClass: `vc-day-layer vc-day-box-center-center vc-attr vc-${start.color}`,
+        class: [`vc-highlight vc-highlight-bg-${start.fillMode}`, start.class],
+        contentClass: [
+          `vc-attr vc-highlight-content-${start.fillMode} vc-${start.color}`,
+          start.contentClass
+        ]
+      });
+    } else if (onEnd) {
+      highlights.push({
+        ...base,
+        key: `${key}-base`,
+        wrapperClass: `vc-day-layer vc-day-box-left-center vc-attr vc-${base.color}`,
+        class: [
+          `vc-highlight vc-highlight-base-end vc-highlight-bg-${base.fillMode}`,
+          base.class
+        ]
+      });
+      highlights.push({
+        ...end,
+        key,
+        wrapperClass: `vc-day-layer vc-day-box-center-center vc-attr vc-${end.color}`,
+        class: [`vc-highlight vc-highlight-bg-${end.fillMode}`, end.class],
+        contentClass: [
+          `vc-attr vc-highlight-content-${end.fillMode} vc-${end.color}`,
+          end.contentClass
+        ]
+      });
+    } else {
+      highlights.push({
+        ...base,
+        key: `${key}-middle`,
+        wrapperClass: `vc-day-layer vc-day-box-center-center vc-attr vc-${base.color}`,
+        class: [
+          `vc-highlight vc-highlight-base-middle vc-highlight-bg-${base.fillMode}`,
+          base.class
+        ],
+        contentClass: [
+          `vc-attr vc-highlight-content-${base.fillMode} vc-${base.color}`,
+          base.contentClass
+        ]
+      });
+    }
+  }
+}
+class BaseRenderer {
+  constructor(type, collectionType) {
+    __publicField(this, "type", "");
+    __publicField(this, "collectionType", "");
+    this.type = type;
+    this.collectionType = collectionType;
+  }
+  normalizeConfig(color, config) {
+    return normalizeConfig(color, config);
+  }
+  prepareRender(glyphs) {
+    glyphs[this.collectionType] = [];
+  }
+  render({ data: data2, onStart, onEnd }, glyphs) {
+    const { key } = data2;
+    const item = data2[this.type];
+    if (!key || !item) {
+      return;
+    }
+    const collection = glyphs[this.collectionType];
+    const { base, start, end } = item;
+    if (onStart) {
+      collection.push({
+        ...start,
+        key,
+        class: [
+          `vc-${this.type} vc-${this.type}-start vc-${start.color} vc-attr`,
+          start.class
+        ]
+      });
+    } else if (onEnd) {
+      collection.push({
+        ...end,
+        key,
+        class: [
+          `vc-${this.type} vc-${this.type}-end vc-${end.color} vc-attr`,
+          end.class
+        ]
+      });
+    } else {
+      collection.push({
+        ...base,
+        key,
+        class: [
+          `vc-${this.type} vc-${this.type}-base vc-${base.color} vc-attr`,
+          base.class
+        ]
+      });
+    }
+  }
+}
+class ContentRenderer extends BaseRenderer {
+  constructor() {
+    super("content", "content");
+  }
+  normalizeConfig(_, config) {
+    return normalizeConfig("base", config);
+  }
+}
+class DotRenderer extends BaseRenderer {
+  constructor() {
+    super("dot", "dots");
+  }
+}
+class BarRenderer extends BaseRenderer {
+  constructor() {
+    super("bar", "bars");
+  }
+}
+class Theme {
+  constructor(color) {
+    __publicField(this, "color");
+    __publicField(this, "renderers", [
+      new ContentRenderer(),
+      new HighlightRenderer(),
+      new DotRenderer(),
+      new BarRenderer()
+    ]);
+    this.color = color;
+  }
+  normalizeGlyphs(attr) {
+    this.renderers.forEach((renderer) => {
+      const type = renderer.type;
+      if (attr[type] != null) {
+        attr[type] = renderer.normalizeConfig(this.color, attr[type]);
+      }
+    });
+  }
+  prepareRender(glyphs = {}) {
+    this.renderers.forEach((renderer) => {
+      renderer.prepareRender(glyphs);
+    });
+    return glyphs;
+  }
+  render(cell, glyphs) {
+    this.renderers.forEach((renderer) => {
+      renderer.render(cell, glyphs);
+    });
+  }
+}
+const contextKey$4 = Symbol("__vc_base_context__");
+const propsDef$2 = {
+  color: {
+    type: String,
+    default: () => getDefault("color")
+  },
+  isDark: {
+    type: [Boolean, String, Object],
+    default: () => getDefault("isDark")
+  },
+  firstDayOfWeek: Number,
+  masks: Object,
+  locale: [String, Object],
+  timezone: String,
+  minDate: null,
+  maxDate: null,
+  disabledDates: null
+};
+function createBase(props) {
+  const color = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.color ?? "");
+  const isDark = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.isDark ?? false);
+  const { displayMode } = useDarkMode(isDark);
+  const theme = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => new Theme(color.value));
+  const locale = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (props.locale instanceof Locale)
+      return props.locale;
+    const config = isObject(props.locale) ? props.locale : {
+      id: props.locale,
+      firstDayOfWeek: props.firstDayOfWeek,
+      masks: props.masks
+    };
+    return new Locale(config, props.timezone);
+  });
+  const masks2 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => locale.value.masks);
+  const minDate = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.minDate);
+  const maxDate = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.maxDate);
+  const disabledDates = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const dates = props.disabledDates ? [...props.disabledDates] : [];
+    if (minDate.value != null) {
+      dates.push({
+        start: null,
+        end: addDays(locale.value.toDate(minDate.value), -1)
+      });
+    }
+    if (maxDate.value != null) {
+      dates.push({
+        start: addDays(locale.value.toDate(maxDate.value), 1),
+        end: null
+      });
+    }
+    return locale.value.ranges(dates);
+  });
+  const disabledAttribute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return new Attribute(
+      {
+        key: "disabled",
+        dates: disabledDates.value,
+        order: 100
+      },
+      theme.value,
+      locale.value
+    );
+  });
+  const context = {
+    color,
+    isDark,
+    displayMode,
+    theme,
+    locale,
+    masks: masks2,
+    minDate,
+    maxDate,
+    disabledDates,
+    disabledAttribute
+  };
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(contextKey$4, context);
+  return context;
+}
+function useOrCreateBase(props) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(contextKey$4, () => createBase(props), true);
+}
+function contextKey$3(slotKey) {
+  return `__vc_slot_${slotKey}__`;
+}
+function provideSlots(slots, remap = {}) {
+  Object.keys(slots).forEach((slotKey) => {
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(contextKey$3(remap[slotKey] ?? slotKey), slots[slotKey]);
+  });
+}
+function useSlot(slotKey) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(contextKey$3(slotKey), null);
+}
+const propsDef$1 = {
+  ...propsDef$2,
+  view: {
+    type: String,
+    default: "monthly",
+    validator(value) {
+      return ["daily", "weekly", "monthly"].includes(value);
+    }
+  },
+  rows: {
+    type: Number,
+    default: 1
+  },
+  columns: {
+    type: Number,
+    default: 1
+  },
+  step: Number,
+  titlePosition: {
+    type: String,
+    default: () => getDefault("titlePosition")
+  },
+  navVisibility: {
+    type: String,
+    default: () => getDefault("navVisibility")
+  },
+  showWeeknumbers: [Boolean, String],
+  showIsoWeeknumbers: [Boolean, String],
+  expanded: Boolean,
+  borderless: Boolean,
+  transparent: Boolean,
+  initialPage: Object,
+  initialPagePosition: { type: Number, default: 1 },
+  minPage: Object,
+  maxPage: Object,
+  transition: String,
+  attributes: Array,
+  trimWeeks: Boolean,
+  disablePageSwipe: Boolean
+};
+const emitsDef = [
+  "dayclick",
+  "daymouseenter",
+  "daymouseleave",
+  "dayfocusin",
+  "dayfocusout",
+  "daykeydown",
+  "weeknumberclick",
+  "transition-start",
+  "transition-end",
+  "did-move",
+  "update:view",
+  "update:pages"
+];
+const contextKey$2 = Symbol("__vc_calendar_context__");
+function createCalendar(props, { slots, emit }) {
+  const containerRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  const focusedDay = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  const focusableDay = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)((/* @__PURE__ */ new Date()).getDate());
+  const inTransition = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
+  const navPopoverId = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(Symbol());
+  const dayPopoverId = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(Symbol());
+  const _view = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(props.view);
+  const _pages = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)([]);
+  const transitionName = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)("");
+  let transitionPromise = null;
+  let removeHandlers2 = null;
+  provideSlots(slots);
+  const {
+    theme,
+    color,
+    displayMode,
+    locale,
+    masks: masks2,
+    minDate,
+    maxDate,
+    disabledAttribute,
+    disabledDates
+  } = useOrCreateBase(props);
+  const count = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.rows * props.columns);
+  const step = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.step || count.value);
+  const firstPage = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => head_1(_pages.value) ?? null);
+  const lastPage = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => last_1(_pages.value) ?? null);
+  const minPage = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => props.minPage || (minDate.value ? getDateAddress(minDate.value) : null)
+  );
+  const maxPage = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => props.maxPage || (maxDate.value ? getDateAddress(maxDate.value) : null)
+  );
+  const navVisibility = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.navVisibility);
+  const showWeeknumbers = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!props.showWeeknumbers);
+  const showIsoWeeknumbers = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!props.showIsoWeeknumbers);
+  const isMonthly = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => _view.value === "monthly");
+  const isWeekly = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => _view.value === "weekly");
+  const isDaily = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => _view.value === "daily");
+  const onTransitionBeforeEnter = () => {
+    inTransition.value = true;
+    emit("transition-start");
+  };
+  const onTransitionAfterEnter = () => {
+    inTransition.value = false;
+    emit("transition-end");
+    if (transitionPromise) {
+      transitionPromise.resolve(true);
+      transitionPromise = null;
+    }
+  };
+  const addPages$1 = (address, count2, view = _view.value) => {
+    return addPages(address, count2, view, locale.value);
+  };
+  const getDateAddress = (date) => {
+    return getPageAddressForDate(date, _view.value, locale.value);
+  };
+  const refreshDisabled = (day) => {
+    if (!disabledAttribute.value || !attributeContext.value)
+      return;
+    day.isDisabled = attributeContext.value.cellExists(
+      disabledAttribute.value.key,
+      day.dayIndex
+    );
+  };
+  const refreshFocusable = (day) => {
+    day.isFocusable = day.inMonth && day.day === focusableDay.value;
+  };
+  const forDays = (pages, fn) => {
+    for (const page of pages) {
+      for (const day of page.days) {
+        if (fn(day) === false)
+          return;
+      }
+    }
+  };
+  const days = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => _pages.value.reduce((result, page) => {
+      result.push(...page.viewDays);
+      return result;
+    }, [])
+  );
+  const attributes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const result = [];
+    (props.attributes || []).forEach((attr, i) => {
+      if (!attr || !attr.dates)
+        return;
+      result.push(
+        new Attribute(
+          {
+            ...attr,
+            order: attr.order || 0
+          },
+          theme.value,
+          locale.value
+        )
+      );
+    });
+    if (disabledAttribute.value) {
+      result.push(disabledAttribute.value);
+    }
+    return result;
+  });
+  const hasAttributes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => arrayHasItems(attributes.value));
+  const attributeContext = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const ctx = new DateRangeContext();
+    attributes.value.forEach((attr) => {
+      attr.ranges.forEach((range) => {
+        ctx.render(attr, range, days.value);
+      });
+    });
+    return ctx;
+  });
+  const dayCells = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return days.value.reduce((result, day) => {
+      result[day.dayIndex] = { day, cells: [] };
+      result[day.dayIndex].cells.push(...attributeContext.value.getCells(day));
+      return result;
+    }, {});
+  });
+  const getWeeknumberPosition = (column, columnFromEnd) => {
+    const showWeeknumbers2 = props.showWeeknumbers || props.showIsoWeeknumbers;
+    if (showWeeknumbers2 == null)
+      return "";
+    if (isBoolean_1(showWeeknumbers2)) {
+      return showWeeknumbers2 ? "left" : "";
+    }
+    if (showWeeknumbers2.startsWith("right")) {
+      return columnFromEnd > 1 ? "right" : showWeeknumbers2;
+    }
+    return column > 1 ? "left" : showWeeknumbers2;
+  };
+  const getPageForAttributes = () => {
+    var _a, _b;
+    if (!hasAttributes.value)
+      return null;
+    const attr = attributes.value.find((attr2) => attr2.pinPage) || attributes.value[0];
+    if (!attr || !attr.hasRanges)
+      return null;
+    const [range] = attr.ranges;
+    const date = ((_a = range.start) == null ? void 0 : _a.date) || ((_b = range.end) == null ? void 0 : _b.date);
+    return date ? getDateAddress(date) : null;
+  };
+  const getDefaultInitialPage = () => {
+    if (pageIsValid(firstPage.value))
+      return firstPage.value;
+    const page = getPageForAttributes();
+    if (pageIsValid(page))
+      return page;
+    return getDateAddress(/* @__PURE__ */ new Date());
+  };
+  const getTargetPageRange = (page, opts = {}) => {
+    const { view = _view.value, position = 1, force } = opts;
+    const pagesToAdd = position > 0 ? 1 - position : -(count.value + position);
+    let fromPage = addPages$1(page, pagesToAdd, view);
+    let toPage = addPages$1(fromPage, count.value - 1, view);
+    if (!force) {
+      if (pageIsBeforePage(fromPage, minPage.value)) {
+        fromPage = minPage.value;
+      } else if (pageIsAfterPage(toPage, maxPage.value)) {
+        fromPage = addPages$1(maxPage.value, 1 - count.value);
+      }
+      toPage = addPages$1(fromPage, count.value - 1);
+    }
+    return { fromPage, toPage };
+  };
+  const getPageTransition = (oldPage, newPage, defaultTransition = "") => {
+    if (defaultTransition === "none" || defaultTransition === "fade")
+      return defaultTransition;
+    if ((oldPage == null ? void 0 : oldPage.view) !== (newPage == null ? void 0 : newPage.view))
+      return "fade";
+    const moveNext2 = pageIsAfterPage(newPage, oldPage);
+    const movePrev2 = pageIsBeforePage(newPage, oldPage);
+    if (!moveNext2 && !movePrev2) {
+      return "fade";
+    }
+    if (defaultTransition === "slide-v") {
+      return movePrev2 ? "slide-down" : "slide-up";
+    }
+    return movePrev2 ? "slide-right" : "slide-left";
+  };
+  const refreshPages = (opts = {}) => {
+    return new Promise((resolve, reject) => {
+      const { position = 1, force = false, transition } = opts;
+      const page = pageIsValid(opts.page) ? opts.page : getDefaultInitialPage();
+      const { fromPage } = getTargetPageRange(page, {
+        position,
+        force
+      });
+      const pages = [];
+      for (let i = 0; i < count.value; i++) {
+        const newPage = addPages$1(fromPage, i);
+        const position2 = i + 1;
+        const row = Math.ceil(position2 / props.columns);
+        const rowFromEnd = props.rows - row + 1;
+        const column = position2 % props.columns || props.columns;
+        const columnFromEnd = props.columns - column + 1;
+        const weeknumberPosition = getWeeknumberPosition(column, columnFromEnd);
+        pages.push(
+          locale.value.getPage({
+            ...newPage,
+            view: _view.value,
+            titlePosition: props.titlePosition,
+            trimWeeks: props.trimWeeks,
+            position: position2,
+            row,
+            rowFromEnd,
+            column,
+            columnFromEnd,
+            showWeeknumbers: showWeeknumbers.value,
+            showIsoWeeknumbers: showIsoWeeknumbers.value,
+            weeknumberPosition
+          })
+        );
+      }
+      transitionName.value = getPageTransition(
+        _pages.value[0],
+        pages[0],
+        transition
+      );
+      _pages.value = pages;
+      if (transitionName.value && transitionName.value !== "none") {
+        transitionPromise = {
+          resolve,
+          reject
+        };
+      } else {
+        resolve(true);
+      }
+    });
+  };
+  const targetBy = (pages) => {
+    const fromPage = firstPage.value ?? getDateAddress(/* @__PURE__ */ new Date());
+    return addPages$1(fromPage, pages);
+  };
+  const canMove = (target, opts = {}) => {
+    const page = pageIsValid(target) ? target : getDateAddress(target);
+    Object.assign(
+      opts,
+      getTargetPageRange(page, {
+        ...opts,
+        force: true
+      })
+    );
+    const pagesInRange = pageRangeToArray(
+      opts.fromPage,
+      opts.toPage,
+      _view.value,
+      locale.value
+    ).map((p) => pageIsBetweenPages(p, minPage.value, maxPage.value));
+    return pagesInRange.some((val) => val);
+  };
+  const canMoveBy = (pages, opts = {}) => {
+    return canMove(targetBy(pages), opts);
+  };
+  const canMovePrev = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => canMoveBy(-step.value));
+  const canMoveNext = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => canMoveBy(step.value));
+  const move = async (target, opts = {}) => {
+    if (!opts.force && !canMove(target, opts))
+      return false;
+    if (opts.fromPage && !pageIsEqualToPage(opts.fromPage, firstPage.value)) {
+      hidePopover({ id: navPopoverId.value, hideDelay: 0 });
+      if (opts.view) {
+        skipWatcher("view", 10);
+        _view.value = opts.view;
+      }
+      await refreshPages({
+        ...opts,
+        page: opts.fromPage,
+        position: 1,
+        force: true
+      });
+      emit("did-move", _pages.value);
+    }
+    return true;
+  };
+  const moveBy = (pages, opts = {}) => {
+    return move(targetBy(pages), opts);
+  };
+  const movePrev = () => {
+    return moveBy(-step.value);
+  };
+  const moveNext = () => {
+    return moveBy(step.value);
+  };
+  const tryFocusDate = (date) => {
+    const inMonth = isMonthly.value ? ".in-month" : "";
+    const daySelector = `.id-${locale.value.getDayId(date)}${inMonth}`;
+    const selector = `${daySelector}.vc-focusable, ${daySelector} .vc-focusable`;
+    const el = containerRef.value;
+    if (el) {
+      const focusableEl = el.querySelector(selector);
+      if (focusableEl) {
+        focusableEl.focus();
+        return true;
+      }
+    }
+    return false;
+  };
+  const focusDate = async (date, opts = {}) => {
+    if (tryFocusDate(date))
+      return true;
+    await move(date, opts);
+    return tryFocusDate(date);
+  };
+  const onDayClick = (day, event) => {
+    focusableDay.value = day.day;
+    emit("dayclick", day, event);
+  };
+  const onDayMouseenter = (day, event) => {
+    emit("daymouseenter", day, event);
+  };
+  const onDayMouseleave = (day, event) => {
+    emit("daymouseleave", day, event);
+  };
+  const onDayFocusin = (day, event) => {
+    focusableDay.value = day.day;
+    focusedDay.value = day;
+    day.isFocused = true;
+    emit("dayfocusin", day, event);
+  };
+  const onDayFocusout = (day, event) => {
+    focusedDay.value = null;
+    day.isFocused = false;
+    emit("dayfocusout", day, event);
+  };
+  const onDayKeydown = (day, event) => {
+    emit("daykeydown", day, event);
+    const date = day.noonDate;
+    let newDate = null;
+    switch (event.key) {
+      case "ArrowLeft": {
+        newDate = addDays(date, -1);
+        break;
+      }
+      case "ArrowRight": {
+        newDate = addDays(date, 1);
+        break;
+      }
+      case "ArrowUp": {
+        newDate = addDays(date, -7);
+        break;
+      }
+      case "ArrowDown": {
+        newDate = addDays(date, 7);
+        break;
+      }
+      case "Home": {
+        newDate = addDays(date, -day.weekdayPosition + 1);
+        break;
+      }
+      case "End": {
+        newDate = addDays(date, day.weekdayPositionFromEnd);
+        break;
+      }
+      case "PageUp": {
+        if (event.altKey) {
+          newDate = addYears(date, -1);
+        } else {
+          newDate = addMonths(date, -1);
+        }
+        break;
+      }
+      case "PageDown": {
+        if (event.altKey) {
+          newDate = addYears(date, 1);
+        } else {
+          newDate = addMonths(date, 1);
+        }
+        break;
+      }
+    }
+    if (newDate) {
+      event.preventDefault();
+      focusDate(newDate).catch();
+    }
+  };
+  const onKeydown = (event) => {
+    const day = focusedDay.value;
+    if (day != null) {
+      onDayKeydown(day, event);
+    }
+  };
+  const onWeeknumberClick = (week, event) => {
+    emit("weeknumberclick", week, event);
+  };
+  refreshPages({
+    page: props.initialPage,
+    position: props.initialPagePosition
+  });
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+    if (!props.disablePageSwipe && containerRef.value) {
+      removeHandlers2 = addHorizontalSwipeHandler(
+        containerRef.value,
+        ({ toLeft = false, toRight = false }) => {
+          if (toLeft) {
+            moveNext();
+          } else if (toRight) {
+            movePrev();
+          }
+        },
+        getDefault("touch")
+      );
+    }
+  });
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.onUnmounted)(() => {
+    _pages.value = [];
+    if (removeHandlers2)
+      removeHandlers2();
+  });
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => locale.value,
+    () => {
+      refreshPages();
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => count.value,
+    () => refreshPages()
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => props.view,
+    () => _view.value = props.view
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => _view.value,
+    () => {
+      handleWatcher("view", () => {
+        refreshPages();
+      });
+      emit("update:view", _view.value);
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => focusableDay.value,
+    () => {
+      forDays(_pages.value, (day) => refreshFocusable(day));
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watchEffect)(() => {
+    emit("update:pages", _pages.value);
+    forDays(_pages.value, (day) => {
+      refreshDisabled(day);
+      refreshFocusable(day);
+    });
+  });
+  const context = {
+    emit,
+    containerRef,
+    focusedDay,
+    inTransition,
+    navPopoverId,
+    dayPopoverId,
+    view: _view,
+    pages: _pages,
+    transitionName,
+    theme,
+    color,
+    displayMode,
+    locale,
+    masks: masks2,
+    attributes,
+    disabledAttribute,
+    disabledDates,
+    attributeContext,
+    days,
+    dayCells,
+    count,
+    step,
+    firstPage,
+    lastPage,
+    canMovePrev,
+    canMoveNext,
+    minPage,
+    maxPage,
+    isMonthly,
+    isWeekly,
+    isDaily,
+    navVisibility,
+    showWeeknumbers,
+    showIsoWeeknumbers,
+    getDateAddress,
+    canMove,
+    canMoveBy,
+    move,
+    moveBy,
+    movePrev,
+    moveNext,
+    onTransitionBeforeEnter,
+    onTransitionAfterEnter,
+    tryFocusDate,
+    focusDate,
+    onKeydown,
+    onDayKeydown,
+    onDayClick,
+    onDayMouseenter,
+    onDayMouseleave,
+    onDayFocusin,
+    onDayFocusout,
+    onWeeknumberClick
+  };
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(contextKey$2, context);
+  return context;
+}
+function useCalendar() {
+  const context = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(contextKey$2);
+  if (context)
+    return context;
+  throw new Error(
+    "Calendar context missing. Please verify this component is nested within a valid context provider."
+  );
+}
+const _sfc_main$k = (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  inheritAttrs: false,
+  emits: ["before-show", "after-show", "before-hide", "after-hide"],
+  props: {
+    id: { type: [Number, String, Symbol], required: true },
+    showDelay: { type: Number, default: 0 },
+    hideDelay: { type: Number, default: 110 },
+    boundarySelector: { type: String }
+  },
+  setup(props, { emit }) {
+    let timeout = void 0;
+    const popoverRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)();
+    let resizeObserver = null;
+    let popper = null;
+    const state2 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.reactive)({
+      isVisible: false,
+      target: null,
+      data: null,
+      transition: "slide-fade",
+      placement: "bottom",
+      direction: "",
+      positionFixed: false,
+      modifiers: [],
+      isInteractive: true,
+      visibility: "click",
+      isHovered: false,
+      isFocused: false,
+      autoHide: false,
+      force: false
+    });
+    function updateDirection(placement) {
+      if (placement)
+        state2.direction = placement.split("-")[0];
+    }
+    function onPopperUpdate({ placement, options }) {
+      updateDirection(placement || (options == null ? void 0 : options.placement));
+    }
+    const popperOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return {
+        placement: state2.placement,
+        strategy: state2.positionFixed ? "fixed" : "absolute",
+        boundary: "",
+        modifiers: [
+          {
+            name: "onUpdate",
+            enabled: true,
+            phase: "afterWrite",
+            fn: onPopperUpdate
+          },
+          ...state2.modifiers || []
+        ],
+        onFirstUpdate: onPopperUpdate
+      };
+    });
+    const alignment = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const isLeftRight = state2.direction === "left" || state2.direction === "right";
+      let alignment2 = "";
+      if (state2.placement) {
+        const parts = state2.placement.split("-");
+        if (parts.length > 1)
+          alignment2 = parts[1];
+      }
+      if (["start", "top", "left"].includes(alignment2)) {
+        return isLeftRight ? "top" : "left";
+      }
+      if (["end", "bottom", "right"].includes(alignment2)) {
+        return isLeftRight ? "bottom" : "right";
+      }
+      return isLeftRight ? "middle" : "center";
+    });
+    function destroyPopper() {
+      if (popper) {
+        popper.destroy();
+        popper = null;
+      }
+    }
+    function setupPopper() {
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(() => {
+        const el = resolveEl(state2.target);
+        if (!el || !popoverRef.value)
+          return;
+        if (popper && popper.state.elements.reference !== el) {
+          destroyPopper();
+        }
+        if (!popper) {
+          popper = (0,_popperjs_core__WEBPACK_IMPORTED_MODULE_1__.createPopper)(
+            el,
+            popoverRef.value,
+            popperOptions.value
+          );
+        } else {
+          popper.update();
+        }
+      });
+    }
+    function updateState(newState) {
+      Object.assign(state2, omit(newState, "force"));
+    }
+    function setTimer(delay, fn) {
+      clearTimeout(timeout);
+      if (delay > 0) {
+        timeout = setTimeout(fn, delay);
+      } else {
+        fn();
+      }
+    }
+    function isCurrentTarget(target) {
+      if (!target || !popper)
+        return false;
+      const el = resolveEl(target);
+      return el === popper.state.elements.reference;
+    }
+    async function show(opts = {}) {
+      if (state2.force)
+        return;
+      if (opts.force)
+        state2.force = true;
+      setTimer(opts.showDelay ?? props.showDelay, () => {
+        if (state2.isVisible) {
+          state2.force = false;
+        }
+        updateState({
+          ...opts,
+          isVisible: true
+        });
+        setupPopper();
+      });
+    }
+    function hide(opts = {}) {
+      if (!popper)
+        return;
+      if (opts.target && !isCurrentTarget(opts.target))
+        return;
+      if (state2.force)
+        return;
+      if (opts.force)
+        state2.force = true;
+      setTimer(opts.hideDelay ?? props.hideDelay, () => {
+        if (!state2.isVisible)
+          state2.force = false;
+        state2.isVisible = false;
+      });
+    }
+    function toggle(opts = {}) {
+      if (opts.target == null)
+        return;
+      if (state2.isVisible && isCurrentTarget(opts.target)) {
+        hide(opts);
+      } else {
+        show(opts);
+      }
+    }
+    function onDocumentClick(e) {
+      if (!popper)
+        return;
+      const popperRef = popper.state.elements.reference;
+      if (!popoverRef.value || !popperRef) {
+        return;
+      }
+      const target = e.target;
+      if (elementContains(popoverRef.value, target) || elementContains(popperRef, target)) {
+        return;
+      }
+      hide({ force: true });
+    }
+    function onDocumentKeydown(e) {
+      if (e.key === "Esc" || e.key === "Escape") {
+        hide();
+      }
+    }
+    function onDocumentShowPopover({ detail }) {
+      if (!detail.id || detail.id !== props.id)
+        return;
+      show(detail);
+    }
+    function onDocumentHidePopover({ detail }) {
+      if (!detail.id || detail.id !== props.id)
+        return;
+      hide(detail);
+    }
+    function onDocumentTogglePopover({ detail }) {
+      if (!detail.id || detail.id !== props.id)
+        return;
+      toggle(detail);
+    }
+    function addEvents() {
+      on(document, "keydown", onDocumentKeydown);
+      on(document, "click", onDocumentClick);
+      on(document, "show-popover", onDocumentShowPopover);
+      on(document, "hide-popover", onDocumentHidePopover);
+      on(document, "toggle-popover", onDocumentTogglePopover);
+    }
+    function removeEvents() {
+      off(document, "keydown", onDocumentKeydown);
+      off(document, "click", onDocumentClick);
+      off(document, "show-popover", onDocumentShowPopover);
+      off(document, "hide-popover", onDocumentHidePopover);
+      off(document, "toggle-popover", onDocumentTogglePopover);
+    }
+    function beforeEnter(el) {
+      emit("before-show", el);
+    }
+    function afterEnter(el) {
+      state2.force = false;
+      emit("after-show", el);
+    }
+    function beforeLeave(el) {
+      emit("before-hide", el);
+    }
+    function afterLeave(el) {
+      state2.force = false;
+      destroyPopper();
+      emit("after-hide", el);
+    }
+    function onClick(e) {
+      e.stopPropagation();
+    }
+    function onMouseOver() {
+      state2.isHovered = true;
+      if (state2.isInteractive && ["hover", "hover-focus"].includes(state2.visibility)) {
+        show();
+      }
+    }
+    function onMouseLeave() {
+      state2.isHovered = false;
+      if (!popper)
+        return;
+      const popperRef = popper.state.elements.reference;
+      if (state2.autoHide && !state2.isFocused && (!popperRef || popperRef !== document.activeElement) && ["hover", "hover-focus"].includes(state2.visibility)) {
+        hide();
+      }
+    }
+    function onFocusIn() {
+      state2.isFocused = true;
+      if (state2.isInteractive && ["focus", "hover-focus"].includes(state2.visibility)) {
+        show();
+      }
+    }
+    function onFocusOut(e) {
+      if (["focus", "hover-focus"].includes(state2.visibility) && (!e.relatedTarget || !elementContains(popoverRef.value, e.relatedTarget))) {
+        state2.isFocused = false;
+        if (!state2.isHovered && state2.autoHide)
+          hide();
+      }
+    }
+    function cleanupRO() {
+      if (resizeObserver != null) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+    }
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+      () => popoverRef.value,
+      (val) => {
+        cleanupRO();
+        if (!val)
+          return;
+        resizeObserver = new ResizeObserver(() => {
+          if (popper)
+            popper.update();
+        });
+        resizeObserver.observe(val);
+      }
+    );
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => state2.placement, updateDirection, {
+      immediate: true
+    });
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+      addEvents();
+    });
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onUnmounted)(() => {
+      destroyPopper();
+      cleanupRO();
+      removeEvents();
+    });
+    return {
+      ...(0,vue__WEBPACK_IMPORTED_MODULE_0__.toRefs)(state2),
+      popoverRef,
+      alignment,
+      hide,
+      setupPopper,
+      beforeEnter,
+      afterEnter,
+      beforeLeave,
+      afterLeave,
+      onClick,
+      onMouseOver,
+      onMouseLeave,
+      onFocusIn,
+      onFocusOut
+    };
+  }
+});
+const Popover_vue_vue_type_style_index_0_lang = "";
+const _export_sfc = (sfc, props) => {
+  const target = sfc.__vccOpts || sfc;
+  for (const [key, val] of props) {
+    target[key] = val;
+  }
+  return target;
+};
+function _sfc_render$7(_ctx, _cache, $props, $setup, $data, $options) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+    class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-popover-content-wrapper", { "is-interactive": _ctx.isInteractive }]),
+    ref: "popoverRef",
+    onClick: _cache[0] || (_cache[0] = (...args) => _ctx.onClick && _ctx.onClick(...args)),
+    onMouseover: _cache[1] || (_cache[1] = (...args) => _ctx.onMouseOver && _ctx.onMouseOver(...args)),
+    onMouseleave: _cache[2] || (_cache[2] = (...args) => _ctx.onMouseLeave && _ctx.onMouseLeave(...args)),
+    onFocusin: _cache[3] || (_cache[3] = (...args) => _ctx.onFocusIn && _ctx.onFocusIn(...args)),
+    onFocusout: _cache[4] || (_cache[4] = (...args) => _ctx.onFocusOut && _ctx.onFocusOut(...args))
+  }, [
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(vue__WEBPACK_IMPORTED_MODULE_0__.Transition, {
+      name: `vc-${_ctx.transition}`,
+      appear: "",
+      onBeforeEnter: _ctx.beforeEnter,
+      onAfterEnter: _ctx.afterEnter,
+      onBeforeLeave: _ctx.beforeLeave,
+      onAfterLeave: _ctx.afterLeave
+    }, {
+      default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+        _ctx.isVisible ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", (0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)({
+          key: 0,
+          tabindex: "-1",
+          class: `vc-popover-content direction-${_ctx.direction}`
+        }, _ctx.$attrs), [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderSlot)(_ctx.$slots, "default", {
+            direction: _ctx.direction,
+            alignment: _ctx.alignment,
+            data: _ctx.data,
+            hide: _ctx.hide
+          }, () => [
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createTextVNode)((0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(_ctx.data), 1)
+          ]),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", {
+            class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)([
+              "vc-popover-caret",
+              `direction-${_ctx.direction}`,
+              `align-${_ctx.alignment}`
+            ])
+          }, null, 2)
+        ], 16)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+      ]),
+      _: 3
+    }, 8, ["name", "onBeforeEnter", "onAfterEnter", "onBeforeLeave", "onAfterLeave"])
+  ], 34);
+}
+const Popover = /* @__PURE__ */ _export_sfc(_sfc_main$k, [["render", _sfc_render$7]]);
+const _hoisted_1$c = { class: "vc-day-popover-row" };
+const _hoisted_2$b = {
+  key: 0,
+  class: "vc-day-popover-row-indicator"
+};
+const _hoisted_3$9 = { class: "vc-day-popover-row-label" };
+const _sfc_main$j = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "PopoverRow",
+  props: {
+    attribute: null
+  },
+  setup(__props) {
+    const props = __props;
+    const indicator = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const { content, highlight, dot, bar, popover } = props.attribute;
+      if (popover && popover.hideIndicator)
+        return null;
+      if (content) {
+        return {
+          class: `vc-bar vc-day-popover-row-bar vc-attr vc-${content.base.color}`
+        };
+      }
+      if (highlight) {
+        return {
+          class: `vc-highlight-bg-solid vc-day-popover-row-highlight vc-attr vc-${highlight.base.color}`
+        };
+      }
+      if (dot) {
+        return {
+          class: `vc-dot vc-attr vc-${dot.base.color}`
+        };
+      }
+      if (bar) {
+        return {
+          class: `vc-bar vc-day-popover-row-bar vc-attr vc-${bar.base.color}`
+        };
+      }
+      return null;
+    });
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1$c, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(indicator) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_2$b, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", {
+            class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(indicator).class)
+          }, null, 2)
+        ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_3$9, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderSlot)(_ctx.$slots, "default", {}, () => [
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createTextVNode)((0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(__props.attribute.popover ? __props.attribute.popover.label : "No content provided"), 1)
+          ])
+        ])
+      ]);
+    };
+  }
+});
+const PopoverRow_vue_vue_type_style_index_0_lang = "";
+const __default__$3 = {
+  inheritAttrs: false
+};
+const _sfc_main$i = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  ...__default__$3,
+  __name: "CalendarSlot",
+  props: {
+    name: null
+  },
+  setup(__props) {
+    const props = __props;
+    const slot = useSlot(props.name);
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(slot) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)((0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveDynamicComponent)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(slot)), (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeProps)((0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)({ key: 0 }, _ctx.$attrs)), null, 16)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderSlot)(_ctx.$slots, "default", { key: 1 });
+    };
+  }
+});
+const _hoisted_1$b = { class: "vc-day-popover-container" };
+const _hoisted_2$a = {
+  key: 0,
+  class: "vc-day-popover-header"
+};
+const _sfc_main$h = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "CalendarDayPopover",
+  setup(__props) {
+    const { dayPopoverId, displayMode, color, masks: masks2, locale } = useCalendar();
+    function format(date, mask) {
+      return locale.value.formatDate(date, mask);
+    }
+    function dayTitle(day) {
+      return locale.value.formatDate(day.date, masks2.value.dayPopover);
+    }
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(Popover, {
+        id: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(dayPopoverId),
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)([`vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(color)}`, `vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(displayMode)}`])
+      }, {
+        default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(({ data: { day, attributes }, hide }) => [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+            name: "day-popover",
+            day,
+            "day-title": dayTitle(day),
+            attributes,
+            format,
+            masks: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(masks2),
+            hide
+          }, {
+            default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1$b, [
+                (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(masks2).dayPopover ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_2$a, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(dayTitle(day)), 1)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+                ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(attributes, (attribute) => {
+                  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_sfc_main$j, {
+                    key: attribute.key,
+                    attribute
+                  }, null, 8, ["attribute"]);
+                }), 128))
+              ])
+            ]),
+            _: 2
+          }, 1032, ["day", "day-title", "attributes", "masks", "hide"])
+        ]),
+        _: 1
+      }, 8, ["id", "class"]);
+    };
+  }
+});
+const _sfc_main$g = {};
+const _hoisted_1$a = {
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
+  viewBox: "0 0 24 24"
+};
+const _hoisted_2$9 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("polyline", { points: "9 18 15 12 9 6" }, null, -1);
+const _hoisted_3$8 = [
+  _hoisted_2$9
+];
+function _sfc_render$6(_ctx, _cache) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("svg", _hoisted_1$a, _hoisted_3$8);
+}
+const IconChevronRight = /* @__PURE__ */ _export_sfc(_sfc_main$g, [["render", _sfc_render$6]]);
+const _sfc_main$f = {};
+const _hoisted_1$9 = {
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
+  viewBox: "0 0 24 24"
+};
+const _hoisted_2$8 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("polyline", { points: "15 18 9 12 15 6" }, null, -1);
+const _hoisted_3$7 = [
+  _hoisted_2$8
+];
+function _sfc_render$5(_ctx, _cache) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("svg", _hoisted_1$9, _hoisted_3$7);
+}
+const IconChevronLeft = /* @__PURE__ */ _export_sfc(_sfc_main$f, [["render", _sfc_render$5]]);
+const _sfc_main$e = {};
+const _hoisted_1$8 = {
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
+  viewBox: "0 0 24 24"
+};
+const _hoisted_2$7 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("polyline", { points: "6 9 12 15 18 9" }, null, -1);
+const _hoisted_3$6 = [
+  _hoisted_2$7
+];
+function _sfc_render$4(_ctx, _cache) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("svg", _hoisted_1$8, _hoisted_3$6);
+}
+const IconChevronDown = /* @__PURE__ */ _export_sfc(_sfc_main$e, [["render", _sfc_render$4]]);
+const _sfc_main$d = {};
+const _hoisted_1$7 = {
+  fill: "none",
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
+  "stroke-width": "2",
+  viewBox: "0 0 24 24"
+};
+const _hoisted_2$6 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("path", { d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" }, null, -1);
+const _hoisted_3$5 = [
+  _hoisted_2$6
+];
+function _sfc_render$3(_ctx, _cache) {
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("svg", _hoisted_1$7, _hoisted_3$5);
+}
+const IconClock = /* @__PURE__ */ _export_sfc(_sfc_main$d, [["render", _sfc_render$3]]);
+const icons = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconClock
+}, Symbol.toStringTag, { value: "Module" }));
+const _sfc_main$c = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "BaseIcon",
+  props: {
+    name: { type: String, required: true },
+    width: { type: String },
+    height: { type: String },
+    size: { type: String, default: "26" },
+    viewBox: { type: String }
+  },
+  setup(__props) {
+    const props = __props;
+    const width = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.width || props.size);
+    const height = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.height || props.size);
+    const icon = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => icons[`Icon${props.name}`]);
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)((0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveDynamicComponent)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(icon)), {
+        width: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(width),
+        height: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(height),
+        class: "vc-base-icon"
+      }, null, 8, ["width", "height"]);
+    };
+  }
+});
+const BaseIcon_vue_vue_type_style_index_0_lang = "";
+const _hoisted_1$6 = ["disabled"];
+const _hoisted_2$5 = {
+  key: 1,
+  class: "vc-title-wrapper"
+};
+const _hoisted_3$4 = {
+  type: "button",
+  class: "vc-title"
+};
+const _hoisted_4$3 = ["disabled"];
+const _sfc_main$b = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "CalendarHeader",
+  props: {
+    page: null,
+    layout: null,
+    isLg: { type: Boolean },
+    isXl: { type: Boolean },
+    is2xl: { type: Boolean },
+    hideTitle: { type: Boolean },
+    hideArrows: { type: Boolean }
+  },
+  setup(__props) {
+    const props = __props;
+    const {
+      navPopoverId,
+      navVisibility,
+      canMovePrev,
+      movePrev,
+      canMoveNext,
+      moveNext
+    } = useCalendar();
+    const navPlacement = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      switch (props.page.titlePosition) {
+        case "left":
+          return "bottom-start";
+        case "right":
+          return "bottom-end";
+        default:
+          return "bottom";
+      }
+    });
+    const navPopoverOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const { page } = props;
+      return {
+        id: navPopoverId.value,
+        visibility: navVisibility.value,
+        placement: navPlacement.value,
+        modifiers: [{ name: "flip", options: { fallbackPlacements: ["bottom"] } }],
+        data: { page },
+        isInteractive: true
+      };
+    });
+    const titleLeft = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.page.titlePosition.includes("left"));
+    const titleRight = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.page.titlePosition.includes("right"));
+    const layout_ = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      if (props.layout)
+        return props.layout;
+      if (titleLeft.value)
+        return "tu-pn";
+      if (titleRight.value)
+        return "pn-tu";
+      return "p-tu-n;";
+    });
+    const show = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return {
+        prev: layout_.value.includes("p") && !props.hideArrows,
+        title: layout_.value.includes("t") && !props.hideTitle,
+        next: layout_.value.includes("n") && !props.hideArrows
+      };
+    });
+    const gridStyle = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const gridTemplateColumns = layout_.value.split("").map((l) => {
+        switch (l) {
+          case "p":
+            return "[prev] auto";
+          case "n":
+            return "[next] auto";
+          case "t":
+            return "[title] auto";
+          case "-":
+            return "1fr";
+          default:
+            return "";
+        }
+      }).join(" ");
+      return { gridTemplateColumns };
+    });
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-header", { "is-lg": __props.isLg, "is-xl": __props.isXl, "is-2xl": __props.is2xl }]),
+        style: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeStyle)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(gridStyle))
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(show).prev ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("button", {
+          key: 0,
+          type: "button",
+          class: "vc-arrow vc-prev vc-focus",
+          disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(canMovePrev),
+          onClick: _cache[0] || (_cache[0] = //@ts-ignore
+          (...args) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(movePrev) && (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(movePrev)(...args)),
+          onKeydown: _cache[1] || (_cache[1] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withKeys)(
+            //@ts-ignore
+            (...args) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(movePrev) && (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(movePrev)(...args),
+            ["space", "enter"]
+          ))
+        }, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+            name: "header-prev-button",
+            disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(canMovePrev)
+          }, {
+            default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$c, {
+                name: "ChevronLeft",
+                size: "24"
+              })
+            ]),
+            _: 1
+          }, 8, ["disabled"])
+        ], 40, _hoisted_1$6)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(show).title ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_2$5, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, { name: "header-title-wrapper" }, {
+            default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)(((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("button", _hoisted_3$4, [
+                (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+                  name: "header-title",
+                  title: __props.page.title
+                }, {
+                  default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(__props.page.title), 1)
+                  ]),
+                  _: 1
+                }, 8, ["title"])
+              ])), [
+                [(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(popoverDirective), (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(navPopoverOptions)]
+              ])
+            ]),
+            _: 1
+          })
+        ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(show).next ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("button", {
+          key: 2,
+          type: "button",
+          class: "vc-arrow vc-next vc-focus",
+          disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(canMoveNext),
+          onClick: _cache[2] || (_cache[2] = //@ts-ignore
+          (...args) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(moveNext) && (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(moveNext)(...args)),
+          onKeydown: _cache[3] || (_cache[3] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withKeys)(
+            //@ts-ignore
+            (...args) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(moveNext) && (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(moveNext)(...args),
+            ["space", "enter"]
+          ))
+        }, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+            name: "header-next-button",
+            disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(canMoveNext)
+          }, {
+            default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$c, {
+                name: "ChevronRight",
+                size: "24"
+              })
+            ]),
+            _: 1
+          }, 8, ["disabled"])
+        ], 40, _hoisted_4$3)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+      ], 6);
+    };
+  }
+});
+const CalendarHeader_vue_vue_type_style_index_0_lang = "";
+const contextKey$1 = Symbol("__vc_page_context__");
+function createPage(page) {
+  const { locale, getDateAddress, canMove } = useCalendar();
+  function getMonthItems(year, mask) {
+    const { month: thisMonth, year: thisYear } = getDateAddress(/* @__PURE__ */ new Date());
+    return getMonthDates().map((d, i) => {
+      const month = i + 1;
+      return {
+        month,
+        year,
+        id: getPageId(month, year),
+        label: locale.value.formatDate(d, mask),
+        ariaLabel: locale.value.formatDate(d, "MMMM"),
+        isActive: month === page.value.month && year === page.value.year,
+        isCurrent: month === thisMonth && year === thisYear,
+        isDisabled: !canMove(
+          { month, year },
+          { position: page.value.position }
+        )
+      };
+    });
+  }
+  function getYearItems(startYear, endYear) {
+    const { year: thisYear } = getDateAddress(/* @__PURE__ */ new Date());
+    const { position } = page.value;
+    const items = [];
+    for (let year = startYear; year <= endYear; year += 1) {
+      const enabled = [...Array(12).keys()].some(
+        (m) => canMove({ month: m + 1, year }, { position })
+      );
+      items.push({
+        year,
+        id: year.toString(),
+        label: year.toString(),
+        ariaLabel: year.toString(),
+        isActive: year === page.value.year,
+        isCurrent: year === thisYear,
+        isDisabled: !enabled
+      });
+    }
+    return items;
+  }
+  const context = { page, getMonthItems, getYearItems };
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(contextKey$1, context);
+  return context;
+}
+function usePage() {
+  const context = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(contextKey$1);
+  if (context)
+    return context;
+  throw new Error(
+    "Page context missing. Please verify this component is nested within a valid context provider."
+  );
+}
+const _hoisted_1$5 = { class: "vc-nav-header" };
+const _hoisted_2$4 = ["disabled"];
+const _hoisted_3$3 = ["disabled"];
+const _hoisted_4$2 = { class: "vc-nav-items" };
+const _hoisted_5$2 = ["data-id", "aria-label", "disabled", "onClick", "onKeydown"];
+const _sfc_main$a = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "CalendarNav",
+  setup(__props) {
+    const { masks: masks2, move } = useCalendar();
+    const { page, getMonthItems, getYearItems } = usePage();
+    const monthMode = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(true);
+    const yearGroupCount = 12;
+    const selectedYear = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(page.value.year);
+    const selectedYearGroup = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(getYearGroupIndex(page.value.year));
+    const navContainer = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+    function focusFirstItem() {
+      setTimeout(() => {
+        if (navContainer.value == null)
+          return;
+        const focusableEl = navContainer.value.querySelector(
+          ".vc-nav-item:not(:disabled)"
+        );
+        if (focusableEl) {
+          focusableEl.focus();
+        }
+      }, 10);
+    }
+    function getYearGroupIndex(year) {
+      return Math.floor(year / yearGroupCount);
+    }
+    function toggleMode() {
+      monthMode.value = !monthMode.value;
+    }
+    function getStartYear(groupIndex) {
+      return groupIndex * yearGroupCount;
+    }
+    function getEndYear(groupIndex) {
+      return yearGroupCount * (groupIndex + 1) - 1;
+    }
+    function movePrev() {
+      if (!prevItemsEnabled.value)
+        return;
+      if (monthMode.value) {
+        movePrevYear();
+      }
+      movePrevYearGroup();
+    }
+    function moveNext() {
+      if (!nextItemsEnabled.value)
+        return;
+      if (monthMode.value) {
+        moveNextYear();
+      }
+      moveNextYearGroup();
+    }
+    function movePrevYear() {
+      selectedYear.value--;
+    }
+    function moveNextYear() {
+      selectedYear.value++;
+    }
+    function movePrevYearGroup() {
+      selectedYearGroup.value--;
+    }
+    function moveNextYearGroup() {
+      selectedYearGroup.value++;
+    }
+    const monthItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getMonthItems(selectedYear.value, masks2.value.navMonths).map((item) => ({
+        ...item,
+        click: () => move(
+          { month: item.month, year: item.year },
+          { position: page.value.position }
+        )
+      }))
+    );
+    const prevMonthItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getMonthItems(selectedYear.value - 1, masks2.value.navMonths)
+    );
+    const prevMonthItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => prevMonthItems.value.some((i) => !i.isDisabled)
+    );
+    const nextMonthItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getMonthItems(selectedYear.value + 1, masks2.value.navMonths)
+    );
+    const nextMonthItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => nextMonthItems.value.some((i) => !i.isDisabled)
+    );
+    const yearItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getYearItems(
+        getStartYear(selectedYearGroup.value),
+        getEndYear(selectedYearGroup.value)
+      ).map((item) => {
+        return {
+          ...item,
+          click: () => {
+            selectedYear.value = item.year;
+            monthMode.value = true;
+            focusFirstItem();
+          }
+        };
+      })
+    );
+    const prevYearItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getYearItems(
+        getStartYear(selectedYearGroup.value - 1),
+        getEndYear(selectedYearGroup.value - 1)
+      )
+    );
+    const prevYearItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => prevYearItems.value.some((i) => !i.isDisabled)
+    );
+    const nextYearItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => getYearItems(
+        getStartYear(selectedYearGroup.value + 1),
+        getEndYear(selectedYearGroup.value + 1)
+      )
+    );
+    const nextYearItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => nextYearItems.value.some((i) => !i.isDisabled)
+    );
+    const activeItems = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => monthMode.value ? monthItems.value : yearItems.value
+    );
+    const prevItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => monthMode.value ? prevMonthItemsEnabled.value : prevYearItemsEnabled.value
+    );
+    const nextItemsEnabled = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => monthMode.value ? nextMonthItemsEnabled.value : nextYearItemsEnabled.value
+    );
+    const firstYear = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => head_1(yearItems.value.map((i) => i.year)));
+    const lastYear = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => last_1(yearItems.value.map((i) => i.year)));
+    const title2 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return monthMode.value ? selectedYear.value : `${firstYear.value} - ${lastYear.value}`;
+    });
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watchEffect)(() => {
+      selectedYear.value = page.value.year;
+      focusFirstItem();
+    });
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+      () => selectedYear.value,
+      (val) => selectedYearGroup.value = getYearGroupIndex(val)
+    );
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => focusFirstItem());
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        class: "vc-nav-container",
+        ref_key: "navContainer",
+        ref: navContainer
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1$5, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+            type: "button",
+            class: "vc-nav-arrow is-left vc-focus",
+            disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(prevItemsEnabled),
+            onClick: movePrev,
+            onKeydown: _cache[0] || (_cache[0] = (e) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onSpaceOrEnter)(e, movePrev))
+          }, [
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+              name: "nav-prev-button",
+              move: movePrev,
+              disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(prevItemsEnabled)
+            }, {
+              default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$c, {
+                  name: "ChevronLeft",
+                  width: "22px",
+                  height: "24px"
+                })
+              ]),
+              _: 1
+            }, 8, ["disabled"])
+          ], 40, _hoisted_2$4),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+            type: "button",
+            class: "vc-nav-title vc-focus",
+            onClick: toggleMode,
+            onKeydown: _cache[1] || (_cache[1] = (e) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onSpaceOrEnter)(e, toggleMode))
+          }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(title2)), 33),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("button", {
+            type: "button",
+            class: "vc-nav-arrow is-right vc-focus",
+            disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(nextItemsEnabled),
+            onClick: moveNext,
+            onKeydown: _cache[2] || (_cache[2] = (e) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onSpaceOrEnter)(e, moveNext))
+          }, [
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, {
+              name: "nav-next-button",
+              move: moveNext,
+              disabled: !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(nextItemsEnabled)
+            }, {
+              default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$c, {
+                  name: "ChevronRight",
+                  width: "22px",
+                  height: "24px"
+                })
+              ]),
+              _: 1
+            }, 8, ["disabled"])
+          ], 40, _hoisted_3$3)
+        ]),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_4$2, [
+          ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(activeItems), (item) => {
+            return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("button", {
+              key: item.label,
+              type: "button",
+              "data-id": item.id,
+              "aria-label": item.ariaLabel,
+              class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-nav-item vc-focus", [
+                item.isActive ? "is-active" : item.isCurrent ? "is-current" : ""
+              ]]),
+              disabled: item.isDisabled,
+              onClick: item.click,
+              onKeydown: (e) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onSpaceOrEnter)(e, item.click)
+            }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(item.label), 43, _hoisted_5$2);
+          }), 128))
+        ])
+      ], 512);
+    };
+  }
+});
+const CalendarNav_vue_vue_type_style_index_0_lang = "";
+const _sfc_main$9 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "CalendarPageProvider",
+  props: {
+    page: null
+  },
+  setup(__props) {
+    const props = __props;
+    createPage((0,vue__WEBPACK_IMPORTED_MODULE_0__.toRef)(props, "page"));
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderSlot)(_ctx.$slots, "default");
+    };
+  }
+});
+const _sfc_main$8 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "CalendarNavPopover",
+  setup(__props) {
+    const { navPopoverId, color, displayMode } = useCalendar();
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(Popover, {
+        id: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(navPopoverId),
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-nav-popover-container", `vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(color)}`, `vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(displayMode)}`])
+      }, {
+        default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(({ data: data2 }) => [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$9, {
+            page: data2.page
+          }, {
+            default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, { name: "nav" }, {
+                default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                  (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$a)
+                ]),
+                _: 1
+              })
+            ]),
+            _: 2
+          }, 1032, ["page"])
+        ]),
+        _: 1
+      }, 8, ["id", "class"]);
+    };
+  }
+});
+const _sfc_main$7 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  directives: { popover: popoverDirective },
+  components: { CalendarSlot: _sfc_main$i },
+  props: {
+    day: { type: Object, required: true }
+  },
+  setup(props) {
+    const {
+      locale,
+      theme,
+      attributeContext,
+      dayPopoverId,
+      onDayClick,
+      onDayMouseenter,
+      onDayMouseleave,
+      onDayFocusin,
+      onDayFocusout,
+      onDayKeydown
+    } = useCalendar();
+    const day = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.day);
+    const attributeCells = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return attributeContext.value.getCells(day.value);
+    });
+    const attributes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => attributeCells.value.map((cell) => cell.data)
+    );
+    const attributedDay = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return {
+        ...day.value,
+        attributes: attributes.value,
+        attributeCells: attributeCells.value
+      };
+    });
+    function processPopover({ data: attribute }, { popovers: popovers2 }) {
+      const { key, customData, popover } = attribute;
+      if (!popover)
+        return;
+      const resolvedPopover = defaults_1(
+        {
+          key,
+          customData,
+          attribute
+        },
+        { ...popover },
+        {
+          visibility: popover.label ? "hover" : "click",
+          placement: "bottom",
+          isInteractive: !popover.label
+        }
+      );
+      popovers2.splice(0, 0, resolvedPopover);
+    }
+    const glyphs = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const result = {
+        ...theme.value.prepareRender({}),
+        popovers: []
+      };
+      attributeCells.value.forEach((cell) => {
+        theme.value.render(cell, result);
+        processPopover(cell, result);
+      });
+      return result;
+    });
+    const highlights = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => glyphs.value.highlights);
+    const hasHighlights = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!arrayHasItems(highlights.value));
+    const content = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => glyphs.value.content);
+    const dots = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => glyphs.value.dots);
+    const hasDots = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!arrayHasItems(dots.value));
+    const bars = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => glyphs.value.bars);
+    const hasBars = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!arrayHasItems(bars.value));
+    const popovers = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => glyphs.value.popovers);
+    const popoverAttrs = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+      () => popovers.value.map((p) => p.attribute)
+    );
+    const dayContentSlot = useSlot("day-content");
+    const dayClasses = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return [
+        "vc-day",
+        ...day.value.classes,
+        { "vc-day-box-center-center": !dayContentSlot },
+        { "is-not-in-month": !props.day.inMonth }
+      ];
+    });
+    const dayContentProps = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      let tabindex;
+      if (day.value.isFocusable) {
+        tabindex = "0";
+      } else {
+        tabindex = "-1";
+      }
+      const classes = [
+        "vc-day-content vc-focusable vc-focus vc-attr",
+        { "vc-disabled": day.value.isDisabled },
+        get_1(last_1(highlights.value), "contentClass"),
+        get_1(last_1(content.value), "class") || ""
+      ];
+      const style = {
+        ...get_1(last_1(highlights.value), "contentStyle"),
+        ...get_1(last_1(content.value), "style")
+      };
+      return {
+        class: classes,
+        style,
+        tabindex,
+        "aria-label": day.value.ariaLabel,
+        "aria-disabled": day.value.isDisabled ? true : false,
+        role: "button"
+      };
+    });
+    const dayContentEvents = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      return {
+        click(event) {
+          onDayClick(attributedDay.value, event);
+        },
+        mouseenter(event) {
+          onDayMouseenter(attributedDay.value, event);
+        },
+        mouseleave(event) {
+          onDayMouseleave(attributedDay.value, event);
+        },
+        focusin(event) {
+          onDayFocusin(attributedDay.value, event);
+        },
+        focusout(event) {
+          onDayFocusout(attributedDay.value, event);
+        },
+        keydown(event) {
+          onDayKeydown(attributedDay.value, event);
+        }
+      };
+    });
+    const dayPopover2 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      if (!arrayHasItems(popovers.value))
+        return null;
+      return defaults_1(
+        {
+          id: dayPopoverId.value,
+          data: { day, attributes: popoverAttrs.value }
+        },
+        ...popovers.value
+      );
+    });
+    return {
+      attributes,
+      attributeCells,
+      bars,
+      dayClasses,
+      dayContentProps,
+      dayContentEvents,
+      dayPopover: dayPopover2,
+      glyphs,
+      dots,
+      hasDots,
+      hasBars,
+      highlights,
+      hasHighlights,
+      locale,
+      popovers
+    };
+  }
+});
+const CalendarDay_vue_vue_type_style_index_0_lang = "";
+const _hoisted_1$4 = {
+  key: 0,
+  class: "vc-highlights vc-day-layer"
+};
+const _hoisted_2$3 = {
+  key: 1,
+  class: "vc-day-layer vc-day-box-center-bottom"
+};
+const _hoisted_3$2 = { class: "vc-dots" };
+const _hoisted_4$1 = {
+  key: 2,
+  class: "vc-day-layer vc-day-box-center-bottom"
+};
+const _hoisted_5$1 = { class: "vc-bars" };
+function _sfc_render$2(_ctx, _cache, $props, $setup, $data, $options) {
+  const _component_CalendarSlot = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarSlot");
+  const _directive_popover = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveDirective)("popover");
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+    class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(_ctx.dayClasses)
+  }, [
+    _ctx.hasHighlights ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1$4, [
+      ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(_ctx.highlights, ({ key, wrapperClass, class: bgClass, style }) => {
+        return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+          key,
+          class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(wrapperClass)
+        }, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", {
+            class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(bgClass),
+            style: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeStyle)(style)
+          }, null, 6)
+        ], 2);
+      }), 128))
+    ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarSlot, {
+      name: "day-content",
+      day: _ctx.day,
+      attributes: _ctx.attributes,
+      "attribute-cells": _ctx.attributeCells,
+      dayProps: _ctx.dayContentProps,
+      dayEvents: _ctx.dayContentEvents,
+      locale: _ctx.locale
+    }, {
+      default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.withDirectives)(((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", (0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)(_ctx.dayContentProps, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toHandlers)(_ctx.dayContentEvents, true)), [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createTextVNode)((0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(_ctx.day.label), 1)
+        ], 16)), [
+          [_directive_popover, _ctx.dayPopover]
+        ])
+      ]),
+      _: 1
+    }, 8, ["day", "attributes", "attribute-cells", "dayProps", "dayEvents", "locale"]),
+    _ctx.hasDots ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_2$3, [
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_3$2, [
+        ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(_ctx.dots, ({ key, class: bgClass, style }) => {
+          return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("span", {
+            key,
+            class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(bgClass),
+            style: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeStyle)(style)
+          }, null, 6);
+        }), 128))
+      ])
+    ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+    _ctx.hasBars ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_4$1, [
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_5$1, [
+        ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(_ctx.bars, ({ key, class: bgClass, style }) => {
+          return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("span", {
+            key,
+            class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(bgClass),
+            style: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeStyle)(style)
+          }, null, 6);
+        }), 128))
+      ])
+    ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+  ], 2);
+}
+const CalendarDay = /* @__PURE__ */ _export_sfc(_sfc_main$7, [["render", _sfc_render$2]]);
+const _hoisted_1$3 = { class: "vc-weekdays" };
+const _hoisted_2$2 = ["onClick"];
+const __default__$2 = {
+  inheritAttrs: false
+};
+const _sfc_main$6 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  ...__default__$2,
+  __name: "CalendarPage",
+  setup(__props) {
+    const { page } = usePage();
+    const { onWeeknumberClick } = useCalendar();
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)([
+          "vc-pane",
+          `row-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).row}`,
+          `row-from-end-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).rowFromEnd}`,
+          `column-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).column}`,
+          `column-from-end-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).columnFromEnd}`
+        ]),
+        ref: "pane"
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$b, {
+          page: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page),
+          "is-lg": "",
+          "hide-arrows": ""
+        }, null, 8, ["page"]),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", {
+          class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-weeks", {
+            [`vc-show-weeknumbers-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).weeknumberPosition}`]: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).weeknumberPosition
+          }])
+        }, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1$3, [
+            ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).weekdays, ({ weekday, label }, i) => {
+              return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+                key: i,
+                class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(`vc-weekday vc-weekday-${weekday}`)
+              }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(label), 3);
+            }), 128))
+          ]),
+          ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).viewWeeks, (week) => {
+            return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+              key: `weeknumber-${week.weeknumber}`,
+              class: "vc-week"
+            }, [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).weeknumberPosition ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+                key: 0,
+                class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-weeknumber", `is-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(page).weeknumberPosition}`])
+              }, [
+                (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", {
+                  class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-weeknumber-content"]),
+                  onClick: ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onWeeknumberClick)(week, $event)
+                }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(week.weeknumberDisplay), 9, _hoisted_2$2)
+              ], 2)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+              ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(week.days, (day) => {
+                return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(CalendarDay, {
+                  key: day.id,
+                  day
+                }, null, 8, ["day"]);
+              }), 128))
+            ]);
+          }), 128))
+        ], 2)
+      ], 2);
+    };
+  }
+});
+const CalendarPage_vue_vue_type_style_index_0_lang = "";
+const _sfc_main$5 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  components: {
+    CalendarHeader: _sfc_main$b,
+    CalendarPage: _sfc_main$6,
+    CalendarNavPopover: _sfc_main$8,
+    CalendarDayPopover: _sfc_main$h,
+    CalendarPageProvider: _sfc_main$9,
+    CalendarSlot: _sfc_main$i
+  },
+  props: propsDef$1,
+  emit: emitsDef,
+  setup(props, { emit, slots }) {
+    return createCalendar(props, { emit, slots });
+  }
+});
+const Calendar_vue_vue_type_style_index_0_lang = "";
+const _hoisted_1$2 = { class: "vc-pane-header-wrapper" };
+function _sfc_render$1(_ctx, _cache, $props, $setup, $data, $options) {
+  const _component_CalendarHeader = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarHeader");
+  const _component_CalendarPage = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarPage");
+  const _component_CalendarSlot = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarSlot");
+  const _component_CalendarPageProvider = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarPageProvider");
+  const _component_CalendarDayPopover = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarDayPopover");
+  const _component_CalendarNavPopover = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("CalendarNavPopover");
+  return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, [
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", (0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)({ "data-helptext": "Press the arrow keys to navigate by day, Home and End to navigate to week ends, PageUp and PageDown to navigate by month, Alt+PageUp and Alt+PageDown to navigate by year" }, _ctx.$attrs, {
+      class: [
+        "vc-container",
+        `vc-${_ctx.view}`,
+        `vc-${_ctx.color}`,
+        `vc-${_ctx.displayMode}`,
+        {
+          "vc-expanded": _ctx.expanded,
+          "vc-bordered": !_ctx.borderless,
+          "vc-transparent": _ctx.transparent
+        }
+      ],
+      onMouseup: _cache[0] || (_cache[0] = (0,vue__WEBPACK_IMPORTED_MODULE_0__.withModifiers)(() => {
+      }, ["prevent"])),
+      ref: "containerRef"
+    }), [
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", {
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-pane-container", { "in-transition": _ctx.inTransition }])
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_1$2, [
+          _ctx.firstPage ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_component_CalendarHeader, {
+            key: 0,
+            page: _ctx.firstPage,
+            "is-lg": "",
+            "hide-title": ""
+          }, null, 8, ["page"])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+        ]),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(vue__WEBPACK_IMPORTED_MODULE_0__.Transition, {
+          name: `vc-${_ctx.transitionName}`,
+          onBeforeEnter: _ctx.onTransitionBeforeEnter,
+          onAfterEnter: _ctx.onTransitionAfterEnter
+        }, {
+          default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+            ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+              key: _ctx.pages[0].id,
+              class: "vc-pane-layout",
+              style: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeStyle)({
+                gridTemplateColumns: `repeat(${_ctx.columns}, 1fr)`
+              })
+            }, [
+              ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(_ctx.pages, (page) => {
+                return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_component_CalendarPageProvider, {
+                  key: page.id,
+                  page
+                }, {
+                  default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarSlot, {
+                      name: "page",
+                      page
+                    }, {
+                      default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+                        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarPage)
+                      ]),
+                      _: 2
+                    }, 1032, ["page"])
+                  ]),
+                  _: 2
+                }, 1032, ["page"]);
+              }), 128))
+            ], 4))
+          ]),
+          _: 1
+        }, 8, ["name", "onBeforeEnter", "onAfterEnter"]),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarSlot, { name: "footer" })
+      ], 2)
+    ], 16),
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarDayPopover),
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_CalendarNavPopover)
+  ], 64);
+}
+const Calendar = /* @__PURE__ */ _export_sfc(_sfc_main$5, [["render", _sfc_render$1]]);
+const contextKey = Symbol("__vc_date_picker_context__");
+const propsDef = {
+  ...propsDef$2,
+  mode: { type: String, default: "date" },
+  modelValue: {
+    type: [Number, String, Date, Object]
+  },
+  modelModifiers: {
+    type: Object,
+    default: () => ({})
+  },
+  rules: [String, Object],
+  is24hr: Boolean,
+  hideTimeHeader: Boolean,
+  timeAccuracy: { type: Number, default: 2 },
+  isRequired: Boolean,
+  isRange: Boolean,
+  updateOnInput: {
+    type: Boolean,
+    default: () => getDefault("datePicker.updateOnInput")
+  },
+  inputDebounce: {
+    type: Number,
+    default: () => getDefault("datePicker.inputDebounce")
+  },
+  popover: {
+    type: [Boolean, Object],
+    default: true
+  },
+  dragAttribute: Object,
+  selectAttribute: Object,
+  attributes: [Object, Array]
+};
+const emits = [
+  "update:modelValue",
+  "drag",
+  "dayclick",
+  "daykeydown",
+  "popover-will-show",
+  "popover-did-show",
+  "popover-will-hide",
+  "popover-did-hide"
+];
+function createDatePicker(props, { emit, slots }) {
+  provideSlots(slots, { footer: "dp-footer" });
+  const baseCtx = createBase(props);
+  const { locale, masks: masks2, disabledAttribute } = baseCtx;
+  const showCalendar = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(false);
+  const datePickerPopoverId = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(Symbol());
+  const dateValue = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  const dragValue = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  const inputValues = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(["", ""]);
+  const popoverRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  const calendarRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)(null);
+  let updateTimeout = void 0;
+  let dragTrackingValue;
+  let watchValue = true;
+  const isRange = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return props.isRange || props.modelModifiers.range === true;
+  });
+  const valueStart = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => isRange.value && dateValue.value != null ? dateValue.value.start : null
+  );
+  const valueEnd = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => isRange.value && dateValue.value != null ? dateValue.value.end : null
+  );
+  const isDateMode = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.mode.toLowerCase() === "date");
+  const isDateTimeMode = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => props.mode.toLowerCase() === "datetime"
+  );
+  const isTimeMode = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.mode.toLowerCase() === "time");
+  const isDragging = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!dragValue.value);
+  const modelConfig = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    let type = "date";
+    if (props.modelModifiers.number)
+      type = "number";
+    if (props.modelModifiers.string)
+      type = "string";
+    const mask = masks2.value.modelValue || "iso";
+    return normalizeConfig2({ type, mask });
+  });
+  const dateParts = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => getDateParts2(dragValue.value ?? dateValue.value)
+  );
+  const inputMask = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (isTimeMode.value) {
+      return props.is24hr ? masks2.value.inputTime24hr : masks2.value.inputTime;
+    }
+    if (isDateTimeMode.value) {
+      return props.is24hr ? masks2.value.inputDateTime24hr : masks2.value.inputDateTime;
+    }
+    return masks2.value.input;
+  });
+  const inputMaskHasTime = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => /[Hh]/g.test(inputMask.value));
+  const inputMaskHasDate = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => /[dD]{1,2}|Do|W{1,4}|M{1,4}|YY(?:YY)?/g.test(inputMask.value)
+  );
+  const inputMaskPatch = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (inputMaskHasTime.value && inputMaskHasDate.value) {
+      return "dateTime";
+    }
+    if (inputMaskHasDate.value)
+      return "date";
+    if (inputMaskHasTime.value)
+      return "time";
+    return void 0;
+  });
+  const popover = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    var _a;
+    const target = ((_a = popoverRef.value) == null ? void 0 : _a.$el.previousElementSibling) ?? void 0;
+    return defaultsDeep_1({}, props.popover, getDefault("datePicker.popover"), {
+      target
+    });
+  });
+  const popoverEvents = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => getPopoverEventHandlers({
+      ...popover.value,
+      id: datePickerPopoverId.value
+    })
+  );
+  const inputValue = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return isRange.value ? {
+      start: inputValues.value[0],
+      end: inputValues.value[1]
+    } : inputValues.value[0];
+  });
+  const inputEvents = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const events = ["start", "end"].map((target) => ({
+      input: onInputInput(target),
+      change: onInputChange(target),
+      keyup: onInputKeyup,
+      ...props.popover && popoverEvents.value
+    }));
+    return isRange.value ? {
+      start: events[0],
+      end: events[1]
+    } : events[0];
+  });
+  const selectAttribute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (!hasValue(dateValue.value))
+      return null;
+    const attribute = {
+      key: "select-drag",
+      ...props.selectAttribute,
+      dates: dateValue.value,
+      pinPage: true
+    };
+    const { dot, bar, highlight, content } = attribute;
+    if (!dot && !bar && !highlight && !content) {
+      attribute.highlight = true;
+    }
+    return attribute;
+  });
+  const dragAttribute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (!isRange.value || !hasValue(dragValue.value)) {
+      return null;
+    }
+    const attribute = {
+      key: "select-drag",
+      ...props.dragAttribute,
+      dates: dragValue.value
+    };
+    const { dot, bar, highlight, content } = attribute;
+    if (!dot && !bar && !highlight && !content) {
+      attribute.highlight = {
+        startEnd: {
+          fillMode: "outline"
+        }
+      };
+    }
+    return attribute;
+  });
+  const attributes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const attrs = isArray(props.attributes) ? [...props.attributes] : [];
+    if (dragAttribute.value) {
+      attrs.unshift(dragAttribute.value);
+    } else if (selectAttribute.value) {
+      attrs.unshift(selectAttribute.value);
+    }
+    return attrs;
+  });
+  const rules = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return normalizeConfig2(
+      props.rules === "auto" ? getAutoRules() : props.rules ?? {}
+    );
+  });
+  function getAutoRules() {
+    const _rules = {
+      ms: [0, 999],
+      sec: [0, 59],
+      min: [0, 59],
+      hr: [0, 23]
+    };
+    const accuracy = isDateMode.value ? 0 : props.timeAccuracy;
+    return [0, 1].map((i) => {
+      switch (accuracy) {
+        case 0:
+          return {
+            hours: _rules.hr[i],
+            minutes: _rules.min[i],
+            seconds: _rules.sec[i],
+            milliseconds: _rules.ms[i]
+          };
+        case 1:
+          return {
+            minutes: _rules.min[i],
+            seconds: _rules.sec[i],
+            milliseconds: _rules.ms[i]
+          };
+        case 3:
+          return { milliseconds: _rules.ms[i] };
+        case 4:
+          return {};
+        default:
+          return { seconds: _rules.sec[i], milliseconds: _rules.ms[i] };
+      }
+    });
+  }
+  function normalizeConfig2(config2) {
+    if (isArray(config2)) {
+      if (config2.length === 1)
+        return [config2[0], config2[0]];
+      return config2;
+    }
+    return [config2, config2];
+  }
+  function normalizeDateConfig(config2) {
+    return normalizeConfig2(config2).map(
+      (c, i) => ({
+        ...c,
+        rules: rules.value[i]
+      })
+    );
+  }
+  function hasDateValue(value) {
+    if (value == null)
+      return false;
+    if (isNumber_1(value))
+      return !isNaN(value);
+    if (isDate(value))
+      return !isNaN(value.getTime());
+    if (isString_1(value))
+      return value !== "";
+    return isDateParts(value);
+  }
+  function hasRangeValue(value) {
+    return isObject(value) && "start" in value && "end" in value && hasDateValue(value.start ?? null) && hasDateValue(value.end ?? null);
+  }
+  function hasValue(value) {
+    return hasRangeValue(value) || hasDateValue(value);
+  }
+  function valuesAreEqual(a, b) {
+    if (a == null && b == null)
+      return true;
+    if (a == null || b == null)
+      return false;
+    const aIsDate = isDate(a);
+    const bIsDate = isDate(b);
+    if (aIsDate && bIsDate)
+      return a.getTime() === b.getTime();
+    if (aIsDate || bIsDate)
+      return false;
+    return valuesAreEqual(a.start, b.start) && valuesAreEqual(a.end, b.end);
+  }
+  function valueIsDisabled(value) {
+    if (!hasValue(value) || !disabledAttribute.value)
+      return false;
+    return disabledAttribute.value.intersectsRange(locale.value.range(value));
+  }
+  function normalizeValue(value, config2, patch, targetPriority) {
+    if (!hasValue(value))
+      return null;
+    if (hasRangeValue(value)) {
+      const start = locale.value.toDate(value.start, {
+        ...config2[0],
+        fillDate: valueStart.value ?? void 0,
+        patch
+      });
+      const end = locale.value.toDate(value.end, {
+        ...config2[1],
+        fillDate: valueEnd.value ?? void 0,
+        patch
+      });
+      return sortRange({ start, end }, targetPriority);
+    }
+    return locale.value.toDateOrNull(value, {
+      ...config2[0],
+      fillDate: dateValue.value,
+      patch
+    });
+  }
+  function denormalizeValue(value, config2) {
+    if (hasRangeValue(value)) {
+      return {
+        start: locale.value.fromDate(value.start, config2[0]),
+        end: locale.value.fromDate(value.end, config2[1])
+      };
+    }
+    if (isRange.value) {
+      return null;
+    }
+    return locale.value.fromDate(value, config2[0]);
+  }
+  function updateValue(value, opts = {}) {
+    clearTimeout(updateTimeout);
+    return new Promise((resolve) => {
+      const { debounce = 0, ...args } = opts;
+      if (debounce > 0) {
+        updateTimeout = window.setTimeout(() => {
+          resolve(forceUpdateValue(value, args));
+        }, debounce);
+      } else {
+        resolve(forceUpdateValue(value, args));
+      }
+    });
+  }
+  function forceUpdateValue(value, {
+    config: config2 = modelConfig.value,
+    patch = "dateTime",
+    clearIfEqual = false,
+    formatInput: fInput = true,
+    hidePopover: hPopover = false,
+    dragging = isDragging.value,
+    targetPriority,
+    moveToValue: mValue = false
+  } = {}) {
+    const normalizedConfig = normalizeDateConfig(config2);
+    let normalizedValue = normalizeValue(
+      value,
+      normalizedConfig,
+      patch,
+      targetPriority
+    );
+    const isDisabled = valueIsDisabled(normalizedValue);
+    if (isDisabled) {
+      if (dragging)
+        return null;
+      normalizedValue = dateValue.value;
+      hPopover = false;
+    } else if (normalizedValue == null && props.isRequired) {
+      normalizedValue = dateValue.value;
+    } else if (
+      // Clear value if same value was passed
+      normalizedValue != null && valuesAreEqual(dateValue.value, normalizedValue) && clearIfEqual
+    ) {
+      normalizedValue = null;
+    }
+    const valueRef = dragging ? dragValue : dateValue;
+    const notify = !valuesAreEqual(valueRef.value, normalizedValue);
+    valueRef.value = normalizedValue;
+    if (!dragging)
+      dragValue.value = null;
+    const denormalizedValue = denormalizeValue(
+      normalizedValue,
+      modelConfig.value
+    );
+    if (notify) {
+      watchValue = false;
+      emit(dragging ? "drag" : "update:modelValue", denormalizedValue);
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(() => watchValue = true);
+    }
+    if (hPopover && !dragging)
+      hidePopover$1();
+    if (fInput)
+      formatInput();
+    if (mValue) {
+      (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(() => moveToValue(targetPriority ?? "start"));
+    }
+    return denormalizedValue;
+  }
+  function formatInput() {
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(() => {
+      const config2 = normalizeDateConfig({
+        type: "string",
+        mask: inputMask.value
+      });
+      const value = denormalizeValue(
+        dragValue.value ?? dateValue.value,
+        config2
+      );
+      if (isRange.value) {
+        inputValues.value = [value && value.start, value && value.end];
+      } else {
+        inputValues.value = [value, ""];
+      }
+    });
+  }
+  function onInputUpdate(inputValue2, target, opts) {
+    inputValues.value.splice(target === "start" ? 0 : 1, 1, inputValue2);
+    const value = isRange.value ? {
+      start: inputValues.value[0],
+      end: inputValues.value[1] || inputValues.value[0]
+    } : inputValue2;
+    const config2 = {
+      type: "string",
+      mask: inputMask.value
+    };
+    updateValue(value, {
+      ...opts,
+      config: config2,
+      patch: inputMaskPatch.value,
+      targetPriority: target,
+      moveToValue: true
+    });
+  }
+  function onInputInput(target) {
+    return (e) => {
+      if (!props.updateOnInput)
+        return;
+      onInputUpdate(e.currentTarget.value, target, {
+        formatInput: false,
+        hidePopover: false,
+        debounce: props.inputDebounce
+      });
+    };
+  }
+  function onInputChange(target) {
+    return (e) => {
+      onInputUpdate(e.currentTarget.value, target, {
+        formatInput: true,
+        hidePopover: false
+      });
+    };
+  }
+  function onInputKeyup(e) {
+    if (e.key !== "Escape")
+      return;
+    updateValue(dateValue.value, {
+      formatInput: true,
+      hidePopover: true
+    });
+  }
+  function getDateParts2(value) {
+    if (isRange.value) {
+      return [
+        value && value.start ? locale.value.getDateParts(value.start) : null,
+        value && value.end ? locale.value.getDateParts(value.end) : null
+      ];
+    }
+    return [value ? locale.value.getDateParts(value) : null];
+  }
+  function cancelDrag() {
+    dragValue.value = null;
+    formatInput();
+  }
+  function onPopoverBeforeShow(el) {
+    emit("popover-will-show", el);
+  }
+  function onPopoverAfterShow(el) {
+    emit("popover-did-show", el);
+  }
+  function onPopoverBeforeHide(el) {
+    cancelDrag();
+    emit("popover-will-hide", el);
+  }
+  function onPopoverAfterHide(el) {
+    emit("popover-did-hide", el);
+  }
+  function handleDayClick(day) {
+    const opts = {
+      patch: "date",
+      formatInput: true,
+      hidePopover: true
+    };
+    if (isRange.value) {
+      const dragging = !isDragging.value;
+      if (dragging) {
+        dragTrackingValue = { start: day.startDate, end: day.endDate };
+      } else if (dragTrackingValue != null) {
+        dragTrackingValue.end = day.date;
+      }
+      updateValue(dragTrackingValue, {
+        ...opts,
+        dragging
+      });
+    } else {
+      updateValue(day.date, {
+        ...opts,
+        clearIfEqual: !props.isRequired
+      });
+    }
+  }
+  function onDayClick(day, event) {
+    handleDayClick(day);
+    emit("dayclick", day, event);
+  }
+  function onDayKeydown(day, event) {
+    switch (event.key) {
+      case " ":
+      case "Enter": {
+        handleDayClick(day);
+        event.preventDefault();
+        break;
+      }
+      case "Escape": {
+        hidePopover$1();
+      }
+    }
+    emit("daykeydown", day, event);
+  }
+  function onDayMouseEnter(day, event) {
+    if (!isDragging.value || dragTrackingValue == null)
+      return;
+    dragTrackingValue.end = day.date;
+    updateValue(sortRange(dragTrackingValue), {
+      patch: "date",
+      formatInput: true
+    });
+  }
+  function showPopover$1(opts = {}) {
+    showPopover({
+      ...popover.value,
+      ...opts,
+      isInteractive: true,
+      id: datePickerPopoverId.value
+    });
+  }
+  function hidePopover$1(opts = {}) {
+    hidePopover({
+      hideDelay: 10,
+      force: true,
+      ...popover.value,
+      ...opts,
+      id: datePickerPopoverId.value
+    });
+  }
+  function togglePopover$1(opts) {
+    togglePopover({
+      ...popover.value,
+      ...opts,
+      isInteractive: true,
+      id: datePickerPopoverId.value
+    });
+  }
+  function sortRange(range, priority) {
+    const { start, end } = range;
+    if (start > end) {
+      switch (priority) {
+        case "start":
+          return { start, end: start };
+        case "end":
+          return { start: end, end };
+        default:
+          return { start: end, end: start };
+      }
+    }
+    return { start, end };
+  }
+  async function move(target, opts = {}) {
+    if (calendarRef.value == null)
+      return false;
+    return calendarRef.value.move(target, opts);
+  }
+  async function moveBy(pages, opts = {}) {
+    if (calendarRef.value == null)
+      return false;
+    return calendarRef.value.moveBy(pages, opts);
+  }
+  async function moveToValue(target, opts = {}) {
+    const dValue = dateValue.value;
+    if (calendarRef.value == null || !hasValue(dValue))
+      return false;
+    const start = target !== "end";
+    const position = start ? 1 : -1;
+    const date = hasRangeValue(dValue) ? start ? dValue.start : dValue.end : dValue;
+    const page = getPageAddressForDate(date, "monthly", locale.value);
+    return calendarRef.value.move(page, { position, ...opts });
+  }
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => props.isRange,
+    (val) => {
+      if (val) {
+        console.warn(
+          "The `is-range` prop will be deprecated in future releases. Please use the `range` modifier."
+        );
+      }
+    },
+    { immediate: true }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => isRange.value,
+    () => {
+      forceUpdateValue(null, { formatInput: true });
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => inputMask.value,
+    () => formatInput()
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => props.modelValue,
+    (val) => {
+      if (!watchValue)
+        return;
+      forceUpdateValue(val, {
+        formatInput: true,
+        hidePopover: false
+      });
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => rules.value,
+    () => {
+      if (isObject(props.rules)) {
+        forceUpdateValue(props.modelValue, {
+          formatInput: true,
+          hidePopover: false
+        });
+      }
+    }
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(
+    () => props.timezone,
+    () => {
+      forceUpdateValue(dateValue.value, { formatInput: true });
+    }
+  );
+  const config = normalizeConfig2(modelConfig.value);
+  dateValue.value = normalizeValue(
+    props.modelValue ?? null,
+    config,
+    "dateTime"
+  );
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.onMounted)(() => {
+    forceUpdateValue(props.modelValue, {
+      formatInput: true,
+      hidePopover: false
+    });
+  });
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)(() => showCalendar.value = true);
+  const context = {
+    ...baseCtx,
+    showCalendar,
+    datePickerPopoverId,
+    popoverRef,
+    popoverEvents,
+    calendarRef,
+    isRange,
+    isTimeMode,
+    isDateTimeMode,
+    is24hr: (0,vue__WEBPACK_IMPORTED_MODULE_0__.toRef)(props, "is24hr"),
+    hideTimeHeader: (0,vue__WEBPACK_IMPORTED_MODULE_0__.toRef)(props, "hideTimeHeader"),
+    timeAccuracy: (0,vue__WEBPACK_IMPORTED_MODULE_0__.toRef)(props, "timeAccuracy"),
+    isDragging,
+    inputValue,
+    inputEvents,
+    dateParts,
+    attributes,
+    rules,
+    move,
+    moveBy,
+    moveToValue,
+    updateValue,
+    showPopover: showPopover$1,
+    hidePopover: hidePopover$1,
+    togglePopover: togglePopover$1,
+    onDayClick,
+    onDayKeydown,
+    onDayMouseEnter,
+    onPopoverBeforeShow,
+    onPopoverAfterShow,
+    onPopoverBeforeHide,
+    onPopoverAfterHide
+  };
+  (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(contextKey, context);
+  return context;
+}
+function useDatePicker() {
+  const context = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(contextKey);
+  if (context)
+    return context;
+  throw new Error(
+    "DatePicker context missing. Please verify this component is nested within a valid context provider."
+  );
+}
+const _amOptions = [
+  { value: 0, label: "12" },
+  { value: 1, label: "1" },
+  { value: 2, label: "2" },
+  { value: 3, label: "3" },
+  { value: 4, label: "4" },
+  { value: 5, label: "5" },
+  { value: 6, label: "6" },
+  { value: 7, label: "7" },
+  { value: 8, label: "8" },
+  { value: 9, label: "9" },
+  { value: 10, label: "10" },
+  { value: 11, label: "11" }
+];
+const _pmOptions = [
+  { value: 12, label: "12" },
+  { value: 13, label: "1" },
+  { value: 14, label: "2" },
+  { value: 15, label: "3" },
+  { value: 16, label: "4" },
+  { value: 17, label: "5" },
+  { value: 18, label: "6" },
+  { value: 19, label: "7" },
+  { value: 20, label: "8" },
+  { value: 21, label: "9" },
+  { value: 22, label: "10" },
+  { value: 23, label: "11" }
+];
+function createTimePicker(props) {
+  const ctx = useDatePicker();
+  const {
+    locale,
+    isRange,
+    isTimeMode,
+    dateParts,
+    rules,
+    is24hr,
+    hideTimeHeader,
+    timeAccuracy,
+    updateValue: updateDpValue
+  } = ctx;
+  function updateParts(newParts) {
+    newParts = Object.assign(parts.value, newParts);
+    let newValue = null;
+    if (isRange.value) {
+      const start = isStart.value ? newParts : dateParts.value[0];
+      const end = isStart.value ? dateParts.value[1] : newParts;
+      newValue = { start, end };
+    } else {
+      newValue = newParts;
+    }
+    updateDpValue(newValue, {
+      patch: "time",
+      targetPriority: isStart.value ? "start" : "end",
+      moveToValue: true
+    });
+  }
+  const isStart = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.position === 0);
+  const parts = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => dateParts.value[props.position] || { isValid: false }
+  );
+  const partsValid = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => isDateParts(parts.value));
+  const isValid = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => !!parts.value.isValid);
+  const showHeader = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return !hideTimeHeader.value && isValid.value;
+  });
+  const date = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (!partsValid.value)
+      return null;
+    let date2 = locale.value.toDate(parts.value);
+    if (parts.value.hours === 24) {
+      date2 = new Date(date2.getTime() - 1);
+    }
+    return date2;
+  });
+  const hours2 = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)({
+    get() {
+      return parts.value.hours;
+    },
+    set(val) {
+      updateParts({ hours: val });
+    }
+  });
+  const minutes = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)({
+    get() {
+      return parts.value.minutes;
+    },
+    set(val) {
+      updateParts({ minutes: val });
+    }
+  });
+  const seconds = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)({
+    get() {
+      return parts.value.seconds;
+    },
+    set(val) {
+      updateParts({ seconds: val });
+    }
+  });
+  const milliseconds = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)({
+    get() {
+      return parts.value.milliseconds;
+    },
+    set(val) {
+      updateParts({ milliseconds: val });
+    }
+  });
+  const isAM = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)({
+    get() {
+      return parts.value.hours < 12;
+    },
+    set(value) {
+      value = String(value).toLowerCase() == "true";
+      let hValue = hours2.value;
+      if (value && hValue >= 12) {
+        hValue -= 12;
+      } else if (!value && hValue < 12) {
+        hValue += 12;
+      }
+      updateParts({ hours: hValue });
+    }
+  });
+  const options = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(
+    () => getDatePartsOptions(parts.value, rules.value[props.position])
+  );
+  const amHourOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return _amOptions.filter(
+      (opt) => options.value.hours.some((ho) => ho.value === opt.value)
+    );
+  });
+  const pmHourOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    return _pmOptions.filter(
+      (opt) => options.value.hours.some((ho) => ho.value === opt.value)
+    );
+  });
+  const hourOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    if (is24hr.value)
+      return options.value.hours;
+    if (isAM.value)
+      return amHourOptions.value;
+    return pmHourOptions.value;
+  });
+  const isAMOptions = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+    const result = [];
+    if (arrayHasItems(amHourOptions.value))
+      result.push({ value: true, label: "AM" });
+    if (arrayHasItems(pmHourOptions.value))
+      result.push({ value: false, label: "PM" });
+    return result;
+  });
+  return {
+    ...ctx,
+    showHeader,
+    timeAccuracy,
+    parts,
+    isValid,
+    date,
+    hours: hours2,
+    minutes,
+    seconds,
+    milliseconds,
+    options,
+    hourOptions,
+    isAM,
+    isAMOptions,
+    is24hr
+  };
+}
+const _hoisted_1$1 = ["value"];
+const _hoisted_2$1 = ["value", "disabled"];
+const _hoisted_3$1 = {
+  key: 1,
+  class: "vc-base-sizer",
+  "aria-hidden": "true"
+};
+const __default__$1 = {
+  inheritAttrs: false
+};
+const _sfc_main$4 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  ...__default__$1,
+  __name: "BaseSelect",
+  props: {
+    options: null,
+    modelValue: null,
+    alignRight: { type: Boolean },
+    alignLeft: { type: Boolean },
+    showIcon: { type: Boolean },
+    fitContent: { type: Boolean }
+  },
+  emits: ["update:modelValue"],
+  setup(__props) {
+    const props = __props;
+    const selectedLabel = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+      const option = props.options.find((opt) => opt.value === props.modelValue);
+      return option == null ? void 0 : option.label;
+    });
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-base-select", {
+          "vc-fit-content": __props.fitContent,
+          "vc-has-icon": __props.showIcon
+        }])
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("select", (0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)(_ctx.$attrs, {
+          value: __props.modelValue,
+          class: ["vc-focus", {
+            "vc-align-right": __props.alignRight,
+            "vc-align-left": __props.alignLeft
+          }],
+          onChange: _cache[0] || (_cache[0] = ($event) => _ctx.$emit("update:modelValue", $event.target.value))
+        }), [
+          ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)(__props.options, (option) => {
+            return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("option", {
+              key: option.value,
+              value: option.value,
+              disabled: option.disabled
+            }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)(option.label), 9, _hoisted_2$1);
+          }), 128))
+        ], 16, _hoisted_1$1),
+        __props.showIcon ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_sfc_main$c, {
+          key: 0,
+          name: "ChevronDown",
+          size: "18"
+        })) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+        __props.fitContent ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_3$1, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(selectedLabel)), 1)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+      ], 2);
+    };
+  }
+});
+const BaseSelect_vue_vue_type_style_index_0_lang = "";
+const _hoisted_1 = {
+  key: 0,
+  class: "vc-time-header"
+};
+const _hoisted_2 = { class: "vc-time-weekday" };
+const _hoisted_3 = { class: "vc-time-month" };
+const _hoisted_4 = { class: "vc-time-day" };
+const _hoisted_5 = { class: "vc-time-year" };
+const _hoisted_6 = { class: "vc-time-select-group" };
+const _hoisted_7 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", { class: "vc-time-colon" }, ":", -1);
+const _hoisted_8 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", { class: "vc-time-colon" }, ":", -1);
+const _hoisted_9 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", { class: "vc-time-decimal" }, ".", -1);
+const _sfc_main$3 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "TimePicker",
+  props: {
+    position: null
+  },
+  setup(__props, { expose }) {
+    const props = __props;
+    const timePicker = createTimePicker(props);
+    expose(timePicker);
+    const {
+      locale,
+      isValid,
+      date,
+      hours: hours2,
+      minutes,
+      seconds,
+      milliseconds,
+      options,
+      hourOptions,
+      isTimeMode,
+      isAM,
+      isAMOptions,
+      is24hr,
+      showHeader,
+      timeAccuracy
+    } = timePicker;
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(["vc-time-picker", [{ "vc-invalid": !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isValid), "vc-attached": !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isTimeMode) }]])
+      }, [
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, { name: "time-header" }, {
+          default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(showHeader) && (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(date) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", _hoisted_1, [
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", _hoisted_2, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(locale).formatDate((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(date), "WWW")), 1),
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", _hoisted_3, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(locale).formatDate((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(date), "MMM")), 1),
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", _hoisted_4, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(locale).formatDate((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(date), "D")), 1),
+              (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("span", _hoisted_5, (0,vue__WEBPACK_IMPORTED_MODULE_0__.toDisplayString)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(locale).formatDate((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(date), "YYYY")), 1)
+            ])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+          ]),
+          _: 1
+        }),
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementVNode)("div", _hoisted_6, [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$c, {
+            name: "Clock",
+            size: "17"
+          }),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$4, {
+            modelValue: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(hours2),
+            "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.isRef)(hours2) ? hours2.value = $event : null),
+            modelModifiers: { number: true },
+            options: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(hourOptions),
+            class: "vc-time-select-hours",
+            "align-right": ""
+          }, null, 8, ["modelValue", "options"]),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(timeAccuracy) > 1 ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, [
+            _hoisted_7,
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$4, {
+              modelValue: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(minutes),
+              "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.isRef)(minutes) ? minutes.value = $event : null),
+              modelModifiers: { number: true },
+              options: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(options).minutes,
+              class: "vc-time-select-minutes",
+              "align-left": (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(timeAccuracy) === 2
+            }, null, 8, ["modelValue", "options", "align-left"])
+          ], 64)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(timeAccuracy) > 2 ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 1 }, [
+            _hoisted_8,
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$4, {
+              modelValue: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(seconds),
+              "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.isRef)(seconds) ? seconds.value = $event : null),
+              modelModifiers: { number: true },
+              options: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(options).seconds,
+              class: "vc-time-select-seconds",
+              "align-left": (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(timeAccuracy) === 3
+            }, null, 8, ["modelValue", "options", "align-left"])
+          ], 64)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(timeAccuracy) > 3 ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 2 }, [
+            _hoisted_9,
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$4, {
+              modelValue: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(milliseconds),
+              "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.isRef)(milliseconds) ? milliseconds.value = $event : null),
+              modelModifiers: { number: true },
+              options: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(options).milliseconds,
+              class: "vc-time-select-milliseconds",
+              "align-left": ""
+            }, null, 8, ["modelValue", "options"])
+          ], 64)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+          !(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(is24hr) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_sfc_main$4, {
+            key: 3,
+            modelValue: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isAM),
+            "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => (0,vue__WEBPACK_IMPORTED_MODULE_0__.isRef)(isAM) ? isAM.value = $event : null),
+            options: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isAMOptions)
+          }, null, 8, ["modelValue", "options"])) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true)
+        ])
+      ], 2);
+    };
+  }
+});
+const TimePicker_vue_vue_type_style_index_0_lang = "";
+const _sfc_main$2 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  __name: "DatePickerBase",
+  setup(__props) {
+    const {
+      attributes,
+      calendarRef,
+      color,
+      displayMode,
+      isDateTimeMode,
+      isTimeMode,
+      isRange,
+      onDayClick,
+      onDayMouseEnter,
+      onDayKeydown
+    } = useDatePicker();
+    const positions = isRange.value ? [0, 1] : [0];
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isTimeMode) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)("div", {
+        key: 0,
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(`vc-container vc-bordered vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(color)} vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(displayMode)}`)
+      }, [
+        ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, null, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(positions), (position) => {
+          return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_sfc_main$3, {
+            key: position,
+            position
+          }, null, 8, ["position"]);
+        }), 128))
+      ], 2)) : ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(Calendar, {
+        key: 1,
+        attributes: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(attributes),
+        ref_key: "calendarRef",
+        ref: calendarRef,
+        onDayclick: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onDayClick),
+        onDaymouseenter: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onDayMouseEnter),
+        onDaykeydown: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onDayKeydown)
+      }, {
+        footer: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(isDateTimeMode) ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(true), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderList)((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(positions), (position) => {
+            return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_sfc_main$3, {
+              key: position,
+              position
+            }, null, 8, ["position"]);
+          }), 128)) : (0,vue__WEBPACK_IMPORTED_MODULE_0__.createCommentVNode)("", true),
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$i, { name: "dp-footer" })
+        ]),
+        _: 1
+      }, 8, ["attributes", "onDayclick", "onDaymouseenter", "onDaykeydown"]));
+    };
+  }
+});
+const __default__ = {
+  inheritAttrs: false
+};
+const _sfc_main$1 = /* @__PURE__ */ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  ...__default__,
+  __name: "DatePickerPopover",
+  setup(__props) {
+    const {
+      datePickerPopoverId,
+      color,
+      displayMode,
+      popoverRef,
+      onPopoverBeforeShow,
+      onPopoverAfterShow,
+      onPopoverBeforeHide,
+      onPopoverAfterHide
+    } = useDatePicker();
+    return (_ctx, _cache) => {
+      return (0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(Popover, {
+        id: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(datePickerPopoverId),
+        placement: "bottom-start",
+        class: (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeClass)(`vc-date-picker-content vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(color)} vc-${(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(displayMode)}`),
+        ref_key: "popoverRef",
+        ref: popoverRef,
+        onBeforeShow: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onPopoverBeforeShow),
+        onAfterShow: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onPopoverAfterShow),
+        onBeforeHide: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onPopoverBeforeHide),
+        onAfterHide: (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(onPopoverAfterHide)
+      }, {
+        default: (0,vue__WEBPACK_IMPORTED_MODULE_0__.withCtx)(() => [
+          (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_sfc_main$2, (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeProps)((0,vue__WEBPACK_IMPORTED_MODULE_0__.guardReactiveProps)(_ctx.$attrs)), null, 16)
+        ]),
+        _: 1
+      }, 8, ["id", "class", "onBeforeShow", "onAfterShow", "onBeforeHide", "onAfterHide"]);
+    };
+  }
+});
+const _sfc_main = (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+  inheritAttrs: false,
+  emits,
+  props: propsDef,
+  components: { DatePickerBase: _sfc_main$2, DatePickerPopover: _sfc_main$1 },
+  setup(props, ctx) {
+    const datePicker = createDatePicker(props, ctx);
+    const slotCtx = (0,vue__WEBPACK_IMPORTED_MODULE_0__.reactive)(omit(datePicker, "calendarRef", "popoverRef"));
+    return { ...datePicker, slotCtx };
+  }
+});
+function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
+  const _component_DatePickerPopover = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("DatePickerPopover");
+  const _component_DatePickerBase = (0,vue__WEBPACK_IMPORTED_MODULE_0__.resolveComponent)("DatePickerBase");
+  return _ctx.$slots.default ? ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createElementBlock)(vue__WEBPACK_IMPORTED_MODULE_0__.Fragment, { key: 0 }, [
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.renderSlot)(_ctx.$slots, "default", (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeProps)((0,vue__WEBPACK_IMPORTED_MODULE_0__.guardReactiveProps)(_ctx.slotCtx))),
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.createVNode)(_component_DatePickerPopover, (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeProps)((0,vue__WEBPACK_IMPORTED_MODULE_0__.guardReactiveProps)(_ctx.$attrs)), null, 16)
+  ], 64)) : ((0,vue__WEBPACK_IMPORTED_MODULE_0__.openBlock)(), (0,vue__WEBPACK_IMPORTED_MODULE_0__.createBlock)(_component_DatePickerBase, (0,vue__WEBPACK_IMPORTED_MODULE_0__.normalizeProps)((0,vue__WEBPACK_IMPORTED_MODULE_0__.mergeProps)({ key: 1 }, _ctx.$attrs)), null, 16));
+}
+const DatePicker = /* @__PURE__ */ _export_sfc(_sfc_main, [["render", _sfc_render]]);
+const components = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  Calendar,
+  DatePicker,
+  Popover,
+  PopoverRow: _sfc_main$j
+}, Symbol.toStringTag, { value: "Module" }));
+const index$1 = "";
+const install = (app, defaults2 = {}) => {
+  app.use(setupDefaults, defaults2);
+  const prefix = app.config.globalProperties.$VCalendar.componentPrefix;
+  for (const componentKey in components) {
+    const component = components[componentKey];
+    app.component(`${prefix}${componentKey}`, component);
+  }
+};
+const index = { install };
+
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
+/***/ "./node_modules/vue-router/dist/vue-router.mjs":
+/*!*****************************************************!*\
+  !*** ./node_modules/vue-router/dist/vue-router.mjs ***!
+  \*****************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   NavigationFailureType: () => (/* binding */ NavigationFailureType),
+/* harmony export */   RouterLink: () => (/* binding */ RouterLink),
+/* harmony export */   RouterView: () => (/* binding */ RouterView),
+/* harmony export */   START_LOCATION: () => (/* binding */ START_LOCATION_NORMALIZED),
+/* harmony export */   createMemoryHistory: () => (/* binding */ createMemoryHistory),
+/* harmony export */   createRouter: () => (/* binding */ createRouter),
+/* harmony export */   createRouterMatcher: () => (/* binding */ createRouterMatcher),
+/* harmony export */   createWebHashHistory: () => (/* binding */ createWebHashHistory),
+/* harmony export */   createWebHistory: () => (/* binding */ createWebHistory),
+/* harmony export */   isNavigationFailure: () => (/* binding */ isNavigationFailure),
+/* harmony export */   loadRouteLocation: () => (/* binding */ loadRouteLocation),
+/* harmony export */   matchedRouteKey: () => (/* binding */ matchedRouteKey),
+/* harmony export */   onBeforeRouteLeave: () => (/* binding */ onBeforeRouteLeave),
+/* harmony export */   onBeforeRouteUpdate: () => (/* binding */ onBeforeRouteUpdate),
+/* harmony export */   parseQuery: () => (/* binding */ parseQuery),
+/* harmony export */   routeLocationKey: () => (/* binding */ routeLocationKey),
+/* harmony export */   routerKey: () => (/* binding */ routerKey),
+/* harmony export */   routerViewLocationKey: () => (/* binding */ routerViewLocationKey),
+/* harmony export */   stringifyQuery: () => (/* binding */ stringifyQuery),
+/* harmony export */   useLink: () => (/* binding */ useLink),
+/* harmony export */   useRoute: () => (/* binding */ useRoute),
+/* harmony export */   useRouter: () => (/* binding */ useRouter),
+/* harmony export */   viewDepthKey: () => (/* binding */ viewDepthKey)
+/* harmony export */ });
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm-bundler.js");
+/* harmony import */ var _vue_devtools_api__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @vue/devtools-api */ "./node_modules/@vue/devtools-api/lib/esm/index.js");
+/*!
+  * vue-router v4.3.0
+  * (c) 2024 Eduardo San Martin Morote
+  * @license MIT
+  */
+
+
+
+const isBrowser = typeof document !== 'undefined';
+
+function isESModule(obj) {
+    return obj.__esModule || obj[Symbol.toStringTag] === 'Module';
+}
+const assign = Object.assign;
+function applyToParams(fn, params) {
+    const newParams = {};
+    for (const key in params) {
+        const value = params[key];
+        newParams[key] = isArray(value)
+            ? value.map(fn)
+            : fn(value);
+    }
+    return newParams;
+}
+const noop = () => { };
+/**
+ * Typesafe alternative to Array.isArray
+ * https://github.com/microsoft/TypeScript/pull/48228
+ */
+const isArray = Array.isArray;
+
+function warn(msg) {
+    // avoid using ...args as it breaks in older Edge builds
+    const args = Array.from(arguments).slice(1);
+    console.warn.apply(console, ['[Vue Router warn]: ' + msg].concat(args));
+}
+
+/**
+ * Encoding Rules ␣ = Space Path: ␣ " < > # ? { } Query: ␣ " < > # & = Hash: ␣ "
+ * < > `
+ *
+ * On top of that, the RFC3986 (https://tools.ietf.org/html/rfc3986#section-2.2)
+ * defines some extra characters to be encoded. Most browsers do not encode them
+ * in encodeURI https://github.com/whatwg/url/issues/369, so it may be safer to
+ * also encode `!'()*`. Leaving un-encoded only ASCII alphanumeric(`a-zA-Z0-9`)
+ * plus `-._~`. This extra safety should be applied to query by patching the
+ * string returned by encodeURIComponent encodeURI also encodes `[\]^`. `\`
+ * should be encoded to avoid ambiguity. Browsers (IE, FF, C) transform a `\`
+ * into a `/` if directly typed in. The _backtick_ (`````) should also be
+ * encoded everywhere because some browsers like FF encode it when directly
+ * written while others don't. Safari and IE don't encode ``"<>{}``` in hash.
+ */
+// const EXTRA_RESERVED_RE = /[!'()*]/g
+// const encodeReservedReplacer = (c: string) => '%' + c.charCodeAt(0).toString(16)
+const HASH_RE = /#/g; // %23
+const AMPERSAND_RE = /&/g; // %26
+const SLASH_RE = /\//g; // %2F
+const EQUAL_RE = /=/g; // %3D
+const IM_RE = /\?/g; // %3F
+const PLUS_RE = /\+/g; // %2B
+/**
+ * NOTE: It's not clear to me if we should encode the + symbol in queries, it
+ * seems to be less flexible than not doing so and I can't find out the legacy
+ * systems requiring this for regular requests like text/html. In the standard,
+ * the encoding of the plus character is only mentioned for
+ * application/x-www-form-urlencoded
+ * (https://url.spec.whatwg.org/#urlencoded-parsing) and most browsers seems lo
+ * leave the plus character as is in queries. To be more flexible, we allow the
+ * plus character on the query, but it can also be manually encoded by the user.
+ *
+ * Resources:
+ * - https://url.spec.whatwg.org/#urlencoded-parsing
+ * - https://stackoverflow.com/questions/1634271/url-encoding-the-space-character-or-20
+ */
+const ENC_BRACKET_OPEN_RE = /%5B/g; // [
+const ENC_BRACKET_CLOSE_RE = /%5D/g; // ]
+const ENC_CARET_RE = /%5E/g; // ^
+const ENC_BACKTICK_RE = /%60/g; // `
+const ENC_CURLY_OPEN_RE = /%7B/g; // {
+const ENC_PIPE_RE = /%7C/g; // |
+const ENC_CURLY_CLOSE_RE = /%7D/g; // }
+const ENC_SPACE_RE = /%20/g; // }
+/**
+ * Encode characters that need to be encoded on the path, search and hash
+ * sections of the URL.
+ *
+ * @internal
+ * @param text - string to encode
+ * @returns encoded string
+ */
+function commonEncode(text) {
+    return encodeURI('' + text)
+        .replace(ENC_PIPE_RE, '|')
+        .replace(ENC_BRACKET_OPEN_RE, '[')
+        .replace(ENC_BRACKET_CLOSE_RE, ']');
+}
+/**
+ * Encode characters that need to be encoded on the hash section of the URL.
+ *
+ * @param text - string to encode
+ * @returns encoded string
+ */
+function encodeHash(text) {
+    return commonEncode(text)
+        .replace(ENC_CURLY_OPEN_RE, '{')
+        .replace(ENC_CURLY_CLOSE_RE, '}')
+        .replace(ENC_CARET_RE, '^');
+}
+/**
+ * Encode characters that need to be encoded query values on the query
+ * section of the URL.
+ *
+ * @param text - string to encode
+ * @returns encoded string
+ */
+function encodeQueryValue(text) {
+    return (commonEncode(text)
+        // Encode the space as +, encode the + to differentiate it from the space
+        .replace(PLUS_RE, '%2B')
+        .replace(ENC_SPACE_RE, '+')
+        .replace(HASH_RE, '%23')
+        .replace(AMPERSAND_RE, '%26')
+        .replace(ENC_BACKTICK_RE, '`')
+        .replace(ENC_CURLY_OPEN_RE, '{')
+        .replace(ENC_CURLY_CLOSE_RE, '}')
+        .replace(ENC_CARET_RE, '^'));
+}
+/**
+ * Like `encodeQueryValue` but also encodes the `=` character.
+ *
+ * @param text - string to encode
+ */
+function encodeQueryKey(text) {
+    return encodeQueryValue(text).replace(EQUAL_RE, '%3D');
+}
+/**
+ * Encode characters that need to be encoded on the path section of the URL.
+ *
+ * @param text - string to encode
+ * @returns encoded string
+ */
+function encodePath(text) {
+    return commonEncode(text).replace(HASH_RE, '%23').replace(IM_RE, '%3F');
+}
+/**
+ * Encode characters that need to be encoded on the path section of the URL as a
+ * param. This function encodes everything {@link encodePath} does plus the
+ * slash (`/`) character. If `text` is `null` or `undefined`, returns an empty
+ * string instead.
+ *
+ * @param text - string to encode
+ * @returns encoded string
+ */
+function encodeParam(text) {
+    return text == null ? '' : encodePath(text).replace(SLASH_RE, '%2F');
+}
+/**
+ * Decode text using `decodeURIComponent`. Returns the original text if it
+ * fails.
+ *
+ * @param text - string to decode
+ * @returns decoded string
+ */
+function decode(text) {
+    try {
+        return decodeURIComponent('' + text);
+    }
+    catch (err) {
+        ( true) && warn(`Error decoding "${text}". Using original value`);
+    }
+    return '' + text;
+}
+
+const TRAILING_SLASH_RE = /\/$/;
+const removeTrailingSlash = (path) => path.replace(TRAILING_SLASH_RE, '');
+/**
+ * Transforms a URI into a normalized history location
+ *
+ * @param parseQuery
+ * @param location - URI to normalize
+ * @param currentLocation - current absolute location. Allows resolving relative
+ * paths. Must start with `/`. Defaults to `/`
+ * @returns a normalized history location
+ */
+function parseURL(parseQuery, location, currentLocation = '/') {
+    let path, query = {}, searchString = '', hash = '';
+    // Could use URL and URLSearchParams but IE 11 doesn't support it
+    // TODO: move to new URL()
+    const hashPos = location.indexOf('#');
+    let searchPos = location.indexOf('?');
+    // the hash appears before the search, so it's not part of the search string
+    if (hashPos < searchPos && hashPos >= 0) {
+        searchPos = -1;
+    }
+    if (searchPos > -1) {
+        path = location.slice(0, searchPos);
+        searchString = location.slice(searchPos + 1, hashPos > -1 ? hashPos : location.length);
+        query = parseQuery(searchString);
+    }
+    if (hashPos > -1) {
+        path = path || location.slice(0, hashPos);
+        // keep the # character
+        hash = location.slice(hashPos, location.length);
+    }
+    // no search and no query
+    path = resolveRelativePath(path != null ? path : location, currentLocation);
+    // empty path means a relative query or hash `?foo=f`, `#thing`
+    return {
+        fullPath: path + (searchString && '?') + searchString + hash,
+        path,
+        query,
+        hash: decode(hash),
+    };
+}
+/**
+ * Stringifies a URL object
+ *
+ * @param stringifyQuery
+ * @param location
+ */
+function stringifyURL(stringifyQuery, location) {
+    const query = location.query ? stringifyQuery(location.query) : '';
+    return location.path + (query && '?') + query + (location.hash || '');
+}
+/**
+ * Strips off the base from the beginning of a location.pathname in a non-case-sensitive way.
+ *
+ * @param pathname - location.pathname
+ * @param base - base to strip off
+ */
+function stripBase(pathname, base) {
+    // no base or base is not found at the beginning
+    if (!base || !pathname.toLowerCase().startsWith(base.toLowerCase()))
+        return pathname;
+    return pathname.slice(base.length) || '/';
+}
+/**
+ * Checks if two RouteLocation are equal. This means that both locations are
+ * pointing towards the same {@link RouteRecord} and that all `params`, `query`
+ * parameters and `hash` are the same
+ *
+ * @param stringifyQuery - A function that takes a query object of type LocationQueryRaw and returns a string representation of it.
+ * @param a - first {@link RouteLocation}
+ * @param b - second {@link RouteLocation}
+ */
+function isSameRouteLocation(stringifyQuery, a, b) {
+    const aLastIndex = a.matched.length - 1;
+    const bLastIndex = b.matched.length - 1;
+    return (aLastIndex > -1 &&
+        aLastIndex === bLastIndex &&
+        isSameRouteRecord(a.matched[aLastIndex], b.matched[bLastIndex]) &&
+        isSameRouteLocationParams(a.params, b.params) &&
+        stringifyQuery(a.query) === stringifyQuery(b.query) &&
+        a.hash === b.hash);
+}
+/**
+ * Check if two `RouteRecords` are equal. Takes into account aliases: they are
+ * considered equal to the `RouteRecord` they are aliasing.
+ *
+ * @param a - first {@link RouteRecord}
+ * @param b - second {@link RouteRecord}
+ */
+function isSameRouteRecord(a, b) {
+    // since the original record has an undefined value for aliasOf
+    // but all aliases point to the original record, this will always compare
+    // the original record
+    return (a.aliasOf || a) === (b.aliasOf || b);
+}
+function isSameRouteLocationParams(a, b) {
+    if (Object.keys(a).length !== Object.keys(b).length)
+        return false;
+    for (const key in a) {
+        if (!isSameRouteLocationParamsValue(a[key], b[key]))
+            return false;
+    }
+    return true;
+}
+function isSameRouteLocationParamsValue(a, b) {
+    return isArray(a)
+        ? isEquivalentArray(a, b)
+        : isArray(b)
+            ? isEquivalentArray(b, a)
+            : a === b;
+}
+/**
+ * Check if two arrays are the same or if an array with one single entry is the
+ * same as another primitive value. Used to check query and parameters
+ *
+ * @param a - array of values
+ * @param b - array of values or a single value
+ */
+function isEquivalentArray(a, b) {
+    return isArray(b)
+        ? a.length === b.length && a.every((value, i) => value === b[i])
+        : a.length === 1 && a[0] === b;
+}
+/**
+ * Resolves a relative path that starts with `.`.
+ *
+ * @param to - path location we are resolving
+ * @param from - currentLocation.path, should start with `/`
+ */
+function resolveRelativePath(to, from) {
+    if (to.startsWith('/'))
+        return to;
+    if (( true) && !from.startsWith('/')) {
+        warn(`Cannot resolve a relative location without an absolute path. Trying to resolve "${to}" from "${from}". It should look like "/${from}".`);
+        return to;
+    }
+    if (!to)
+        return from;
+    const fromSegments = from.split('/');
+    const toSegments = to.split('/');
+    const lastToSegment = toSegments[toSegments.length - 1];
+    // make . and ./ the same (../ === .., ../../ === ../..)
+    // this is the same behavior as new URL()
+    if (lastToSegment === '..' || lastToSegment === '.') {
+        toSegments.push('');
+    }
+    let position = fromSegments.length - 1;
+    let toPosition;
+    let segment;
+    for (toPosition = 0; toPosition < toSegments.length; toPosition++) {
+        segment = toSegments[toPosition];
+        // we stay on the same position
+        if (segment === '.')
+            continue;
+        // go up in the from array
+        if (segment === '..') {
+            // we can't go below zero, but we still need to increment toPosition
+            if (position > 1)
+                position--;
+            // continue
+        }
+        // we reached a non-relative path, we stop here
+        else
+            break;
+    }
+    return (fromSegments.slice(0, position).join('/') +
+        '/' +
+        toSegments.slice(toPosition).join('/'));
+}
+
+var NavigationType;
+(function (NavigationType) {
+    NavigationType["pop"] = "pop";
+    NavigationType["push"] = "push";
+})(NavigationType || (NavigationType = {}));
+var NavigationDirection;
+(function (NavigationDirection) {
+    NavigationDirection["back"] = "back";
+    NavigationDirection["forward"] = "forward";
+    NavigationDirection["unknown"] = "";
+})(NavigationDirection || (NavigationDirection = {}));
+/**
+ * Starting location for Histories
+ */
+const START = '';
+// Generic utils
+/**
+ * Normalizes a base by removing any trailing slash and reading the base tag if
+ * present.
+ *
+ * @param base - base to normalize
+ */
+function normalizeBase(base) {
+    if (!base) {
+        if (isBrowser) {
+            // respect <base> tag
+            const baseEl = document.querySelector('base');
+            base = (baseEl && baseEl.getAttribute('href')) || '/';
+            // strip full URL origin
+            base = base.replace(/^\w+:\/\/[^\/]+/, '');
+        }
+        else {
+            base = '/';
+        }
+    }
+    // ensure leading slash when it was removed by the regex above avoid leading
+    // slash with hash because the file could be read from the disk like file://
+    // and the leading slash would cause problems
+    if (base[0] !== '/' && base[0] !== '#')
+        base = '/' + base;
+    // remove the trailing slash so all other method can just do `base + fullPath`
+    // to build an href
+    return removeTrailingSlash(base);
+}
+// remove any character before the hash
+const BEFORE_HASH_RE = /^[^#]+#/;
+function createHref(base, location) {
+    return base.replace(BEFORE_HASH_RE, '#') + location;
+}
+
+function getElementPosition(el, offset) {
+    const docRect = document.documentElement.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    return {
+        behavior: offset.behavior,
+        left: elRect.left - docRect.left - (offset.left || 0),
+        top: elRect.top - docRect.top - (offset.top || 0),
+    };
+}
+const computeScrollPosition = () => ({
+    left: window.scrollX,
+    top: window.scrollY,
+});
+function scrollToPosition(position) {
+    let scrollToOptions;
+    if ('el' in position) {
+        const positionEl = position.el;
+        const isIdSelector = typeof positionEl === 'string' && positionEl.startsWith('#');
+        /**
+         * `id`s can accept pretty much any characters, including CSS combinators
+         * like `>` or `~`. It's still possible to retrieve elements using
+         * `document.getElementById('~')` but it needs to be escaped when using
+         * `document.querySelector('#\\~')` for it to be valid. The only
+         * requirements for `id`s are them to be unique on the page and to not be
+         * empty (`id=""`). Because of that, when passing an id selector, it should
+         * be properly escaped for it to work with `querySelector`. We could check
+         * for the id selector to be simple (no CSS combinators `+ >~`) but that
+         * would make things inconsistent since they are valid characters for an
+         * `id` but would need to be escaped when using `querySelector`, breaking
+         * their usage and ending up in no selector returned. Selectors need to be
+         * escaped:
+         *
+         * - `#1-thing` becomes `#\31 -thing`
+         * - `#with~symbols` becomes `#with\\~symbols`
+         *
+         * - More information about  the topic can be found at
+         *   https://mathiasbynens.be/notes/html5-id-class.
+         * - Practical example: https://mathiasbynens.be/demo/html5-id
+         */
+        if (( true) && typeof position.el === 'string') {
+            if (!isIdSelector || !document.getElementById(position.el.slice(1))) {
+                try {
+                    const foundEl = document.querySelector(position.el);
+                    if (isIdSelector && foundEl) {
+                        warn(`The selector "${position.el}" should be passed as "el: document.querySelector('${position.el}')" because it starts with "#".`);
+                        // return to avoid other warnings
+                        return;
+                    }
+                }
+                catch (err) {
+                    warn(`The selector "${position.el}" is invalid. If you are using an id selector, make sure to escape it. You can find more information about escaping characters in selectors at https://mathiasbynens.be/notes/css-escapes or use CSS.escape (https://developer.mozilla.org/en-US/docs/Web/API/CSS/escape).`);
+                    // return to avoid other warnings
+                    return;
+                }
+            }
+        }
+        const el = typeof positionEl === 'string'
+            ? isIdSelector
+                ? document.getElementById(positionEl.slice(1))
+                : document.querySelector(positionEl)
+            : positionEl;
+        if (!el) {
+            ( true) &&
+                warn(`Couldn't find element using selector "${position.el}" returned by scrollBehavior.`);
+            return;
+        }
+        scrollToOptions = getElementPosition(el, position);
+    }
+    else {
+        scrollToOptions = position;
+    }
+    if ('scrollBehavior' in document.documentElement.style)
+        window.scrollTo(scrollToOptions);
+    else {
+        window.scrollTo(scrollToOptions.left != null ? scrollToOptions.left : window.scrollX, scrollToOptions.top != null ? scrollToOptions.top : window.scrollY);
+    }
+}
+function getScrollKey(path, delta) {
+    const position = history.state ? history.state.position - delta : -1;
+    return position + path;
+}
+const scrollPositions = new Map();
+function saveScrollPosition(key, scrollPosition) {
+    scrollPositions.set(key, scrollPosition);
+}
+function getSavedScrollPosition(key) {
+    const scroll = scrollPositions.get(key);
+    // consume it so it's not used again
+    scrollPositions.delete(key);
+    return scroll;
+}
+// TODO: RFC about how to save scroll position
+/**
+ * ScrollBehavior instance used by the router to compute and restore the scroll
+ * position when navigating.
+ */
+// export interface ScrollHandler<ScrollPositionEntry extends HistoryStateValue, ScrollPosition extends ScrollPositionEntry> {
+//   // returns a scroll position that can be saved in history
+//   compute(): ScrollPositionEntry
+//   // can take an extended ScrollPositionEntry
+//   scroll(position: ScrollPosition): void
+// }
+// export const scrollHandler: ScrollHandler<ScrollPosition> = {
+//   compute: computeScroll,
+//   scroll: scrollToPosition,
+// }
+
+let createBaseLocation = () => location.protocol + '//' + location.host;
+/**
+ * Creates a normalized history location from a window.location object
+ * @param base - The base path
+ * @param location - The window.location object
+ */
+function createCurrentLocation(base, location) {
+    const { pathname, search, hash } = location;
+    // allows hash bases like #, /#, #/, #!, #!/, /#!/, or even /folder#end
+    const hashPos = base.indexOf('#');
+    if (hashPos > -1) {
+        let slicePos = hash.includes(base.slice(hashPos))
+            ? base.slice(hashPos).length
+            : 1;
+        let pathFromHash = hash.slice(slicePos);
+        // prepend the starting slash to hash so the url starts with /#
+        if (pathFromHash[0] !== '/')
+            pathFromHash = '/' + pathFromHash;
+        return stripBase(pathFromHash, '');
+    }
+    const path = stripBase(pathname, base);
+    return path + search + hash;
+}
+function useHistoryListeners(base, historyState, currentLocation, replace) {
+    let listeners = [];
+    let teardowns = [];
+    // TODO: should it be a stack? a Dict. Check if the popstate listener
+    // can trigger twice
+    let pauseState = null;
+    const popStateHandler = ({ state, }) => {
+        const to = createCurrentLocation(base, location);
+        const from = currentLocation.value;
+        const fromState = historyState.value;
+        let delta = 0;
+        if (state) {
+            currentLocation.value = to;
+            historyState.value = state;
+            // ignore the popstate and reset the pauseState
+            if (pauseState && pauseState === from) {
+                pauseState = null;
+                return;
+            }
+            delta = fromState ? state.position - fromState.position : 0;
+        }
+        else {
+            replace(to);
+        }
+        // Here we could also revert the navigation by calling history.go(-delta)
+        // this listener will have to be adapted to not trigger again and to wait for the url
+        // to be updated before triggering the listeners. Some kind of validation function would also
+        // need to be passed to the listeners so the navigation can be accepted
+        // call all listeners
+        listeners.forEach(listener => {
+            listener(currentLocation.value, from, {
+                delta,
+                type: NavigationType.pop,
+                direction: delta
+                    ? delta > 0
+                        ? NavigationDirection.forward
+                        : NavigationDirection.back
+                    : NavigationDirection.unknown,
+            });
+        });
+    };
+    function pauseListeners() {
+        pauseState = currentLocation.value;
+    }
+    function listen(callback) {
+        // set up the listener and prepare teardown callbacks
+        listeners.push(callback);
+        const teardown = () => {
+            const index = listeners.indexOf(callback);
+            if (index > -1)
+                listeners.splice(index, 1);
+        };
+        teardowns.push(teardown);
+        return teardown;
+    }
+    function beforeUnloadListener() {
+        const { history } = window;
+        if (!history.state)
+            return;
+        history.replaceState(assign({}, history.state, { scroll: computeScrollPosition() }), '');
+    }
+    function destroy() {
+        for (const teardown of teardowns)
+            teardown();
+        teardowns = [];
+        window.removeEventListener('popstate', popStateHandler);
+        window.removeEventListener('beforeunload', beforeUnloadListener);
+    }
+    // set up the listeners and prepare teardown callbacks
+    window.addEventListener('popstate', popStateHandler);
+    // TODO: could we use 'pagehide' or 'visibilitychange' instead?
+    // https://developer.chrome.com/blog/page-lifecycle-api/
+    window.addEventListener('beforeunload', beforeUnloadListener, {
+        passive: true,
+    });
+    return {
+        pauseListeners,
+        listen,
+        destroy,
+    };
+}
+/**
+ * Creates a state object
+ */
+function buildState(back, current, forward, replaced = false, computeScroll = false) {
+    return {
+        back,
+        current,
+        forward,
+        replaced,
+        position: window.history.length,
+        scroll: computeScroll ? computeScrollPosition() : null,
+    };
+}
+function useHistoryStateNavigation(base) {
+    const { history, location } = window;
+    // private variables
+    const currentLocation = {
+        value: createCurrentLocation(base, location),
+    };
+    const historyState = { value: history.state };
+    // build current history entry as this is a fresh navigation
+    if (!historyState.value) {
+        changeLocation(currentLocation.value, {
+            back: null,
+            current: currentLocation.value,
+            forward: null,
+            // the length is off by one, we need to decrease it
+            position: history.length - 1,
+            replaced: true,
+            // don't add a scroll as the user may have an anchor, and we want
+            // scrollBehavior to be triggered without a saved position
+            scroll: null,
+        }, true);
+    }
+    function changeLocation(to, state, replace) {
+        /**
+         * if a base tag is provided, and we are on a normal domain, we have to
+         * respect the provided `base` attribute because pushState() will use it and
+         * potentially erase anything before the `#` like at
+         * https://github.com/vuejs/router/issues/685 where a base of
+         * `/folder/#` but a base of `/` would erase the `/folder/` section. If
+         * there is no host, the `<base>` tag makes no sense and if there isn't a
+         * base tag we can just use everything after the `#`.
+         */
+        const hashIndex = base.indexOf('#');
+        const url = hashIndex > -1
+            ? (location.host && document.querySelector('base')
+                ? base
+                : base.slice(hashIndex)) + to
+            : createBaseLocation() + base + to;
+        try {
+            // BROWSER QUIRK
+            // NOTE: Safari throws a SecurityError when calling this function 100 times in 30 seconds
+            history[replace ? 'replaceState' : 'pushState'](state, '', url);
+            historyState.value = state;
+        }
+        catch (err) {
+            if ((true)) {
+                warn('Error with push/replace State', err);
+            }
+            else {}
+            // Force the navigation, this also resets the call count
+            location[replace ? 'replace' : 'assign'](url);
+        }
+    }
+    function replace(to, data) {
+        const state = assign({}, history.state, buildState(historyState.value.back, 
+        // keep back and forward entries but override current position
+        to, historyState.value.forward, true), data, { position: historyState.value.position });
+        changeLocation(to, state, true);
+        currentLocation.value = to;
+    }
+    function push(to, data) {
+        // Add to current entry the information of where we are going
+        // as well as saving the current position
+        const currentState = assign({}, 
+        // use current history state to gracefully handle a wrong call to
+        // history.replaceState
+        // https://github.com/vuejs/router/issues/366
+        historyState.value, history.state, {
+            forward: to,
+            scroll: computeScrollPosition(),
+        });
+        if (( true) && !history.state) {
+            warn(`history.state seems to have been manually replaced without preserving the necessary values. Make sure to preserve existing history state if you are manually calling history.replaceState:\n\n` +
+                `history.replaceState(history.state, '', url)\n\n` +
+                `You can find more information at https://next.router.vuejs.org/guide/migration/#usage-of-history-state.`);
+        }
+        changeLocation(currentState.current, currentState, true);
+        const state = assign({}, buildState(currentLocation.value, to, null), { position: currentState.position + 1 }, data);
+        changeLocation(to, state, false);
+        currentLocation.value = to;
+    }
+    return {
+        location: currentLocation,
+        state: historyState,
+        push,
+        replace,
+    };
+}
+/**
+ * Creates an HTML5 history. Most common history for single page applications.
+ *
+ * @param base -
+ */
+function createWebHistory(base) {
+    base = normalizeBase(base);
+    const historyNavigation = useHistoryStateNavigation(base);
+    const historyListeners = useHistoryListeners(base, historyNavigation.state, historyNavigation.location, historyNavigation.replace);
+    function go(delta, triggerListeners = true) {
+        if (!triggerListeners)
+            historyListeners.pauseListeners();
+        history.go(delta);
+    }
+    const routerHistory = assign({
+        // it's overridden right after
+        location: '',
+        base,
+        go,
+        createHref: createHref.bind(null, base),
+    }, historyNavigation, historyListeners);
+    Object.defineProperty(routerHistory, 'location', {
+        enumerable: true,
+        get: () => historyNavigation.location.value,
+    });
+    Object.defineProperty(routerHistory, 'state', {
+        enumerable: true,
+        get: () => historyNavigation.state.value,
+    });
+    return routerHistory;
+}
+
+/**
+ * Creates an in-memory based history. The main purpose of this history is to handle SSR. It starts in a special location that is nowhere.
+ * It's up to the user to replace that location with the starter location by either calling `router.push` or `router.replace`.
+ *
+ * @param base - Base applied to all urls, defaults to '/'
+ * @returns a history object that can be passed to the router constructor
+ */
+function createMemoryHistory(base = '') {
+    let listeners = [];
+    let queue = [START];
+    let position = 0;
+    base = normalizeBase(base);
+    function setLocation(location) {
+        position++;
+        if (position !== queue.length) {
+            // we are in the middle, we remove everything from here in the queue
+            queue.splice(position);
+        }
+        queue.push(location);
+    }
+    function triggerListeners(to, from, { direction, delta }) {
+        const info = {
+            direction,
+            delta,
+            type: NavigationType.pop,
+        };
+        for (const callback of listeners) {
+            callback(to, from, info);
+        }
+    }
+    const routerHistory = {
+        // rewritten by Object.defineProperty
+        location: START,
+        // TODO: should be kept in queue
+        state: {},
+        base,
+        createHref: createHref.bind(null, base),
+        replace(to) {
+            // remove current entry and decrement position
+            queue.splice(position--, 1);
+            setLocation(to);
+        },
+        push(to, data) {
+            setLocation(to);
+        },
+        listen(callback) {
+            listeners.push(callback);
+            return () => {
+                const index = listeners.indexOf(callback);
+                if (index > -1)
+                    listeners.splice(index, 1);
+            };
+        },
+        destroy() {
+            listeners = [];
+            queue = [START];
+            position = 0;
+        },
+        go(delta, shouldTrigger = true) {
+            const from = this.location;
+            const direction = 
+            // we are considering delta === 0 going forward, but in abstract mode
+            // using 0 for the delta doesn't make sense like it does in html5 where
+            // it reloads the page
+            delta < 0 ? NavigationDirection.back : NavigationDirection.forward;
+            position = Math.max(0, Math.min(position + delta, queue.length - 1));
+            if (shouldTrigger) {
+                triggerListeners(this.location, from, {
+                    direction,
+                    delta,
+                });
+            }
+        },
+    };
+    Object.defineProperty(routerHistory, 'location', {
+        enumerable: true,
+        get: () => queue[position],
+    });
+    return routerHistory;
+}
+
+/**
+ * Creates a hash history. Useful for web applications with no host (e.g. `file://`) or when configuring a server to
+ * handle any URL is not possible.
+ *
+ * @param base - optional base to provide. Defaults to `location.pathname + location.search` If there is a `<base>` tag
+ * in the `head`, its value will be ignored in favor of this parameter **but note it affects all the history.pushState()
+ * calls**, meaning that if you use a `<base>` tag, it's `href` value **has to match this parameter** (ignoring anything
+ * after the `#`).
+ *
+ * @example
+ * ```js
+ * // at https://example.com/folder
+ * createWebHashHistory() // gives a url of `https://example.com/folder#`
+ * createWebHashHistory('/folder/') // gives a url of `https://example.com/folder/#`
+ * // if the `#` is provided in the base, it won't be added by `createWebHashHistory`
+ * createWebHashHistory('/folder/#/app/') // gives a url of `https://example.com/folder/#/app/`
+ * // you should avoid doing this because it changes the original url and breaks copying urls
+ * createWebHashHistory('/other-folder/') // gives a url of `https://example.com/other-folder/#`
+ *
+ * // at file:///usr/etc/folder/index.html
+ * // for locations with no `host`, the base is ignored
+ * createWebHashHistory('/iAmIgnored') // gives a url of `file:///usr/etc/folder/index.html#`
+ * ```
+ */
+function createWebHashHistory(base) {
+    // Make sure this implementation is fine in terms of encoding, specially for IE11
+    // for `file://`, directly use the pathname and ignore the base
+    // location.pathname contains an initial `/` even at the root: `https://example.com`
+    base = location.host ? base || location.pathname + location.search : '';
+    // allow the user to provide a `#` in the middle: `/base/#/app`
+    if (!base.includes('#'))
+        base += '#';
+    if (( true) && !base.endsWith('#/') && !base.endsWith('#')) {
+        warn(`A hash base must end with a "#":\n"${base}" should be "${base.replace(/#.*$/, '#')}".`);
+    }
+    return createWebHistory(base);
+}
+
+function isRouteLocation(route) {
+    return typeof route === 'string' || (route && typeof route === 'object');
+}
+function isRouteName(name) {
+    return typeof name === 'string' || typeof name === 'symbol';
+}
+
+/**
+ * Initial route location where the router is. Can be used in navigation guards
+ * to differentiate the initial navigation.
+ *
+ * @example
+ * ```js
+ * import { START_LOCATION } from 'vue-router'
+ *
+ * router.beforeEach((to, from) => {
+ *   if (from === START_LOCATION) {
+ *     // initial navigation
+ *   }
+ * })
+ * ```
+ */
+const START_LOCATION_NORMALIZED = {
+    path: '/',
+    name: undefined,
+    params: {},
+    query: {},
+    hash: '',
+    fullPath: '/',
+    matched: [],
+    meta: {},
+    redirectedFrom: undefined,
+};
+
+const NavigationFailureSymbol = Symbol(( true) ? 'navigation failure' : 0);
+/**
+ * Enumeration with all possible types for navigation failures. Can be passed to
+ * {@link isNavigationFailure} to check for specific failures.
+ */
+var NavigationFailureType;
+(function (NavigationFailureType) {
+    /**
+     * An aborted navigation is a navigation that failed because a navigation
+     * guard returned `false` or called `next(false)`
+     */
+    NavigationFailureType[NavigationFailureType["aborted"] = 4] = "aborted";
+    /**
+     * A cancelled navigation is a navigation that failed because a more recent
+     * navigation finished started (not necessarily finished).
+     */
+    NavigationFailureType[NavigationFailureType["cancelled"] = 8] = "cancelled";
+    /**
+     * A duplicated navigation is a navigation that failed because it was
+     * initiated while already being at the exact same location.
+     */
+    NavigationFailureType[NavigationFailureType["duplicated"] = 16] = "duplicated";
+})(NavigationFailureType || (NavigationFailureType = {}));
+// DEV only debug messages
+const ErrorTypeMessages = {
+    [1 /* ErrorTypes.MATCHER_NOT_FOUND */]({ location, currentLocation }) {
+        return `No match for\n ${JSON.stringify(location)}${currentLocation
+            ? '\nwhile being at\n' + JSON.stringify(currentLocation)
+            : ''}`;
+    },
+    [2 /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */]({ from, to, }) {
+        return `Redirected from "${from.fullPath}" to "${stringifyRoute(to)}" via a navigation guard.`;
+    },
+    [4 /* ErrorTypes.NAVIGATION_ABORTED */]({ from, to }) {
+        return `Navigation aborted from "${from.fullPath}" to "${to.fullPath}" via a navigation guard.`;
+    },
+    [8 /* ErrorTypes.NAVIGATION_CANCELLED */]({ from, to }) {
+        return `Navigation cancelled from "${from.fullPath}" to "${to.fullPath}" with a new navigation.`;
+    },
+    [16 /* ErrorTypes.NAVIGATION_DUPLICATED */]({ from, to }) {
+        return `Avoided redundant navigation to current location: "${from.fullPath}".`;
+    },
+};
+/**
+ * Creates a typed NavigationFailure object.
+ * @internal
+ * @param type - NavigationFailureType
+ * @param params - { from, to }
+ */
+function createRouterError(type, params) {
+    // keep full error messages in cjs versions
+    if (true) {
+        return assign(new Error(ErrorTypeMessages[type](params)), {
+            type,
+            [NavigationFailureSymbol]: true,
+        }, params);
+    }
+    else {}
+}
+function isNavigationFailure(error, type) {
+    return (error instanceof Error &&
+        NavigationFailureSymbol in error &&
+        (type == null || !!(error.type & type)));
+}
+const propertiesToLog = ['params', 'query', 'hash'];
+function stringifyRoute(to) {
+    if (typeof to === 'string')
+        return to;
+    if (to.path != null)
+        return to.path;
+    const location = {};
+    for (const key of propertiesToLog) {
+        if (key in to)
+            location[key] = to[key];
+    }
+    return JSON.stringify(location, null, 2);
+}
+
+// default pattern for a param: non-greedy everything but /
+const BASE_PARAM_PATTERN = '[^/]+?';
+const BASE_PATH_PARSER_OPTIONS = {
+    sensitive: false,
+    strict: false,
+    start: true,
+    end: true,
+};
+// Special Regex characters that must be escaped in static tokens
+const REGEX_CHARS_RE = /[.+*?^${}()[\]/\\]/g;
+/**
+ * Creates a path parser from an array of Segments (a segment is an array of Tokens)
+ *
+ * @param segments - array of segments returned by tokenizePath
+ * @param extraOptions - optional options for the regexp
+ * @returns a PathParser
+ */
+function tokensToParser(segments, extraOptions) {
+    const options = assign({}, BASE_PATH_PARSER_OPTIONS, extraOptions);
+    // the amount of scores is the same as the length of segments except for the root segment "/"
+    const score = [];
+    // the regexp as a string
+    let pattern = options.start ? '^' : '';
+    // extracted keys
+    const keys = [];
+    for (const segment of segments) {
+        // the root segment needs special treatment
+        const segmentScores = segment.length ? [] : [90 /* PathScore.Root */];
+        // allow trailing slash
+        if (options.strict && !segment.length)
+            pattern += '/';
+        for (let tokenIndex = 0; tokenIndex < segment.length; tokenIndex++) {
+            const token = segment[tokenIndex];
+            // resets the score if we are inside a sub-segment /:a-other-:b
+            let subSegmentScore = 40 /* PathScore.Segment */ +
+                (options.sensitive ? 0.25 /* PathScore.BonusCaseSensitive */ : 0);
+            if (token.type === 0 /* TokenType.Static */) {
+                // prepend the slash if we are starting a new segment
+                if (!tokenIndex)
+                    pattern += '/';
+                pattern += token.value.replace(REGEX_CHARS_RE, '\\$&');
+                subSegmentScore += 40 /* PathScore.Static */;
+            }
+            else if (token.type === 1 /* TokenType.Param */) {
+                const { value, repeatable, optional, regexp } = token;
+                keys.push({
+                    name: value,
+                    repeatable,
+                    optional,
+                });
+                const re = regexp ? regexp : BASE_PARAM_PATTERN;
+                // the user provided a custom regexp /:id(\\d+)
+                if (re !== BASE_PARAM_PATTERN) {
+                    subSegmentScore += 10 /* PathScore.BonusCustomRegExp */;
+                    // make sure the regexp is valid before using it
+                    try {
+                        new RegExp(`(${re})`);
+                    }
+                    catch (err) {
+                        throw new Error(`Invalid custom RegExp for param "${value}" (${re}): ` +
+                            err.message);
+                    }
+                }
+                // when we repeat we must take care of the repeating leading slash
+                let subPattern = repeatable ? `((?:${re})(?:/(?:${re}))*)` : `(${re})`;
+                // prepend the slash if we are starting a new segment
+                if (!tokenIndex)
+                    subPattern =
+                        // avoid an optional / if there are more segments e.g. /:p?-static
+                        // or /:p?-:p2
+                        optional && segment.length < 2
+                            ? `(?:/${subPattern})`
+                            : '/' + subPattern;
+                if (optional)
+                    subPattern += '?';
+                pattern += subPattern;
+                subSegmentScore += 20 /* PathScore.Dynamic */;
+                if (optional)
+                    subSegmentScore += -8 /* PathScore.BonusOptional */;
+                if (repeatable)
+                    subSegmentScore += -20 /* PathScore.BonusRepeatable */;
+                if (re === '.*')
+                    subSegmentScore += -50 /* PathScore.BonusWildcard */;
+            }
+            segmentScores.push(subSegmentScore);
+        }
+        // an empty array like /home/ -> [[{home}], []]
+        // if (!segment.length) pattern += '/'
+        score.push(segmentScores);
+    }
+    // only apply the strict bonus to the last score
+    if (options.strict && options.end) {
+        const i = score.length - 1;
+        score[i][score[i].length - 1] += 0.7000000000000001 /* PathScore.BonusStrict */;
+    }
+    // TODO: dev only warn double trailing slash
+    if (!options.strict)
+        pattern += '/?';
+    if (options.end)
+        pattern += '$';
+    // allow paths like /dynamic to only match dynamic or dynamic/... but not dynamic_something_else
+    else if (options.strict)
+        pattern += '(?:/|$)';
+    const re = new RegExp(pattern, options.sensitive ? '' : 'i');
+    function parse(path) {
+        const match = path.match(re);
+        const params = {};
+        if (!match)
+            return null;
+        for (let i = 1; i < match.length; i++) {
+            const value = match[i] || '';
+            const key = keys[i - 1];
+            params[key.name] = value && key.repeatable ? value.split('/') : value;
+        }
+        return params;
+    }
+    function stringify(params) {
+        let path = '';
+        // for optional parameters to allow to be empty
+        let avoidDuplicatedSlash = false;
+        for (const segment of segments) {
+            if (!avoidDuplicatedSlash || !path.endsWith('/'))
+                path += '/';
+            avoidDuplicatedSlash = false;
+            for (const token of segment) {
+                if (token.type === 0 /* TokenType.Static */) {
+                    path += token.value;
+                }
+                else if (token.type === 1 /* TokenType.Param */) {
+                    const { value, repeatable, optional } = token;
+                    const param = value in params ? params[value] : '';
+                    if (isArray(param) && !repeatable) {
+                        throw new Error(`Provided param "${value}" is an array but it is not repeatable (* or + modifiers)`);
+                    }
+                    const text = isArray(param)
+                        ? param.join('/')
+                        : param;
+                    if (!text) {
+                        if (optional) {
+                            // if we have more than one optional param like /:a?-static we don't need to care about the optional param
+                            if (segment.length < 2) {
+                                // remove the last slash as we could be at the end
+                                if (path.endsWith('/'))
+                                    path = path.slice(0, -1);
+                                // do not append a slash on the next iteration
+                                else
+                                    avoidDuplicatedSlash = true;
+                            }
+                        }
+                        else
+                            throw new Error(`Missing required param "${value}"`);
+                    }
+                    path += text;
+                }
+            }
+        }
+        // avoid empty path when we have multiple optional params
+        return path || '/';
+    }
+    return {
+        re,
+        score,
+        keys,
+        parse,
+        stringify,
+    };
+}
+/**
+ * Compares an array of numbers as used in PathParser.score and returns a
+ * number. This function can be used to `sort` an array
+ *
+ * @param a - first array of numbers
+ * @param b - second array of numbers
+ * @returns 0 if both are equal, < 0 if a should be sorted first, > 0 if b
+ * should be sorted first
+ */
+function compareScoreArray(a, b) {
+    let i = 0;
+    while (i < a.length && i < b.length) {
+        const diff = b[i] - a[i];
+        // only keep going if diff === 0
+        if (diff)
+            return diff;
+        i++;
+    }
+    // if the last subsegment was Static, the shorter segments should be sorted first
+    // otherwise sort the longest segment first
+    if (a.length < b.length) {
+        return a.length === 1 && a[0] === 40 /* PathScore.Static */ + 40 /* PathScore.Segment */
+            ? -1
+            : 1;
+    }
+    else if (a.length > b.length) {
+        return b.length === 1 && b[0] === 40 /* PathScore.Static */ + 40 /* PathScore.Segment */
+            ? 1
+            : -1;
+    }
+    return 0;
+}
+/**
+ * Compare function that can be used with `sort` to sort an array of PathParser
+ *
+ * @param a - first PathParser
+ * @param b - second PathParser
+ * @returns 0 if both are equal, < 0 if a should be sorted first, > 0 if b
+ */
+function comparePathParserScore(a, b) {
+    let i = 0;
+    const aScore = a.score;
+    const bScore = b.score;
+    while (i < aScore.length && i < bScore.length) {
+        const comp = compareScoreArray(aScore[i], bScore[i]);
+        // do not return if both are equal
+        if (comp)
+            return comp;
+        i++;
+    }
+    if (Math.abs(bScore.length - aScore.length) === 1) {
+        if (isLastScoreNegative(aScore))
+            return 1;
+        if (isLastScoreNegative(bScore))
+            return -1;
+    }
+    // if a and b share the same score entries but b has more, sort b first
+    return bScore.length - aScore.length;
+    // this is the ternary version
+    // return aScore.length < bScore.length
+    //   ? 1
+    //   : aScore.length > bScore.length
+    //   ? -1
+    //   : 0
+}
+/**
+ * This allows detecting splats at the end of a path: /home/:id(.*)*
+ *
+ * @param score - score to check
+ * @returns true if the last entry is negative
+ */
+function isLastScoreNegative(score) {
+    const last = score[score.length - 1];
+    return score.length > 0 && last[last.length - 1] < 0;
+}
+
+const ROOT_TOKEN = {
+    type: 0 /* TokenType.Static */,
+    value: '',
+};
+const VALID_PARAM_RE = /[a-zA-Z0-9_]/;
+// After some profiling, the cache seems to be unnecessary because tokenizePath
+// (the slowest part of adding a route) is very fast
+// const tokenCache = new Map<string, Token[][]>()
+function tokenizePath(path) {
+    if (!path)
+        return [[]];
+    if (path === '/')
+        return [[ROOT_TOKEN]];
+    if (!path.startsWith('/')) {
+        throw new Error(( true)
+            ? `Route paths should start with a "/": "${path}" should be "/${path}".`
+            : 0);
+    }
+    // if (tokenCache.has(path)) return tokenCache.get(path)!
+    function crash(message) {
+        throw new Error(`ERR (${state})/"${buffer}": ${message}`);
+    }
+    let state = 0 /* TokenizerState.Static */;
+    let previousState = state;
+    const tokens = [];
+    // the segment will always be valid because we get into the initial state
+    // with the leading /
+    let segment;
+    function finalizeSegment() {
+        if (segment)
+            tokens.push(segment);
+        segment = [];
+    }
+    // index on the path
+    let i = 0;
+    // char at index
+    let char;
+    // buffer of the value read
+    let buffer = '';
+    // custom regexp for a param
+    let customRe = '';
+    function consumeBuffer() {
+        if (!buffer)
+            return;
+        if (state === 0 /* TokenizerState.Static */) {
+            segment.push({
+                type: 0 /* TokenType.Static */,
+                value: buffer,
+            });
+        }
+        else if (state === 1 /* TokenizerState.Param */ ||
+            state === 2 /* TokenizerState.ParamRegExp */ ||
+            state === 3 /* TokenizerState.ParamRegExpEnd */) {
+            if (segment.length > 1 && (char === '*' || char === '+'))
+                crash(`A repeatable param (${buffer}) must be alone in its segment. eg: '/:ids+.`);
+            segment.push({
+                type: 1 /* TokenType.Param */,
+                value: buffer,
+                regexp: customRe,
+                repeatable: char === '*' || char === '+',
+                optional: char === '*' || char === '?',
+            });
+        }
+        else {
+            crash('Invalid state to consume buffer');
+        }
+        buffer = '';
+    }
+    function addCharToBuffer() {
+        buffer += char;
+    }
+    while (i < path.length) {
+        char = path[i++];
+        if (char === '\\' && state !== 2 /* TokenizerState.ParamRegExp */) {
+            previousState = state;
+            state = 4 /* TokenizerState.EscapeNext */;
+            continue;
+        }
+        switch (state) {
+            case 0 /* TokenizerState.Static */:
+                if (char === '/') {
+                    if (buffer) {
+                        consumeBuffer();
+                    }
+                    finalizeSegment();
+                }
+                else if (char === ':') {
+                    consumeBuffer();
+                    state = 1 /* TokenizerState.Param */;
+                }
+                else {
+                    addCharToBuffer();
+                }
+                break;
+            case 4 /* TokenizerState.EscapeNext */:
+                addCharToBuffer();
+                state = previousState;
+                break;
+            case 1 /* TokenizerState.Param */:
+                if (char === '(') {
+                    state = 2 /* TokenizerState.ParamRegExp */;
+                }
+                else if (VALID_PARAM_RE.test(char)) {
+                    addCharToBuffer();
+                }
+                else {
+                    consumeBuffer();
+                    state = 0 /* TokenizerState.Static */;
+                    // go back one character if we were not modifying
+                    if (char !== '*' && char !== '?' && char !== '+')
+                        i--;
+                }
+                break;
+            case 2 /* TokenizerState.ParamRegExp */:
+                // TODO: is it worth handling nested regexp? like :p(?:prefix_([^/]+)_suffix)
+                // it already works by escaping the closing )
+                // https://paths.esm.dev/?p=AAMeJbiAwQEcDKbAoAAkP60PG2R6QAvgNaA6AFACM2ABuQBB#
+                // is this really something people need since you can also write
+                // /prefix_:p()_suffix
+                if (char === ')') {
+                    // handle the escaped )
+                    if (customRe[customRe.length - 1] == '\\')
+                        customRe = customRe.slice(0, -1) + char;
+                    else
+                        state = 3 /* TokenizerState.ParamRegExpEnd */;
+                }
+                else {
+                    customRe += char;
+                }
+                break;
+            case 3 /* TokenizerState.ParamRegExpEnd */:
+                // same as finalizing a param
+                consumeBuffer();
+                state = 0 /* TokenizerState.Static */;
+                // go back one character if we were not modifying
+                if (char !== '*' && char !== '?' && char !== '+')
+                    i--;
+                customRe = '';
+                break;
+            default:
+                crash('Unknown state');
+                break;
+        }
+    }
+    if (state === 2 /* TokenizerState.ParamRegExp */)
+        crash(`Unfinished custom RegExp for param "${buffer}"`);
+    consumeBuffer();
+    finalizeSegment();
+    // tokenCache.set(path, tokens)
+    return tokens;
+}
+
+function createRouteRecordMatcher(record, parent, options) {
+    const parser = tokensToParser(tokenizePath(record.path), options);
+    // warn against params with the same name
+    if ((true)) {
+        const existingKeys = new Set();
+        for (const key of parser.keys) {
+            if (existingKeys.has(key.name))
+                warn(`Found duplicated params with name "${key.name}" for path "${record.path}". Only the last one will be available on "$route.params".`);
+            existingKeys.add(key.name);
+        }
+    }
+    const matcher = assign(parser, {
+        record,
+        parent,
+        // these needs to be populated by the parent
+        children: [],
+        alias: [],
+    });
+    if (parent) {
+        // both are aliases or both are not aliases
+        // we don't want to mix them because the order is used when
+        // passing originalRecord in Matcher.addRoute
+        if (!matcher.record.aliasOf === !parent.record.aliasOf)
+            parent.children.push(matcher);
+    }
+    return matcher;
+}
+
+/**
+ * Creates a Router Matcher.
+ *
+ * @internal
+ * @param routes - array of initial routes
+ * @param globalOptions - global route options
+ */
+function createRouterMatcher(routes, globalOptions) {
+    // normalized ordered array of matchers
+    const matchers = [];
+    const matcherMap = new Map();
+    globalOptions = mergeOptions({ strict: false, end: true, sensitive: false }, globalOptions);
+    function getRecordMatcher(name) {
+        return matcherMap.get(name);
+    }
+    function addRoute(record, parent, originalRecord) {
+        // used later on to remove by name
+        const isRootAdd = !originalRecord;
+        const mainNormalizedRecord = normalizeRouteRecord(record);
+        if ((true)) {
+            checkChildMissingNameWithEmptyPath(mainNormalizedRecord, parent);
+        }
+        // we might be the child of an alias
+        mainNormalizedRecord.aliasOf = originalRecord && originalRecord.record;
+        const options = mergeOptions(globalOptions, record);
+        // generate an array of records to correctly handle aliases
+        const normalizedRecords = [
+            mainNormalizedRecord,
+        ];
+        if ('alias' in record) {
+            const aliases = typeof record.alias === 'string' ? [record.alias] : record.alias;
+            for (const alias of aliases) {
+                normalizedRecords.push(assign({}, mainNormalizedRecord, {
+                    // this allows us to hold a copy of the `components` option
+                    // so that async components cache is hold on the original record
+                    components: originalRecord
+                        ? originalRecord.record.components
+                        : mainNormalizedRecord.components,
+                    path: alias,
+                    // we might be the child of an alias
+                    aliasOf: originalRecord
+                        ? originalRecord.record
+                        : mainNormalizedRecord,
+                    // the aliases are always of the same kind as the original since they
+                    // are defined on the same record
+                }));
+            }
+        }
+        let matcher;
+        let originalMatcher;
+        for (const normalizedRecord of normalizedRecords) {
+            const { path } = normalizedRecord;
+            // Build up the path for nested routes if the child isn't an absolute
+            // route. Only add the / delimiter if the child path isn't empty and if the
+            // parent path doesn't have a trailing slash
+            if (parent && path[0] !== '/') {
+                const parentPath = parent.record.path;
+                const connectingSlash = parentPath[parentPath.length - 1] === '/' ? '' : '/';
+                normalizedRecord.path =
+                    parent.record.path + (path && connectingSlash + path);
+            }
+            if (( true) && normalizedRecord.path === '*') {
+                throw new Error('Catch all routes ("*") must now be defined using a param with a custom regexp.\n' +
+                    'See more at https://next.router.vuejs.org/guide/migration/#removed-star-or-catch-all-routes.');
+            }
+            // create the object beforehand, so it can be passed to children
+            matcher = createRouteRecordMatcher(normalizedRecord, parent, options);
+            if (( true) && parent && path[0] === '/')
+                checkMissingParamsInAbsolutePath(matcher, parent);
+            // if we are an alias we must tell the original record that we exist,
+            // so we can be removed
+            if (originalRecord) {
+                originalRecord.alias.push(matcher);
+                if ((true)) {
+                    checkSameParams(originalRecord, matcher);
+                }
+            }
+            else {
+                // otherwise, the first record is the original and others are aliases
+                originalMatcher = originalMatcher || matcher;
+                if (originalMatcher !== matcher)
+                    originalMatcher.alias.push(matcher);
+                // remove the route if named and only for the top record (avoid in nested calls)
+                // this works because the original record is the first one
+                if (isRootAdd && record.name && !isAliasRecord(matcher))
+                    removeRoute(record.name);
+            }
+            if (mainNormalizedRecord.children) {
+                const children = mainNormalizedRecord.children;
+                for (let i = 0; i < children.length; i++) {
+                    addRoute(children[i], matcher, originalRecord && originalRecord.children[i]);
+                }
+            }
+            // if there was no original record, then the first one was not an alias and all
+            // other aliases (if any) need to reference this record when adding children
+            originalRecord = originalRecord || matcher;
+            // TODO: add normalized records for more flexibility
+            // if (parent && isAliasRecord(originalRecord)) {
+            //   parent.children.push(originalRecord)
+            // }
+            // Avoid adding a record that doesn't display anything. This allows passing through records without a component to
+            // not be reached and pass through the catch all route
+            if ((matcher.record.components &&
+                Object.keys(matcher.record.components).length) ||
+                matcher.record.name ||
+                matcher.record.redirect) {
+                insertMatcher(matcher);
+            }
+        }
+        return originalMatcher
+            ? () => {
+                // since other matchers are aliases, they should be removed by the original matcher
+                removeRoute(originalMatcher);
+            }
+            : noop;
+    }
+    function removeRoute(matcherRef) {
+        if (isRouteName(matcherRef)) {
+            const matcher = matcherMap.get(matcherRef);
+            if (matcher) {
+                matcherMap.delete(matcherRef);
+                matchers.splice(matchers.indexOf(matcher), 1);
+                matcher.children.forEach(removeRoute);
+                matcher.alias.forEach(removeRoute);
+            }
+        }
+        else {
+            const index = matchers.indexOf(matcherRef);
+            if (index > -1) {
+                matchers.splice(index, 1);
+                if (matcherRef.record.name)
+                    matcherMap.delete(matcherRef.record.name);
+                matcherRef.children.forEach(removeRoute);
+                matcherRef.alias.forEach(removeRoute);
+            }
+        }
+    }
+    function getRoutes() {
+        return matchers;
+    }
+    function insertMatcher(matcher) {
+        let i = 0;
+        while (i < matchers.length &&
+            comparePathParserScore(matcher, matchers[i]) >= 0 &&
+            // Adding children with empty path should still appear before the parent
+            // https://github.com/vuejs/router/issues/1124
+            (matcher.record.path !== matchers[i].record.path ||
+                !isRecordChildOf(matcher, matchers[i])))
+            i++;
+        matchers.splice(i, 0, matcher);
+        // only add the original record to the name map
+        if (matcher.record.name && !isAliasRecord(matcher))
+            matcherMap.set(matcher.record.name, matcher);
+    }
+    function resolve(location, currentLocation) {
+        let matcher;
+        let params = {};
+        let path;
+        let name;
+        if ('name' in location && location.name) {
+            matcher = matcherMap.get(location.name);
+            if (!matcher)
+                throw createRouterError(1 /* ErrorTypes.MATCHER_NOT_FOUND */, {
+                    location,
+                });
+            // warn if the user is passing invalid params so they can debug it better when they get removed
+            if ((true)) {
+                const invalidParams = Object.keys(location.params || {}).filter(paramName => !matcher.keys.find(k => k.name === paramName));
+                if (invalidParams.length) {
+                    warn(`Discarded invalid param(s) "${invalidParams.join('", "')}" when navigating. See https://github.com/vuejs/router/blob/main/packages/router/CHANGELOG.md#414-2022-08-22 for more details.`);
+                }
+            }
+            name = matcher.record.name;
+            params = assign(
+            // paramsFromLocation is a new object
+            paramsFromLocation(currentLocation.params, 
+            // only keep params that exist in the resolved location
+            // only keep optional params coming from a parent record
+            matcher.keys
+                .filter(k => !k.optional)
+                .concat(matcher.parent ? matcher.parent.keys.filter(k => k.optional) : [])
+                .map(k => k.name)), 
+            // discard any existing params in the current location that do not exist here
+            // #1497 this ensures better active/exact matching
+            location.params &&
+                paramsFromLocation(location.params, matcher.keys.map(k => k.name)));
+            // throws if cannot be stringified
+            path = matcher.stringify(params);
+        }
+        else if (location.path != null) {
+            // no need to resolve the path with the matcher as it was provided
+            // this also allows the user to control the encoding
+            path = location.path;
+            if (( true) && !path.startsWith('/')) {
+                warn(`The Matcher cannot resolve relative paths but received "${path}". Unless you directly called \`matcher.resolve("${path}")\`, this is probably a bug in vue-router. Please open an issue at https://github.com/vuejs/router/issues/new/choose.`);
+            }
+            matcher = matchers.find(m => m.re.test(path));
+            // matcher should have a value after the loop
+            if (matcher) {
+                // we know the matcher works because we tested the regexp
+                params = matcher.parse(path);
+                name = matcher.record.name;
+            }
+            // location is a relative path
+        }
+        else {
+            // match by name or path of current route
+            matcher = currentLocation.name
+                ? matcherMap.get(currentLocation.name)
+                : matchers.find(m => m.re.test(currentLocation.path));
+            if (!matcher)
+                throw createRouterError(1 /* ErrorTypes.MATCHER_NOT_FOUND */, {
+                    location,
+                    currentLocation,
+                });
+            name = matcher.record.name;
+            // since we are navigating to the same location, we don't need to pick the
+            // params like when `name` is provided
+            params = assign({}, currentLocation.params, location.params);
+            path = matcher.stringify(params);
+        }
+        const matched = [];
+        let parentMatcher = matcher;
+        while (parentMatcher) {
+            // reversed order so parents are at the beginning
+            matched.unshift(parentMatcher.record);
+            parentMatcher = parentMatcher.parent;
+        }
+        return {
+            name,
+            path,
+            params,
+            matched,
+            meta: mergeMetaFields(matched),
+        };
+    }
+    // add initial routes
+    routes.forEach(route => addRoute(route));
+    return { addRoute, resolve, removeRoute, getRoutes, getRecordMatcher };
+}
+function paramsFromLocation(params, keys) {
+    const newParams = {};
+    for (const key of keys) {
+        if (key in params)
+            newParams[key] = params[key];
+    }
+    return newParams;
+}
+/**
+ * Normalizes a RouteRecordRaw. Creates a copy
+ *
+ * @param record
+ * @returns the normalized version
+ */
+function normalizeRouteRecord(record) {
+    return {
+        path: record.path,
+        redirect: record.redirect,
+        name: record.name,
+        meta: record.meta || {},
+        aliasOf: undefined,
+        beforeEnter: record.beforeEnter,
+        props: normalizeRecordProps(record),
+        children: record.children || [],
+        instances: {},
+        leaveGuards: new Set(),
+        updateGuards: new Set(),
+        enterCallbacks: {},
+        components: 'components' in record
+            ? record.components || null
+            : record.component && { default: record.component },
+    };
+}
+/**
+ * Normalize the optional `props` in a record to always be an object similar to
+ * components. Also accept a boolean for components.
+ * @param record
+ */
+function normalizeRecordProps(record) {
+    const propsObject = {};
+    // props does not exist on redirect records, but we can set false directly
+    const props = record.props || false;
+    if ('component' in record) {
+        propsObject.default = props;
+    }
+    else {
+        // NOTE: we could also allow a function to be applied to every component.
+        // Would need user feedback for use cases
+        for (const name in record.components)
+            propsObject[name] = typeof props === 'object' ? props[name] : props;
+    }
+    return propsObject;
+}
+/**
+ * Checks if a record or any of its parent is an alias
+ * @param record
+ */
+function isAliasRecord(record) {
+    while (record) {
+        if (record.record.aliasOf)
+            return true;
+        record = record.parent;
+    }
+    return false;
+}
+/**
+ * Merge meta fields of an array of records
+ *
+ * @param matched - array of matched records
+ */
+function mergeMetaFields(matched) {
+    return matched.reduce((meta, record) => assign(meta, record.meta), {});
+}
+function mergeOptions(defaults, partialOptions) {
+    const options = {};
+    for (const key in defaults) {
+        options[key] = key in partialOptions ? partialOptions[key] : defaults[key];
+    }
+    return options;
+}
+function isSameParam(a, b) {
+    return (a.name === b.name &&
+        a.optional === b.optional &&
+        a.repeatable === b.repeatable);
+}
+/**
+ * Check if a path and its alias have the same required params
+ *
+ * @param a - original record
+ * @param b - alias record
+ */
+function checkSameParams(a, b) {
+    for (const key of a.keys) {
+        if (!key.optional && !b.keys.find(isSameParam.bind(null, key)))
+            return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" must have the exact same param named "${key.name}"`);
+    }
+    for (const key of b.keys) {
+        if (!key.optional && !a.keys.find(isSameParam.bind(null, key)))
+            return warn(`Alias "${b.record.path}" and the original record: "${a.record.path}" must have the exact same param named "${key.name}"`);
+    }
+}
+/**
+ * A route with a name and a child with an empty path without a name should warn when adding the route
+ *
+ * @param mainNormalizedRecord - RouteRecordNormalized
+ * @param parent - RouteRecordMatcher
+ */
+function checkChildMissingNameWithEmptyPath(mainNormalizedRecord, parent) {
+    if (parent &&
+        parent.record.name &&
+        !mainNormalizedRecord.name &&
+        !mainNormalizedRecord.path) {
+        warn(`The route named "${String(parent.record.name)}" has a child without a name and an empty path. Using that name won't render the empty path child so you probably want to move the name to the child instead. If this is intentional, add a name to the child route to remove the warning.`);
+    }
+}
+function checkMissingParamsInAbsolutePath(record, parent) {
+    for (const key of parent.keys) {
+        if (!record.keys.find(isSameParam.bind(null, key)))
+            return warn(`Absolute path "${record.record.path}" must have the exact same param named "${key.name}" as its parent "${parent.record.path}".`);
+    }
+}
+function isRecordChildOf(record, parent) {
+    return parent.children.some(child => child === record || isRecordChildOf(record, child));
+}
+
+/**
+ * Transforms a queryString into a {@link LocationQuery} object. Accept both, a
+ * version with the leading `?` and without Should work as URLSearchParams
+
+ * @internal
+ *
+ * @param search - search string to parse
+ * @returns a query object
+ */
+function parseQuery(search) {
+    const query = {};
+    // avoid creating an object with an empty key and empty value
+    // because of split('&')
+    if (search === '' || search === '?')
+        return query;
+    const hasLeadingIM = search[0] === '?';
+    const searchParams = (hasLeadingIM ? search.slice(1) : search).split('&');
+    for (let i = 0; i < searchParams.length; ++i) {
+        // pre decode the + into space
+        const searchParam = searchParams[i].replace(PLUS_RE, ' ');
+        // allow the = character
+        const eqPos = searchParam.indexOf('=');
+        const key = decode(eqPos < 0 ? searchParam : searchParam.slice(0, eqPos));
+        const value = eqPos < 0 ? null : decode(searchParam.slice(eqPos + 1));
+        if (key in query) {
+            // an extra variable for ts types
+            let currentValue = query[key];
+            if (!isArray(currentValue)) {
+                currentValue = query[key] = [currentValue];
+            }
+            currentValue.push(value);
+        }
+        else {
+            query[key] = value;
+        }
+    }
+    return query;
+}
+/**
+ * Stringifies a {@link LocationQueryRaw} object. Like `URLSearchParams`, it
+ * doesn't prepend a `?`
+ *
+ * @internal
+ *
+ * @param query - query object to stringify
+ * @returns string version of the query without the leading `?`
+ */
+function stringifyQuery(query) {
+    let search = '';
+    for (let key in query) {
+        const value = query[key];
+        key = encodeQueryKey(key);
+        if (value == null) {
+            // only null adds the value
+            if (value !== undefined) {
+                search += (search.length ? '&' : '') + key;
+            }
+            continue;
+        }
+        // keep null values
+        const values = isArray(value)
+            ? value.map(v => v && encodeQueryValue(v))
+            : [value && encodeQueryValue(value)];
+        values.forEach(value => {
+            // skip undefined values in arrays as if they were not present
+            // smaller code than using filter
+            if (value !== undefined) {
+                // only append & with non-empty search
+                search += (search.length ? '&' : '') + key;
+                if (value != null)
+                    search += '=' + value;
+            }
+        });
+    }
+    return search;
+}
+/**
+ * Transforms a {@link LocationQueryRaw} into a {@link LocationQuery} by casting
+ * numbers into strings, removing keys with an undefined value and replacing
+ * undefined with null in arrays
+ *
+ * @param query - query object to normalize
+ * @returns a normalized query object
+ */
+function normalizeQuery(query) {
+    const normalizedQuery = {};
+    for (const key in query) {
+        const value = query[key];
+        if (value !== undefined) {
+            normalizedQuery[key] = isArray(value)
+                ? value.map(v => (v == null ? null : '' + v))
+                : value == null
+                    ? value
+                    : '' + value;
+        }
+    }
+    return normalizedQuery;
+}
+
+/**
+ * RouteRecord being rendered by the closest ancestor Router View. Used for
+ * `onBeforeRouteUpdate` and `onBeforeRouteLeave`. rvlm stands for Router View
+ * Location Matched
+ *
+ * @internal
+ */
+const matchedRouteKey = Symbol(( true) ? 'router view location matched' : 0);
+/**
+ * Allows overriding the router view depth to control which component in
+ * `matched` is rendered. rvd stands for Router View Depth
+ *
+ * @internal
+ */
+const viewDepthKey = Symbol(( true) ? 'router view depth' : 0);
+/**
+ * Allows overriding the router instance returned by `useRouter` in tests. r
+ * stands for router
+ *
+ * @internal
+ */
+const routerKey = Symbol(( true) ? 'router' : 0);
+/**
+ * Allows overriding the current route returned by `useRoute` in tests. rl
+ * stands for route location
+ *
+ * @internal
+ */
+const routeLocationKey = Symbol(( true) ? 'route location' : 0);
+/**
+ * Allows overriding the current route used by router-view. Internally this is
+ * used when the `route` prop is passed.
+ *
+ * @internal
+ */
+const routerViewLocationKey = Symbol(( true) ? 'router view location' : 0);
+
+/**
+ * Create a list of callbacks that can be reset. Used to create before and after navigation guards list
+ */
+function useCallbacks() {
+    let handlers = [];
+    function add(handler) {
+        handlers.push(handler);
+        return () => {
+            const i = handlers.indexOf(handler);
+            if (i > -1)
+                handlers.splice(i, 1);
+        };
+    }
+    function reset() {
+        handlers = [];
+    }
+    return {
+        add,
+        list: () => handlers.slice(),
+        reset,
+    };
+}
+
+function registerGuard(record, name, guard) {
+    const removeFromList = () => {
+        record[name].delete(guard);
+    };
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onUnmounted)(removeFromList);
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onDeactivated)(removeFromList);
+    (0,vue__WEBPACK_IMPORTED_MODULE_0__.onActivated)(() => {
+        record[name].add(guard);
+    });
+    record[name].add(guard);
+}
+/**
+ * Add a navigation guard that triggers whenever the component for the current
+ * location is about to be left. Similar to {@link beforeRouteLeave} but can be
+ * used in any component. The guard is removed when the component is unmounted.
+ *
+ * @param leaveGuard - {@link NavigationGuard}
+ */
+function onBeforeRouteLeave(leaveGuard) {
+    if (( true) && !(0,vue__WEBPACK_IMPORTED_MODULE_0__.getCurrentInstance)()) {
+        warn('getCurrentInstance() returned null. onBeforeRouteLeave() must be called at the top of a setup function');
+        return;
+    }
+    const activeRecord = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(matchedRouteKey, 
+    // to avoid warning
+    {}).value;
+    if (!activeRecord) {
+        ( true) &&
+            warn('No active route record was found when calling `onBeforeRouteLeave()`. Make sure you call this function inside a component child of <router-view>. Maybe you called it inside of App.vue?');
+        return;
+    }
+    registerGuard(activeRecord, 'leaveGuards', leaveGuard);
+}
+/**
+ * Add a navigation guard that triggers whenever the current location is about
+ * to be updated. Similar to {@link beforeRouteUpdate} but can be used in any
+ * component. The guard is removed when the component is unmounted.
+ *
+ * @param updateGuard - {@link NavigationGuard}
+ */
+function onBeforeRouteUpdate(updateGuard) {
+    if (( true) && !(0,vue__WEBPACK_IMPORTED_MODULE_0__.getCurrentInstance)()) {
+        warn('getCurrentInstance() returned null. onBeforeRouteUpdate() must be called at the top of a setup function');
+        return;
+    }
+    const activeRecord = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(matchedRouteKey, 
+    // to avoid warning
+    {}).value;
+    if (!activeRecord) {
+        ( true) &&
+            warn('No active route record was found when calling `onBeforeRouteUpdate()`. Make sure you call this function inside a component child of <router-view>. Maybe you called it inside of App.vue?');
+        return;
+    }
+    registerGuard(activeRecord, 'updateGuards', updateGuard);
+}
+function guardToPromiseFn(guard, to, from, record, name, runWithContext = fn => fn()) {
+    // keep a reference to the enterCallbackArray to prevent pushing callbacks if a new navigation took place
+    const enterCallbackArray = record &&
+        // name is defined if record is because of the function overload
+        (record.enterCallbacks[name] = record.enterCallbacks[name] || []);
+    return () => new Promise((resolve, reject) => {
+        const next = (valid) => {
+            if (valid === false) {
+                reject(createRouterError(4 /* ErrorTypes.NAVIGATION_ABORTED */, {
+                    from,
+                    to,
+                }));
+            }
+            else if (valid instanceof Error) {
+                reject(valid);
+            }
+            else if (isRouteLocation(valid)) {
+                reject(createRouterError(2 /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */, {
+                    from: to,
+                    to: valid,
+                }));
+            }
+            else {
+                if (enterCallbackArray &&
+                    // since enterCallbackArray is truthy, both record and name also are
+                    record.enterCallbacks[name] === enterCallbackArray &&
+                    typeof valid === 'function') {
+                    enterCallbackArray.push(valid);
+                }
+                resolve();
+            }
+        };
+        // wrapping with Promise.resolve allows it to work with both async and sync guards
+        const guardReturn = runWithContext(() => guard.call(record && record.instances[name], to, from, ( true) ? canOnlyBeCalledOnce(next, to, from) : 0));
+        let guardCall = Promise.resolve(guardReturn);
+        if (guard.length < 3)
+            guardCall = guardCall.then(next);
+        if (( true) && guard.length > 2) {
+            const message = `The "next" callback was never called inside of ${guard.name ? '"' + guard.name + '"' : ''}:\n${guard.toString()}\n. If you are returning a value instead of calling "next", make sure to remove the "next" parameter from your function.`;
+            if (typeof guardReturn === 'object' && 'then' in guardReturn) {
+                guardCall = guardCall.then(resolvedValue => {
+                    // @ts-expect-error: _called is added at canOnlyBeCalledOnce
+                    if (!next._called) {
+                        warn(message);
+                        return Promise.reject(new Error('Invalid navigation guard'));
+                    }
+                    return resolvedValue;
+                });
+            }
+            else if (guardReturn !== undefined) {
+                // @ts-expect-error: _called is added at canOnlyBeCalledOnce
+                if (!next._called) {
+                    warn(message);
+                    reject(new Error('Invalid navigation guard'));
+                    return;
+                }
+            }
+        }
+        guardCall.catch(err => reject(err));
+    });
+}
+function canOnlyBeCalledOnce(next, to, from) {
+    let called = 0;
+    return function () {
+        if (called++ === 1)
+            warn(`The "next" callback was called more than once in one navigation guard when going from "${from.fullPath}" to "${to.fullPath}". It should be called exactly one time in each navigation guard. This will fail in production.`);
+        // @ts-expect-error: we put it in the original one because it's easier to check
+        next._called = true;
+        if (called === 1)
+            next.apply(null, arguments);
+    };
+}
+function extractComponentsGuards(matched, guardType, to, from, runWithContext = fn => fn()) {
+    const guards = [];
+    for (const record of matched) {
+        if (( true) && !record.components && !record.children.length) {
+            warn(`Record with path "${record.path}" is either missing a "component(s)"` +
+                ` or "children" property.`);
+        }
+        for (const name in record.components) {
+            let rawComponent = record.components[name];
+            if ((true)) {
+                if (!rawComponent ||
+                    (typeof rawComponent !== 'object' &&
+                        typeof rawComponent !== 'function')) {
+                    warn(`Component "${name}" in record with path "${record.path}" is not` +
+                        ` a valid component. Received "${String(rawComponent)}".`);
+                    // throw to ensure we stop here but warn to ensure the message isn't
+                    // missed by the user
+                    throw new Error('Invalid route component');
+                }
+                else if ('then' in rawComponent) {
+                    // warn if user wrote import('/component.vue') instead of () =>
+                    // import('./component.vue')
+                    warn(`Component "${name}" in record with path "${record.path}" is a ` +
+                        `Promise instead of a function that returns a Promise. Did you ` +
+                        `write "import('./MyPage.vue')" instead of ` +
+                        `"() => import('./MyPage.vue')" ? This will break in ` +
+                        `production if not fixed.`);
+                    const promise = rawComponent;
+                    rawComponent = () => promise;
+                }
+                else if (rawComponent.__asyncLoader &&
+                    // warn only once per component
+                    !rawComponent.__warnedDefineAsync) {
+                    rawComponent.__warnedDefineAsync = true;
+                    warn(`Component "${name}" in record with path "${record.path}" is defined ` +
+                        `using "defineAsyncComponent()". ` +
+                        `Write "() => import('./MyPage.vue')" instead of ` +
+                        `"defineAsyncComponent(() => import('./MyPage.vue'))".`);
+                }
+            }
+            // skip update and leave guards if the route component is not mounted
+            if (guardType !== 'beforeRouteEnter' && !record.instances[name])
+                continue;
+            if (isRouteComponent(rawComponent)) {
+                // __vccOpts is added by vue-class-component and contain the regular options
+                const options = rawComponent.__vccOpts || rawComponent;
+                const guard = options[guardType];
+                guard &&
+                    guards.push(guardToPromiseFn(guard, to, from, record, name, runWithContext));
+            }
+            else {
+                // start requesting the chunk already
+                let componentPromise = rawComponent();
+                if (( true) && !('catch' in componentPromise)) {
+                    warn(`Component "${name}" in record with path "${record.path}" is a function that does not return a Promise. If you were passing a functional component, make sure to add a "displayName" to the component. This will break in production if not fixed.`);
+                    componentPromise = Promise.resolve(componentPromise);
+                }
+                guards.push(() => componentPromise.then(resolved => {
+                    if (!resolved)
+                        return Promise.reject(new Error(`Couldn't resolve component "${name}" at "${record.path}"`));
+                    const resolvedComponent = isESModule(resolved)
+                        ? resolved.default
+                        : resolved;
+                    // replace the function with the resolved component
+                    // cannot be null or undefined because we went into the for loop
+                    record.components[name] = resolvedComponent;
+                    // __vccOpts is added by vue-class-component and contain the regular options
+                    const options = resolvedComponent.__vccOpts || resolvedComponent;
+                    const guard = options[guardType];
+                    return (guard &&
+                        guardToPromiseFn(guard, to, from, record, name, runWithContext)());
+                }));
+            }
+        }
+    }
+    return guards;
+}
+/**
+ * Allows differentiating lazy components from functional components and vue-class-component
+ * @internal
+ *
+ * @param component
+ */
+function isRouteComponent(component) {
+    return (typeof component === 'object' ||
+        'displayName' in component ||
+        'props' in component ||
+        '__vccOpts' in component);
+}
+/**
+ * Ensures a route is loaded, so it can be passed as o prop to `<RouterView>`.
+ *
+ * @param route - resolved route to load
+ */
+function loadRouteLocation(route) {
+    return route.matched.every(record => record.redirect)
+        ? Promise.reject(new Error('Cannot load a route that redirects.'))
+        : Promise.all(route.matched.map(record => record.components &&
+            Promise.all(Object.keys(record.components).reduce((promises, name) => {
+                const rawComponent = record.components[name];
+                if (typeof rawComponent === 'function' &&
+                    !('displayName' in rawComponent)) {
+                    promises.push(rawComponent().then(resolved => {
+                        if (!resolved)
+                            return Promise.reject(new Error(`Couldn't resolve component "${name}" at "${record.path}". Ensure you passed a function that returns a promise.`));
+                        const resolvedComponent = isESModule(resolved)
+                            ? resolved.default
+                            : resolved;
+                        // replace the function with the resolved component
+                        // cannot be null or undefined because we went into the for loop
+                        record.components[name] = resolvedComponent;
+                        return;
+                    }));
+                }
+                return promises;
+            }, [])))).then(() => route);
+}
+
+// TODO: we could allow currentRoute as a prop to expose `isActive` and
+// `isExactActive` behavior should go through an RFC
+function useLink(props) {
+    const router = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routerKey);
+    const currentRoute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routeLocationKey);
+    const route = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => router.resolve((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(props.to)));
+    const activeRecordIndex = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+        const { matched } = route.value;
+        const { length } = matched;
+        const routeMatched = matched[length - 1];
+        const currentMatched = currentRoute.matched;
+        if (!routeMatched || !currentMatched.length)
+            return -1;
+        const index = currentMatched.findIndex(isSameRouteRecord.bind(null, routeMatched));
+        if (index > -1)
+            return index;
+        // possible parent record
+        const parentRecordPath = getOriginalPath(matched[length - 2]);
+        return (
+        // we are dealing with nested routes
+        length > 1 &&
+            // if the parent and matched route have the same path, this link is
+            // referring to the empty child. Or we currently are on a different
+            // child of the same parent
+            getOriginalPath(routeMatched) === parentRecordPath &&
+            // avoid comparing the child with its parent
+            currentMatched[currentMatched.length - 1].path !== parentRecordPath
+            ? currentMatched.findIndex(isSameRouteRecord.bind(null, matched[length - 2]))
+            : index);
+    });
+    const isActive = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => activeRecordIndex.value > -1 &&
+        includesParams(currentRoute.params, route.value.params));
+    const isExactActive = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => activeRecordIndex.value > -1 &&
+        activeRecordIndex.value === currentRoute.matched.length - 1 &&
+        isSameRouteLocationParams(currentRoute.params, route.value.params));
+    function navigate(e = {}) {
+        if (guardEvent(e)) {
+            return router[(0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(props.replace) ? 'replace' : 'push']((0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(props.to)
+            // avoid uncaught errors are they are logged anyway
+            ).catch(noop);
+        }
+        return Promise.resolve();
+    }
+    // devtools only
+    if (( true) && isBrowser) {
+        const instance = (0,vue__WEBPACK_IMPORTED_MODULE_0__.getCurrentInstance)();
+        if (instance) {
+            const linkContextDevtools = {
+                route: route.value,
+                isActive: isActive.value,
+                isExactActive: isExactActive.value,
+            };
+            // @ts-expect-error: this is internal
+            instance.__vrl_devtools = instance.__vrl_devtools || [];
+            // @ts-expect-error: this is internal
+            instance.__vrl_devtools.push(linkContextDevtools);
+            (0,vue__WEBPACK_IMPORTED_MODULE_0__.watchEffect)(() => {
+                linkContextDevtools.route = route.value;
+                linkContextDevtools.isActive = isActive.value;
+                linkContextDevtools.isExactActive = isExactActive.value;
+            }, { flush: 'post' });
+        }
+    }
+    /**
+     * NOTE: update {@link _RouterLinkI}'s `$slots` type when updating this
+     */
+    return {
+        route,
+        href: (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => route.value.href),
+        isActive,
+        isExactActive,
+        navigate,
+    };
+}
+const RouterLinkImpl = /*#__PURE__*/ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+    name: 'RouterLink',
+    compatConfig: { MODE: 3 },
+    props: {
+        to: {
+            type: [String, Object],
+            required: true,
+        },
+        replace: Boolean,
+        activeClass: String,
+        // inactiveClass: String,
+        exactActiveClass: String,
+        custom: Boolean,
+        ariaCurrentValue: {
+            type: String,
+            default: 'page',
+        },
+    },
+    useLink,
+    setup(props, { slots }) {
+        const link = (0,vue__WEBPACK_IMPORTED_MODULE_0__.reactive)(useLink(props));
+        const { options } = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routerKey);
+        const elClass = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => ({
+            [getLinkClass(props.activeClass, options.linkActiveClass, 'router-link-active')]: link.isActive,
+            // [getLinkClass(
+            //   props.inactiveClass,
+            //   options.linkInactiveClass,
+            //   'router-link-inactive'
+            // )]: !link.isExactActive,
+            [getLinkClass(props.exactActiveClass, options.linkExactActiveClass, 'router-link-exact-active')]: link.isExactActive,
+        }));
+        return () => {
+            const children = slots.default && slots.default(link);
+            return props.custom
+                ? children
+                : (0,vue__WEBPACK_IMPORTED_MODULE_0__.h)('a', {
+                    'aria-current': link.isExactActive
+                        ? props.ariaCurrentValue
+                        : null,
+                    href: link.href,
+                    // this would override user added attrs but Vue will still add
+                    // the listener, so we end up triggering both
+                    onClick: link.navigate,
+                    class: elClass.value,
+                }, children);
+        };
+    },
+});
+// export the public type for h/tsx inference
+// also to avoid inline import() in generated d.ts files
+/**
+ * Component to render a link that triggers a navigation on click.
+ */
+const RouterLink = RouterLinkImpl;
+function guardEvent(e) {
+    // don't redirect with control keys
+    if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)
+        return;
+    // don't redirect when preventDefault called
+    if (e.defaultPrevented)
+        return;
+    // don't redirect on right click
+    if (e.button !== undefined && e.button !== 0)
+        return;
+    // don't redirect if `target="_blank"`
+    // @ts-expect-error getAttribute does exist
+    if (e.currentTarget && e.currentTarget.getAttribute) {
+        // @ts-expect-error getAttribute exists
+        const target = e.currentTarget.getAttribute('target');
+        if (/\b_blank\b/i.test(target))
+            return;
+    }
+    // this may be a Weex event which doesn't have this method
+    if (e.preventDefault)
+        e.preventDefault();
+    return true;
+}
+function includesParams(outer, inner) {
+    for (const key in inner) {
+        const innerValue = inner[key];
+        const outerValue = outer[key];
+        if (typeof innerValue === 'string') {
+            if (innerValue !== outerValue)
+                return false;
+        }
+        else {
+            if (!isArray(outerValue) ||
+                outerValue.length !== innerValue.length ||
+                innerValue.some((value, i) => value !== outerValue[i]))
+                return false;
+        }
+    }
+    return true;
+}
+/**
+ * Get the original path value of a record by following its aliasOf
+ * @param record
+ */
+function getOriginalPath(record) {
+    return record ? (record.aliasOf ? record.aliasOf.path : record.path) : '';
+}
+/**
+ * Utility class to get the active class based on defaults.
+ * @param propClass
+ * @param globalClass
+ * @param defaultClass
+ */
+const getLinkClass = (propClass, globalClass, defaultClass) => propClass != null
+    ? propClass
+    : globalClass != null
+        ? globalClass
+        : defaultClass;
+
+const RouterViewImpl = /*#__PURE__*/ (0,vue__WEBPACK_IMPORTED_MODULE_0__.defineComponent)({
+    name: 'RouterView',
+    // #674 we manually inherit them
+    inheritAttrs: false,
+    props: {
+        name: {
+            type: String,
+            default: 'default',
+        },
+        route: Object,
+    },
+    // Better compat for @vue/compat users
+    // https://github.com/vuejs/router/issues/1315
+    compatConfig: { MODE: 3 },
+    setup(props, { attrs, slots }) {
+        ( true) && warnDeprecatedUsage();
+        const injectedRoute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routerViewLocationKey);
+        const routeToDisplay = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => props.route || injectedRoute.value);
+        const injectedDepth = (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(viewDepthKey, 0);
+        // The depth changes based on empty components option, which allows passthrough routes e.g. routes with children
+        // that are used to reuse the `path` property
+        const depth = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => {
+            let initialDepth = (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(injectedDepth);
+            const { matched } = routeToDisplay.value;
+            let matchedRoute;
+            while ((matchedRoute = matched[initialDepth]) &&
+                !matchedRoute.components) {
+                initialDepth++;
+            }
+            return initialDepth;
+        });
+        const matchedRouteRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => routeToDisplay.value.matched[depth.value]);
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(viewDepthKey, (0,vue__WEBPACK_IMPORTED_MODULE_0__.computed)(() => depth.value + 1));
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(matchedRouteKey, matchedRouteRef);
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.provide)(routerViewLocationKey, routeToDisplay);
+        const viewRef = (0,vue__WEBPACK_IMPORTED_MODULE_0__.ref)();
+        // watch at the same time the component instance, the route record we are
+        // rendering, and the name
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(() => [viewRef.value, matchedRouteRef.value, props.name], ([instance, to, name], [oldInstance, from, oldName]) => {
+            // copy reused instances
+            if (to) {
+                // this will update the instance for new instances as well as reused
+                // instances when navigating to a new route
+                to.instances[name] = instance;
+                // the component instance is reused for a different route or name, so
+                // we copy any saved update or leave guards. With async setup, the
+                // mounting component will mount before the matchedRoute changes,
+                // making instance === oldInstance, so we check if guards have been
+                // added before. This works because we remove guards when
+                // unmounting/deactivating components
+                if (from && from !== to && instance && instance === oldInstance) {
+                    if (!to.leaveGuards.size) {
+                        to.leaveGuards = from.leaveGuards;
+                    }
+                    if (!to.updateGuards.size) {
+                        to.updateGuards = from.updateGuards;
+                    }
+                }
+            }
+            // trigger beforeRouteEnter next callbacks
+            if (instance &&
+                to &&
+                // if there is no instance but to and from are the same this might be
+                // the first visit
+                (!from || !isSameRouteRecord(to, from) || !oldInstance)) {
+                (to.enterCallbacks[name] || []).forEach(callback => callback(instance));
+            }
+        }, { flush: 'post' });
+        return () => {
+            const route = routeToDisplay.value;
+            // we need the value at the time we render because when we unmount, we
+            // navigated to a different location so the value is different
+            const currentName = props.name;
+            const matchedRoute = matchedRouteRef.value;
+            const ViewComponent = matchedRoute && matchedRoute.components[currentName];
+            if (!ViewComponent) {
+                return normalizeSlot(slots.default, { Component: ViewComponent, route });
+            }
+            // props from route configuration
+            const routePropsOption = matchedRoute.props[currentName];
+            const routeProps = routePropsOption
+                ? routePropsOption === true
+                    ? route.params
+                    : typeof routePropsOption === 'function'
+                        ? routePropsOption(route)
+                        : routePropsOption
+                : null;
+            const onVnodeUnmounted = vnode => {
+                // remove the instance reference to prevent leak
+                if (vnode.component.isUnmounted) {
+                    matchedRoute.instances[currentName] = null;
+                }
+            };
+            const component = (0,vue__WEBPACK_IMPORTED_MODULE_0__.h)(ViewComponent, assign({}, routeProps, attrs, {
+                onVnodeUnmounted,
+                ref: viewRef,
+            }));
+            if (( true) &&
+                isBrowser &&
+                component.ref) {
+                // TODO: can display if it's an alias, its props
+                const info = {
+                    depth: depth.value,
+                    name: matchedRoute.name,
+                    path: matchedRoute.path,
+                    meta: matchedRoute.meta,
+                };
+                const internalInstances = isArray(component.ref)
+                    ? component.ref.map(r => r.i)
+                    : [component.ref.i];
+                internalInstances.forEach(instance => {
+                    // @ts-expect-error
+                    instance.__vrv_devtools = info;
+                });
+            }
+            return (
+            // pass the vnode to the slot as a prop.
+            // h and <component :is="..."> both accept vnodes
+            normalizeSlot(slots.default, { Component: component, route }) ||
+                component);
+        };
+    },
+});
+function normalizeSlot(slot, data) {
+    if (!slot)
+        return null;
+    const slotContent = slot(data);
+    return slotContent.length === 1 ? slotContent[0] : slotContent;
+}
+// export the public type for h/tsx inference
+// also to avoid inline import() in generated d.ts files
+/**
+ * Component to display the current route the user is at.
+ */
+const RouterView = RouterViewImpl;
+// warn against deprecated usage with <transition> & <keep-alive>
+// due to functional component being no longer eager in Vue 3
+function warnDeprecatedUsage() {
+    const instance = (0,vue__WEBPACK_IMPORTED_MODULE_0__.getCurrentInstance)();
+    const parentName = instance.parent && instance.parent.type.name;
+    const parentSubTreeType = instance.parent && instance.parent.subTree && instance.parent.subTree.type;
+    if (parentName &&
+        (parentName === 'KeepAlive' || parentName.includes('Transition')) &&
+        typeof parentSubTreeType === 'object' &&
+        parentSubTreeType.name === 'RouterView') {
+        const comp = parentName === 'KeepAlive' ? 'keep-alive' : 'transition';
+        warn(`<router-view> can no longer be used directly inside <transition> or <keep-alive>.\n` +
+            `Use slot props instead:\n\n` +
+            `<router-view v-slot="{ Component }">\n` +
+            `  <${comp}>\n` +
+            `    <component :is="Component" />\n` +
+            `  </${comp}>\n` +
+            `</router-view>`);
+    }
+}
+
+/**
+ * Copies a route location and removes any problematic properties that cannot be shown in devtools (e.g. Vue instances).
+ *
+ * @param routeLocation - routeLocation to format
+ * @param tooltip - optional tooltip
+ * @returns a copy of the routeLocation
+ */
+function formatRouteLocation(routeLocation, tooltip) {
+    const copy = assign({}, routeLocation, {
+        // remove variables that can contain vue instances
+        matched: routeLocation.matched.map(matched => omit(matched, ['instances', 'children', 'aliasOf'])),
+    });
+    return {
+        _custom: {
+            type: null,
+            readOnly: true,
+            display: routeLocation.fullPath,
+            tooltip,
+            value: copy,
+        },
+    };
+}
+function formatDisplay(display) {
+    return {
+        _custom: {
+            display,
+        },
+    };
+}
+// to support multiple router instances
+let routerId = 0;
+function addDevtools(app, router, matcher) {
+    // Take over router.beforeEach and afterEach
+    // make sure we are not registering the devtool twice
+    if (router.__hasDevtools)
+        return;
+    router.__hasDevtools = true;
+    // increment to support multiple router instances
+    const id = routerId++;
+    (0,_vue_devtools_api__WEBPACK_IMPORTED_MODULE_1__.setupDevtoolsPlugin)({
+        id: 'org.vuejs.router' + (id ? '.' + id : ''),
+        label: 'Vue Router',
+        packageName: 'vue-router',
+        homepage: 'https://router.vuejs.org',
+        logo: 'https://router.vuejs.org/logo.png',
+        componentStateTypes: ['Routing'],
+        app,
+    }, api => {
+        if (typeof api.now !== 'function') {
+            console.warn('[Vue Router]: You seem to be using an outdated version of Vue Devtools. Are you still using the Beta release instead of the stable one? You can find the links at https://devtools.vuejs.org/guide/installation.html.');
+        }
+        // display state added by the router
+        api.on.inspectComponent((payload, ctx) => {
+            if (payload.instanceData) {
+                payload.instanceData.state.push({
+                    type: 'Routing',
+                    key: '$route',
+                    editable: false,
+                    value: formatRouteLocation(router.currentRoute.value, 'Current Route'),
+                });
+            }
+        });
+        // mark router-link as active and display tags on router views
+        api.on.visitComponentTree(({ treeNode: node, componentInstance }) => {
+            if (componentInstance.__vrv_devtools) {
+                const info = componentInstance.__vrv_devtools;
+                node.tags.push({
+                    label: (info.name ? `${info.name.toString()}: ` : '') + info.path,
+                    textColor: 0,
+                    tooltip: 'This component is rendered by &lt;router-view&gt;',
+                    backgroundColor: PINK_500,
+                });
+            }
+            // if multiple useLink are used
+            if (isArray(componentInstance.__vrl_devtools)) {
+                componentInstance.__devtoolsApi = api;
+                componentInstance.__vrl_devtools.forEach(devtoolsData => {
+                    let backgroundColor = ORANGE_400;
+                    let tooltip = '';
+                    if (devtoolsData.isExactActive) {
+                        backgroundColor = LIME_500;
+                        tooltip = 'This is exactly active';
+                    }
+                    else if (devtoolsData.isActive) {
+                        backgroundColor = BLUE_600;
+                        tooltip = 'This link is active';
+                    }
+                    node.tags.push({
+                        label: devtoolsData.route.path,
+                        textColor: 0,
+                        tooltip,
+                        backgroundColor,
+                    });
+                });
+            }
+        });
+        (0,vue__WEBPACK_IMPORTED_MODULE_0__.watch)(router.currentRoute, () => {
+            // refresh active state
+            refreshRoutesView();
+            api.notifyComponentUpdate();
+            api.sendInspectorTree(routerInspectorId);
+            api.sendInspectorState(routerInspectorId);
+        });
+        const navigationsLayerId = 'router:navigations:' + id;
+        api.addTimelineLayer({
+            id: navigationsLayerId,
+            label: `Router${id ? ' ' + id : ''} Navigations`,
+            color: 0x40a8c4,
+        });
+        // const errorsLayerId = 'router:errors'
+        // api.addTimelineLayer({
+        //   id: errorsLayerId,
+        //   label: 'Router Errors',
+        //   color: 0xea5455,
+        // })
+        router.onError((error, to) => {
+            api.addTimelineEvent({
+                layerId: navigationsLayerId,
+                event: {
+                    title: 'Error during Navigation',
+                    subtitle: to.fullPath,
+                    logType: 'error',
+                    time: api.now(),
+                    data: { error },
+                    groupId: to.meta.__navigationId,
+                },
+            });
+        });
+        // attached to `meta` and used to group events
+        let navigationId = 0;
+        router.beforeEach((to, from) => {
+            const data = {
+                guard: formatDisplay('beforeEach'),
+                from: formatRouteLocation(from, 'Current Location during this navigation'),
+                to: formatRouteLocation(to, 'Target location'),
+            };
+            // Used to group navigations together, hide from devtools
+            Object.defineProperty(to.meta, '__navigationId', {
+                value: navigationId++,
+            });
+            api.addTimelineEvent({
+                layerId: navigationsLayerId,
+                event: {
+                    time: api.now(),
+                    title: 'Start of navigation',
+                    subtitle: to.fullPath,
+                    data,
+                    groupId: to.meta.__navigationId,
+                },
+            });
+        });
+        router.afterEach((to, from, failure) => {
+            const data = {
+                guard: formatDisplay('afterEach'),
+            };
+            if (failure) {
+                data.failure = {
+                    _custom: {
+                        type: Error,
+                        readOnly: true,
+                        display: failure ? failure.message : '',
+                        tooltip: 'Navigation Failure',
+                        value: failure,
+                    },
+                };
+                data.status = formatDisplay('❌');
+            }
+            else {
+                data.status = formatDisplay('✅');
+            }
+            // we set here to have the right order
+            data.from = formatRouteLocation(from, 'Current Location during this navigation');
+            data.to = formatRouteLocation(to, 'Target location');
+            api.addTimelineEvent({
+                layerId: navigationsLayerId,
+                event: {
+                    title: 'End of navigation',
+                    subtitle: to.fullPath,
+                    time: api.now(),
+                    data,
+                    logType: failure ? 'warning' : 'default',
+                    groupId: to.meta.__navigationId,
+                },
+            });
+        });
+        /**
+         * Inspector of Existing routes
+         */
+        const routerInspectorId = 'router-inspector:' + id;
+        api.addInspector({
+            id: routerInspectorId,
+            label: 'Routes' + (id ? ' ' + id : ''),
+            icon: 'book',
+            treeFilterPlaceholder: 'Search routes',
+        });
+        function refreshRoutesView() {
+            // the routes view isn't active
+            if (!activeRoutesPayload)
+                return;
+            const payload = activeRoutesPayload;
+            // children routes will appear as nested
+            let routes = matcher.getRoutes().filter(route => !route.parent ||
+                // these routes have a parent with no component which will not appear in the view
+                // therefore we still need to include them
+                !route.parent.record.components);
+            // reset match state to false
+            routes.forEach(resetMatchStateOnRouteRecord);
+            // apply a match state if there is a payload
+            if (payload.filter) {
+                routes = routes.filter(route => 
+                // save matches state based on the payload
+                isRouteMatching(route, payload.filter.toLowerCase()));
+            }
+            // mark active routes
+            routes.forEach(route => markRouteRecordActive(route, router.currentRoute.value));
+            payload.rootNodes = routes.map(formatRouteRecordForInspector);
+        }
+        let activeRoutesPayload;
+        api.on.getInspectorTree(payload => {
+            activeRoutesPayload = payload;
+            if (payload.app === app && payload.inspectorId === routerInspectorId) {
+                refreshRoutesView();
+            }
+        });
+        /**
+         * Display information about the currently selected route record
+         */
+        api.on.getInspectorState(payload => {
+            if (payload.app === app && payload.inspectorId === routerInspectorId) {
+                const routes = matcher.getRoutes();
+                const route = routes.find(route => route.record.__vd_id === payload.nodeId);
+                if (route) {
+                    payload.state = {
+                        options: formatRouteRecordMatcherForStateInspector(route),
+                    };
+                }
+            }
+        });
+        api.sendInspectorTree(routerInspectorId);
+        api.sendInspectorState(routerInspectorId);
+    });
+}
+function modifierForKey(key) {
+    if (key.optional) {
+        return key.repeatable ? '*' : '?';
+    }
+    else {
+        return key.repeatable ? '+' : '';
+    }
+}
+function formatRouteRecordMatcherForStateInspector(route) {
+    const { record } = route;
+    const fields = [
+        { editable: false, key: 'path', value: record.path },
+    ];
+    if (record.name != null) {
+        fields.push({
+            editable: false,
+            key: 'name',
+            value: record.name,
+        });
+    }
+    fields.push({ editable: false, key: 'regexp', value: route.re });
+    if (route.keys.length) {
+        fields.push({
+            editable: false,
+            key: 'keys',
+            value: {
+                _custom: {
+                    type: null,
+                    readOnly: true,
+                    display: route.keys
+                        .map(key => `${key.name}${modifierForKey(key)}`)
+                        .join(' '),
+                    tooltip: 'Param keys',
+                    value: route.keys,
+                },
+            },
+        });
+    }
+    if (record.redirect != null) {
+        fields.push({
+            editable: false,
+            key: 'redirect',
+            value: record.redirect,
+        });
+    }
+    if (route.alias.length) {
+        fields.push({
+            editable: false,
+            key: 'aliases',
+            value: route.alias.map(alias => alias.record.path),
+        });
+    }
+    if (Object.keys(route.record.meta).length) {
+        fields.push({
+            editable: false,
+            key: 'meta',
+            value: route.record.meta,
+        });
+    }
+    fields.push({
+        key: 'score',
+        editable: false,
+        value: {
+            _custom: {
+                type: null,
+                readOnly: true,
+                display: route.score.map(score => score.join(', ')).join(' | '),
+                tooltip: 'Score used to sort routes',
+                value: route.score,
+            },
+        },
+    });
+    return fields;
+}
+/**
+ * Extracted from tailwind palette
+ */
+const PINK_500 = 0xec4899;
+const BLUE_600 = 0x2563eb;
+const LIME_500 = 0x84cc16;
+const CYAN_400 = 0x22d3ee;
+const ORANGE_400 = 0xfb923c;
+// const GRAY_100 = 0xf4f4f5
+const DARK = 0x666666;
+function formatRouteRecordForInspector(route) {
+    const tags = [];
+    const { record } = route;
+    if (record.name != null) {
+        tags.push({
+            label: String(record.name),
+            textColor: 0,
+            backgroundColor: CYAN_400,
+        });
+    }
+    if (record.aliasOf) {
+        tags.push({
+            label: 'alias',
+            textColor: 0,
+            backgroundColor: ORANGE_400,
+        });
+    }
+    if (route.__vd_match) {
+        tags.push({
+            label: 'matches',
+            textColor: 0,
+            backgroundColor: PINK_500,
+        });
+    }
+    if (route.__vd_exactActive) {
+        tags.push({
+            label: 'exact',
+            textColor: 0,
+            backgroundColor: LIME_500,
+        });
+    }
+    if (route.__vd_active) {
+        tags.push({
+            label: 'active',
+            textColor: 0,
+            backgroundColor: BLUE_600,
+        });
+    }
+    if (record.redirect) {
+        tags.push({
+            label: typeof record.redirect === 'string'
+                ? `redirect: ${record.redirect}`
+                : 'redirects',
+            textColor: 0xffffff,
+            backgroundColor: DARK,
+        });
+    }
+    // add an id to be able to select it. Using the `path` is not possible because
+    // empty path children would collide with their parents
+    let id = record.__vd_id;
+    if (id == null) {
+        id = String(routeRecordId++);
+        record.__vd_id = id;
+    }
+    return {
+        id,
+        label: record.path,
+        tags,
+        children: route.children.map(formatRouteRecordForInspector),
+    };
+}
+//  incremental id for route records and inspector state
+let routeRecordId = 0;
+const EXTRACT_REGEXP_RE = /^\/(.*)\/([a-z]*)$/;
+function markRouteRecordActive(route, currentRoute) {
+    // no route will be active if matched is empty
+    // reset the matching state
+    const isExactActive = currentRoute.matched.length &&
+        isSameRouteRecord(currentRoute.matched[currentRoute.matched.length - 1], route.record);
+    route.__vd_exactActive = route.__vd_active = isExactActive;
+    if (!isExactActive) {
+        route.__vd_active = currentRoute.matched.some(match => isSameRouteRecord(match, route.record));
+    }
+    route.children.forEach(childRoute => markRouteRecordActive(childRoute, currentRoute));
+}
+function resetMatchStateOnRouteRecord(route) {
+    route.__vd_match = false;
+    route.children.forEach(resetMatchStateOnRouteRecord);
+}
+function isRouteMatching(route, filter) {
+    const found = String(route.re).match(EXTRACT_REGEXP_RE);
+    route.__vd_match = false;
+    if (!found || found.length < 3) {
+        return false;
+    }
+    // use a regexp without $ at the end to match nested routes better
+    const nonEndingRE = new RegExp(found[1].replace(/\$$/, ''), found[2]);
+    if (nonEndingRE.test(filter)) {
+        // mark children as matches
+        route.children.forEach(child => isRouteMatching(child, filter));
+        // exception case: `/`
+        if (route.record.path !== '/' || filter === '/') {
+            route.__vd_match = route.re.test(filter);
+            return true;
+        }
+        // hide the / route
+        return false;
+    }
+    const path = route.record.path.toLowerCase();
+    const decodedPath = decode(path);
+    // also allow partial matching on the path
+    if (!filter.startsWith('/') &&
+        (decodedPath.includes(filter) || path.includes(filter)))
+        return true;
+    if (decodedPath.startsWith(filter) || path.startsWith(filter))
+        return true;
+    if (route.record.name && String(route.record.name).includes(filter))
+        return true;
+    return route.children.some(child => isRouteMatching(child, filter));
+}
+function omit(obj, keys) {
+    const ret = {};
+    for (const key in obj) {
+        if (!keys.includes(key)) {
+            // @ts-expect-error
+            ret[key] = obj[key];
+        }
+    }
+    return ret;
+}
+
+/**
+ * Creates a Router instance that can be used by a Vue app.
+ *
+ * @param options - {@link RouterOptions}
+ */
+function createRouter(options) {
+    const matcher = createRouterMatcher(options.routes, options);
+    const parseQuery$1 = options.parseQuery || parseQuery;
+    const stringifyQuery$1 = options.stringifyQuery || stringifyQuery;
+    const routerHistory = options.history;
+    if (( true) && !routerHistory)
+        throw new Error('Provide the "history" option when calling "createRouter()":' +
+            ' https://next.router.vuejs.org/api/#history.');
+    const beforeGuards = useCallbacks();
+    const beforeResolveGuards = useCallbacks();
+    const afterGuards = useCallbacks();
+    const currentRoute = (0,vue__WEBPACK_IMPORTED_MODULE_0__.shallowRef)(START_LOCATION_NORMALIZED);
+    let pendingLocation = START_LOCATION_NORMALIZED;
+    // leave the scrollRestoration if no scrollBehavior is provided
+    if (isBrowser && options.scrollBehavior && 'scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    const normalizeParams = applyToParams.bind(null, paramValue => '' + paramValue);
+    const encodeParams = applyToParams.bind(null, encodeParam);
+    const decodeParams = 
+    // @ts-expect-error: intentionally avoid the type check
+    applyToParams.bind(null, decode);
+    function addRoute(parentOrRoute, route) {
+        let parent;
+        let record;
+        if (isRouteName(parentOrRoute)) {
+            parent = matcher.getRecordMatcher(parentOrRoute);
+            record = route;
+        }
+        else {
+            record = parentOrRoute;
+        }
+        return matcher.addRoute(record, parent);
+    }
+    function removeRoute(name) {
+        const recordMatcher = matcher.getRecordMatcher(name);
+        if (recordMatcher) {
+            matcher.removeRoute(recordMatcher);
+        }
+        else if ((true)) {
+            warn(`Cannot remove non-existent route "${String(name)}"`);
+        }
+    }
+    function getRoutes() {
+        return matcher.getRoutes().map(routeMatcher => routeMatcher.record);
+    }
+    function hasRoute(name) {
+        return !!matcher.getRecordMatcher(name);
+    }
+    function resolve(rawLocation, currentLocation) {
+        // const objectLocation = routerLocationAsObject(rawLocation)
+        // we create a copy to modify it later
+        currentLocation = assign({}, currentLocation || currentRoute.value);
+        if (typeof rawLocation === 'string') {
+            const locationNormalized = parseURL(parseQuery$1, rawLocation, currentLocation.path);
+            const matchedRoute = matcher.resolve({ path: locationNormalized.path }, currentLocation);
+            const href = routerHistory.createHref(locationNormalized.fullPath);
+            if ((true)) {
+                if (href.startsWith('//'))
+                    warn(`Location "${rawLocation}" resolved to "${href}". A resolved location cannot start with multiple slashes.`);
+                else if (!matchedRoute.matched.length) {
+                    warn(`No match found for location with path "${rawLocation}"`);
+                }
+            }
+            // locationNormalized is always a new object
+            return assign(locationNormalized, matchedRoute, {
+                params: decodeParams(matchedRoute.params),
+                hash: decode(locationNormalized.hash),
+                redirectedFrom: undefined,
+                href,
+            });
+        }
+        let matcherLocation;
+        // path could be relative in object as well
+        if (rawLocation.path != null) {
+            if (( true) &&
+                'params' in rawLocation &&
+                !('name' in rawLocation) &&
+                // @ts-expect-error: the type is never
+                Object.keys(rawLocation.params).length) {
+                warn(`Path "${rawLocation.path}" was passed with params but they will be ignored. Use a named route alongside params instead.`);
+            }
+            matcherLocation = assign({}, rawLocation, {
+                path: parseURL(parseQuery$1, rawLocation.path, currentLocation.path).path,
+            });
+        }
+        else {
+            // remove any nullish param
+            const targetParams = assign({}, rawLocation.params);
+            for (const key in targetParams) {
+                if (targetParams[key] == null) {
+                    delete targetParams[key];
+                }
+            }
+            // pass encoded values to the matcher, so it can produce encoded path and fullPath
+            matcherLocation = assign({}, rawLocation, {
+                params: encodeParams(targetParams),
+            });
+            // current location params are decoded, we need to encode them in case the
+            // matcher merges the params
+            currentLocation.params = encodeParams(currentLocation.params);
+        }
+        const matchedRoute = matcher.resolve(matcherLocation, currentLocation);
+        const hash = rawLocation.hash || '';
+        if (( true) && hash && !hash.startsWith('#')) {
+            warn(`A \`hash\` should always start with the character "#". Replace "${hash}" with "#${hash}".`);
+        }
+        // the matcher might have merged current location params, so
+        // we need to run the decoding again
+        matchedRoute.params = normalizeParams(decodeParams(matchedRoute.params));
+        const fullPath = stringifyURL(stringifyQuery$1, assign({}, rawLocation, {
+            hash: encodeHash(hash),
+            path: matchedRoute.path,
+        }));
+        const href = routerHistory.createHref(fullPath);
+        if ((true)) {
+            if (href.startsWith('//')) {
+                warn(`Location "${rawLocation}" resolved to "${href}". A resolved location cannot start with multiple slashes.`);
+            }
+            else if (!matchedRoute.matched.length) {
+                warn(`No match found for location with path "${rawLocation.path != null ? rawLocation.path : rawLocation}"`);
+            }
+        }
+        return assign({
+            fullPath,
+            // keep the hash encoded so fullPath is effectively path + encodedQuery +
+            // hash
+            hash,
+            query: 
+            // if the user is using a custom query lib like qs, we might have
+            // nested objects, so we keep the query as is, meaning it can contain
+            // numbers at `$route.query`, but at the point, the user will have to
+            // use their own type anyway.
+            // https://github.com/vuejs/router/issues/328#issuecomment-649481567
+            stringifyQuery$1 === stringifyQuery
+                ? normalizeQuery(rawLocation.query)
+                : (rawLocation.query || {}),
+        }, matchedRoute, {
+            redirectedFrom: undefined,
+            href,
+        });
+    }
+    function locationAsObject(to) {
+        return typeof to === 'string'
+            ? parseURL(parseQuery$1, to, currentRoute.value.path)
+            : assign({}, to);
+    }
+    function checkCanceledNavigation(to, from) {
+        if (pendingLocation !== to) {
+            return createRouterError(8 /* ErrorTypes.NAVIGATION_CANCELLED */, {
+                from,
+                to,
+            });
+        }
+    }
+    function push(to) {
+        return pushWithRedirect(to);
+    }
+    function replace(to) {
+        return push(assign(locationAsObject(to), { replace: true }));
+    }
+    function handleRedirectRecord(to) {
+        const lastMatched = to.matched[to.matched.length - 1];
+        if (lastMatched && lastMatched.redirect) {
+            const { redirect } = lastMatched;
+            let newTargetLocation = typeof redirect === 'function' ? redirect(to) : redirect;
+            if (typeof newTargetLocation === 'string') {
+                newTargetLocation =
+                    newTargetLocation.includes('?') || newTargetLocation.includes('#')
+                        ? (newTargetLocation = locationAsObject(newTargetLocation))
+                        : // force empty params
+                            { path: newTargetLocation };
+                // @ts-expect-error: force empty params when a string is passed to let
+                // the router parse them again
+                newTargetLocation.params = {};
+            }
+            if (( true) &&
+                newTargetLocation.path == null &&
+                !('name' in newTargetLocation)) {
+                warn(`Invalid redirect found:\n${JSON.stringify(newTargetLocation, null, 2)}\n when navigating to "${to.fullPath}". A redirect must contain a name or path. This will break in production.`);
+                throw new Error('Invalid redirect');
+            }
+            return assign({
+                query: to.query,
+                hash: to.hash,
+                // avoid transferring params if the redirect has a path
+                params: newTargetLocation.path != null ? {} : to.params,
+            }, newTargetLocation);
+        }
+    }
+    function pushWithRedirect(to, redirectedFrom) {
+        const targetLocation = (pendingLocation = resolve(to));
+        const from = currentRoute.value;
+        const data = to.state;
+        const force = to.force;
+        // to could be a string where `replace` is a function
+        const replace = to.replace === true;
+        const shouldRedirect = handleRedirectRecord(targetLocation);
+        if (shouldRedirect)
+            return pushWithRedirect(assign(locationAsObject(shouldRedirect), {
+                state: typeof shouldRedirect === 'object'
+                    ? assign({}, data, shouldRedirect.state)
+                    : data,
+                force,
+                replace,
+            }), 
+            // keep original redirectedFrom if it exists
+            redirectedFrom || targetLocation);
+        // if it was a redirect we already called `pushWithRedirect` above
+        const toLocation = targetLocation;
+        toLocation.redirectedFrom = redirectedFrom;
+        let failure;
+        if (!force && isSameRouteLocation(stringifyQuery$1, from, targetLocation)) {
+            failure = createRouterError(16 /* ErrorTypes.NAVIGATION_DUPLICATED */, { to: toLocation, from });
+            // trigger scroll to allow scrolling to the same anchor
+            handleScroll(from, from, 
+            // this is a push, the only way for it to be triggered from a
+            // history.listen is with a redirect, which makes it become a push
+            true, 
+            // This cannot be the first navigation because the initial location
+            // cannot be manually navigated to
+            false);
+        }
+        return (failure ? Promise.resolve(failure) : navigate(toLocation, from))
+            .catch((error) => isNavigationFailure(error)
+            ? // navigation redirects still mark the router as ready
+                isNavigationFailure(error, 2 /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */)
+                    ? error
+                    : markAsReady(error) // also returns the error
+            : // reject any unknown error
+                triggerError(error, toLocation, from))
+            .then((failure) => {
+            if (failure) {
+                if (isNavigationFailure(failure, 2 /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */)) {
+                    if (( true) &&
+                        // we are redirecting to the same location we were already at
+                        isSameRouteLocation(stringifyQuery$1, resolve(failure.to), toLocation) &&
+                        // and we have done it a couple of times
+                        redirectedFrom &&
+                        // @ts-expect-error: added only in dev
+                        (redirectedFrom._count = redirectedFrom._count
+                            ? // @ts-expect-error
+                                redirectedFrom._count + 1
+                            : 1) > 30) {
+                        warn(`Detected a possibly infinite redirection in a navigation guard when going from "${from.fullPath}" to "${toLocation.fullPath}". Aborting to avoid a Stack Overflow.\n Are you always returning a new location within a navigation guard? That would lead to this error. Only return when redirecting or aborting, that should fix this. This might break in production if not fixed.`);
+                        return Promise.reject(new Error('Infinite redirect in navigation guard'));
+                    }
+                    return pushWithRedirect(
+                    // keep options
+                    assign({
+                        // preserve an existing replacement but allow the redirect to override it
+                        replace,
+                    }, locationAsObject(failure.to), {
+                        state: typeof failure.to === 'object'
+                            ? assign({}, data, failure.to.state)
+                            : data,
+                        force,
+                    }), 
+                    // preserve the original redirectedFrom if any
+                    redirectedFrom || toLocation);
+                }
+            }
+            else {
+                // if we fail we don't finalize the navigation
+                failure = finalizeNavigation(toLocation, from, true, replace, data);
+            }
+            triggerAfterEach(toLocation, from, failure);
+            return failure;
+        });
+    }
+    /**
+     * Helper to reject and skip all navigation guards if a new navigation happened
+     * @param to
+     * @param from
+     */
+    function checkCanceledNavigationAndReject(to, from) {
+        const error = checkCanceledNavigation(to, from);
+        return error ? Promise.reject(error) : Promise.resolve();
+    }
+    function runWithContext(fn) {
+        const app = installedApps.values().next().value;
+        // support Vue < 3.3
+        return app && typeof app.runWithContext === 'function'
+            ? app.runWithContext(fn)
+            : fn();
+    }
+    // TODO: refactor the whole before guards by internally using router.beforeEach
+    function navigate(to, from) {
+        let guards;
+        const [leavingRecords, updatingRecords, enteringRecords] = extractChangingRecords(to, from);
+        // all components here have been resolved once because we are leaving
+        guards = extractComponentsGuards(leavingRecords.reverse(), 'beforeRouteLeave', to, from);
+        // leavingRecords is already reversed
+        for (const record of leavingRecords) {
+            record.leaveGuards.forEach(guard => {
+                guards.push(guardToPromiseFn(guard, to, from));
+            });
+        }
+        const canceledNavigationCheck = checkCanceledNavigationAndReject.bind(null, to, from);
+        guards.push(canceledNavigationCheck);
+        // run the queue of per route beforeRouteLeave guards
+        return (runGuardQueue(guards)
+            .then(() => {
+            // check global guards beforeEach
+            guards = [];
+            for (const guard of beforeGuards.list()) {
+                guards.push(guardToPromiseFn(guard, to, from));
+            }
+            guards.push(canceledNavigationCheck);
+            return runGuardQueue(guards);
+        })
+            .then(() => {
+            // check in components beforeRouteUpdate
+            guards = extractComponentsGuards(updatingRecords, 'beforeRouteUpdate', to, from);
+            for (const record of updatingRecords) {
+                record.updateGuards.forEach(guard => {
+                    guards.push(guardToPromiseFn(guard, to, from));
+                });
+            }
+            guards.push(canceledNavigationCheck);
+            // run the queue of per route beforeEnter guards
+            return runGuardQueue(guards);
+        })
+            .then(() => {
+            // check the route beforeEnter
+            guards = [];
+            for (const record of enteringRecords) {
+                // do not trigger beforeEnter on reused views
+                if (record.beforeEnter) {
+                    if (isArray(record.beforeEnter)) {
+                        for (const beforeEnter of record.beforeEnter)
+                            guards.push(guardToPromiseFn(beforeEnter, to, from));
+                    }
+                    else {
+                        guards.push(guardToPromiseFn(record.beforeEnter, to, from));
+                    }
+                }
+            }
+            guards.push(canceledNavigationCheck);
+            // run the queue of per route beforeEnter guards
+            return runGuardQueue(guards);
+        })
+            .then(() => {
+            // NOTE: at this point to.matched is normalized and does not contain any () => Promise<Component>
+            // clear existing enterCallbacks, these are added by extractComponentsGuards
+            to.matched.forEach(record => (record.enterCallbacks = {}));
+            // check in-component beforeRouteEnter
+            guards = extractComponentsGuards(enteringRecords, 'beforeRouteEnter', to, from, runWithContext);
+            guards.push(canceledNavigationCheck);
+            // run the queue of per route beforeEnter guards
+            return runGuardQueue(guards);
+        })
+            .then(() => {
+            // check global guards beforeResolve
+            guards = [];
+            for (const guard of beforeResolveGuards.list()) {
+                guards.push(guardToPromiseFn(guard, to, from));
+            }
+            guards.push(canceledNavigationCheck);
+            return runGuardQueue(guards);
+        })
+            // catch any navigation canceled
+            .catch(err => isNavigationFailure(err, 8 /* ErrorTypes.NAVIGATION_CANCELLED */)
+            ? err
+            : Promise.reject(err)));
+    }
+    function triggerAfterEach(to, from, failure) {
+        // navigation is confirmed, call afterGuards
+        // TODO: wrap with error handlers
+        afterGuards
+            .list()
+            .forEach(guard => runWithContext(() => guard(to, from, failure)));
+    }
+    /**
+     * - Cleans up any navigation guards
+     * - Changes the url if necessary
+     * - Calls the scrollBehavior
+     */
+    function finalizeNavigation(toLocation, from, isPush, replace, data) {
+        // a more recent navigation took place
+        const error = checkCanceledNavigation(toLocation, from);
+        if (error)
+            return error;
+        // only consider as push if it's not the first navigation
+        const isFirstNavigation = from === START_LOCATION_NORMALIZED;
+        const state = !isBrowser ? {} : history.state;
+        // change URL only if the user did a push/replace and if it's not the initial navigation because
+        // it's just reflecting the url
+        if (isPush) {
+            // on the initial navigation, we want to reuse the scroll position from
+            // history state if it exists
+            if (replace || isFirstNavigation)
+                routerHistory.replace(toLocation.fullPath, assign({
+                    scroll: isFirstNavigation && state && state.scroll,
+                }, data));
+            else
+                routerHistory.push(toLocation.fullPath, data);
+        }
+        // accept current navigation
+        currentRoute.value = toLocation;
+        handleScroll(toLocation, from, isPush, isFirstNavigation);
+        markAsReady();
+    }
+    let removeHistoryListener;
+    // attach listener to history to trigger navigations
+    function setupListeners() {
+        // avoid setting up listeners twice due to an invalid first navigation
+        if (removeHistoryListener)
+            return;
+        removeHistoryListener = routerHistory.listen((to, _from, info) => {
+            if (!router.listening)
+                return;
+            // cannot be a redirect route because it was in history
+            const toLocation = resolve(to);
+            // due to dynamic routing, and to hash history with manual navigation
+            // (manually changing the url or calling history.hash = '#/somewhere'),
+            // there could be a redirect record in history
+            const shouldRedirect = handleRedirectRecord(toLocation);
+            if (shouldRedirect) {
+                pushWithRedirect(assign(shouldRedirect, { replace: true }), toLocation).catch(noop);
+                return;
+            }
+            pendingLocation = toLocation;
+            const from = currentRoute.value;
+            // TODO: should be moved to web history?
+            if (isBrowser) {
+                saveScrollPosition(getScrollKey(from.fullPath, info.delta), computeScrollPosition());
+            }
+            navigate(toLocation, from)
+                .catch((error) => {
+                if (isNavigationFailure(error, 4 /* ErrorTypes.NAVIGATION_ABORTED */ | 8 /* ErrorTypes.NAVIGATION_CANCELLED */)) {
+                    return error;
+                }
+                if (isNavigationFailure(error, 2 /* ErrorTypes.NAVIGATION_GUARD_REDIRECT */)) {
+                    // Here we could call if (info.delta) routerHistory.go(-info.delta,
+                    // false) but this is bug prone as we have no way to wait the
+                    // navigation to be finished before calling pushWithRedirect. Using
+                    // a setTimeout of 16ms seems to work but there is no guarantee for
+                    // it to work on every browser. So instead we do not restore the
+                    // history entry and trigger a new navigation as requested by the
+                    // navigation guard.
+                    // the error is already handled by router.push we just want to avoid
+                    // logging the error
+                    pushWithRedirect(error.to, toLocation
+                    // avoid an uncaught rejection, let push call triggerError
+                    )
+                        .then(failure => {
+                        // manual change in hash history #916 ending up in the URL not
+                        // changing, but it was changed by the manual url change, so we
+                        // need to manually change it ourselves
+                        if (isNavigationFailure(failure, 4 /* ErrorTypes.NAVIGATION_ABORTED */ |
+                            16 /* ErrorTypes.NAVIGATION_DUPLICATED */) &&
+                            !info.delta &&
+                            info.type === NavigationType.pop) {
+                            routerHistory.go(-1, false);
+                        }
+                    })
+                        .catch(noop);
+                    // avoid the then branch
+                    return Promise.reject();
+                }
+                // do not restore history on unknown direction
+                if (info.delta) {
+                    routerHistory.go(-info.delta, false);
+                }
+                // unrecognized error, transfer to the global handler
+                return triggerError(error, toLocation, from);
+            })
+                .then((failure) => {
+                failure =
+                    failure ||
+                        finalizeNavigation(
+                        // after navigation, all matched components are resolved
+                        toLocation, from, false);
+                // revert the navigation
+                if (failure) {
+                    if (info.delta &&
+                        // a new navigation has been triggered, so we do not want to revert, that will change the current history
+                        // entry while a different route is displayed
+                        !isNavigationFailure(failure, 8 /* ErrorTypes.NAVIGATION_CANCELLED */)) {
+                        routerHistory.go(-info.delta, false);
+                    }
+                    else if (info.type === NavigationType.pop &&
+                        isNavigationFailure(failure, 4 /* ErrorTypes.NAVIGATION_ABORTED */ | 16 /* ErrorTypes.NAVIGATION_DUPLICATED */)) {
+                        // manual change in hash history #916
+                        // it's like a push but lacks the information of the direction
+                        routerHistory.go(-1, false);
+                    }
+                }
+                triggerAfterEach(toLocation, from, failure);
+            })
+                // avoid warnings in the console about uncaught rejections, they are logged by triggerErrors
+                .catch(noop);
+        });
+    }
+    // Initialization and Errors
+    let readyHandlers = useCallbacks();
+    let errorListeners = useCallbacks();
+    let ready;
+    /**
+     * Trigger errorListeners added via onError and throws the error as well
+     *
+     * @param error - error to throw
+     * @param to - location we were navigating to when the error happened
+     * @param from - location we were navigating from when the error happened
+     * @returns the error as a rejected promise
+     */
+    function triggerError(error, to, from) {
+        markAsReady(error);
+        const list = errorListeners.list();
+        if (list.length) {
+            list.forEach(handler => handler(error, to, from));
+        }
+        else {
+            if ((true)) {
+                warn('uncaught error during route navigation:');
+            }
+            console.error(error);
+        }
+        // reject the error no matter there were error listeners or not
+        return Promise.reject(error);
+    }
+    function isReady() {
+        if (ready && currentRoute.value !== START_LOCATION_NORMALIZED)
+            return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            readyHandlers.add([resolve, reject]);
+        });
+    }
+    function markAsReady(err) {
+        if (!ready) {
+            // still not ready if an error happened
+            ready = !err;
+            setupListeners();
+            readyHandlers
+                .list()
+                .forEach(([resolve, reject]) => (err ? reject(err) : resolve()));
+            readyHandlers.reset();
+        }
+        return err;
+    }
+    // Scroll behavior
+    function handleScroll(to, from, isPush, isFirstNavigation) {
+        const { scrollBehavior } = options;
+        if (!isBrowser || !scrollBehavior)
+            return Promise.resolve();
+        const scrollPosition = (!isPush && getSavedScrollPosition(getScrollKey(to.fullPath, 0))) ||
+            ((isFirstNavigation || !isPush) &&
+                history.state &&
+                history.state.scroll) ||
+            null;
+        return (0,vue__WEBPACK_IMPORTED_MODULE_0__.nextTick)()
+            .then(() => scrollBehavior(to, from, scrollPosition))
+            .then(position => position && scrollToPosition(position))
+            .catch(err => triggerError(err, to, from));
+    }
+    const go = (delta) => routerHistory.go(delta);
+    let started;
+    const installedApps = new Set();
+    const router = {
+        currentRoute,
+        listening: true,
+        addRoute,
+        removeRoute,
+        hasRoute,
+        getRoutes,
+        resolve,
+        options,
+        push,
+        replace,
+        go,
+        back: () => go(-1),
+        forward: () => go(1),
+        beforeEach: beforeGuards.add,
+        beforeResolve: beforeResolveGuards.add,
+        afterEach: afterGuards.add,
+        onError: errorListeners.add,
+        isReady,
+        install(app) {
+            const router = this;
+            app.component('RouterLink', RouterLink);
+            app.component('RouterView', RouterView);
+            app.config.globalProperties.$router = router;
+            Object.defineProperty(app.config.globalProperties, '$route', {
+                enumerable: true,
+                get: () => (0,vue__WEBPACK_IMPORTED_MODULE_0__.unref)(currentRoute),
+            });
+            // this initial navigation is only necessary on client, on server it doesn't
+            // make sense because it will create an extra unnecessary navigation and could
+            // lead to problems
+            if (isBrowser &&
+                // used for the initial navigation client side to avoid pushing
+                // multiple times when the router is used in multiple apps
+                !started &&
+                currentRoute.value === START_LOCATION_NORMALIZED) {
+                // see above
+                started = true;
+                push(routerHistory.location).catch(err => {
+                    if ((true))
+                        warn('Unexpected error when starting the router:', err);
+                });
+            }
+            const reactiveRoute = {};
+            for (const key in START_LOCATION_NORMALIZED) {
+                Object.defineProperty(reactiveRoute, key, {
+                    get: () => currentRoute.value[key],
+                    enumerable: true,
+                });
+            }
+            app.provide(routerKey, router);
+            app.provide(routeLocationKey, (0,vue__WEBPACK_IMPORTED_MODULE_0__.shallowReactive)(reactiveRoute));
+            app.provide(routerViewLocationKey, currentRoute);
+            const unmountApp = app.unmount;
+            installedApps.add(app);
+            app.unmount = function () {
+                installedApps.delete(app);
+                // the router is not attached to an app anymore
+                if (installedApps.size < 1) {
+                    // invalidate the current navigation
+                    pendingLocation = START_LOCATION_NORMALIZED;
+                    removeHistoryListener && removeHistoryListener();
+                    removeHistoryListener = null;
+                    currentRoute.value = START_LOCATION_NORMALIZED;
+                    started = false;
+                    ready = false;
+                }
+                unmountApp();
+            };
+            // TODO: this probably needs to be updated so it can be used by vue-termui
+            if (( true) && isBrowser) {
+                addDevtools(app, router, matcher);
+            }
+        },
+    };
+    // TODO: type this as NavigationGuardReturn or similar instead of any
+    function runGuardQueue(guards) {
+        return guards.reduce((promise, guard) => promise.then(() => runWithContext(guard)), Promise.resolve());
+    }
+    return router;
+}
+function extractChangingRecords(to, from) {
+    const leavingRecords = [];
+    const updatingRecords = [];
+    const enteringRecords = [];
+    const len = Math.max(from.matched.length, to.matched.length);
+    for (let i = 0; i < len; i++) {
+        const recordFrom = from.matched[i];
+        if (recordFrom) {
+            if (to.matched.find(record => isSameRouteRecord(record, recordFrom)))
+                updatingRecords.push(recordFrom);
+            else
+                leavingRecords.push(recordFrom);
+        }
+        const recordTo = to.matched[i];
+        if (recordTo) {
+            // the type doesn't matter because we are comparing per reference
+            if (!from.matched.find(record => isSameRouteRecord(record, recordTo))) {
+                enteringRecords.push(recordTo);
+            }
+        }
+    }
+    return [leavingRecords, updatingRecords, enteringRecords];
+}
+
+/**
+ * Returns the router instance. Equivalent to using `$router` inside
+ * templates.
+ */
+function useRouter() {
+    return (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routerKey);
+}
+/**
+ * Returns the current route location. Equivalent to using `$route` inside
+ * templates.
+ */
+function useRoute() {
+    return (0,vue__WEBPACK_IMPORTED_MODULE_0__.inject)(routeLocationKey);
+}
+
+
+
+
 /***/ })
 
 /******/ 	});
@@ -33311,7 +47534,7 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
+/******/ 			id: moduleId,
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
@@ -33356,6 +47579,18 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 /******/ 				}
 /******/ 			}
 /******/ 			return result;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	(() => {
+/******/ 		// getDefaultExport function for compatibility with non-harmony modules
+/******/ 		__webpack_require__.n = (module) => {
+/******/ 			var getter = module && module.__esModule ?
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
+/******/ 			__webpack_require__.d(getter, { a: getter });
+/******/ 			return getter;
 /******/ 		};
 /******/ 	})();
 /******/ 	
@@ -33451,6 +47686,11 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 /******/ 		var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
 /******/ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
 /******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/nonce */
+/******/ 	(() => {
+/******/ 		__webpack_require__.nc = undefined;
 /******/ 	})();
 /******/ 	
 /************************************************************************/

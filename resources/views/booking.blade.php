@@ -9,7 +9,7 @@
 </head>
 <body>
     <div id="app">
-        <register-form></register-form>
+        <booking-component></booking-component>
     </div>
     <script src="{{ mix('/js/app.js') }}"></script>
 </body>
