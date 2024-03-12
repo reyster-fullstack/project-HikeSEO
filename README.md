@@ -1,66 +1,74 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Clone this repository - https://github.com/reyster-fullstack/project-HikeSEO.git
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+after that copy the .env.example and paste copy rename it .env
 
-## About Laravel
+open teminal and enter this - npm install laravel-mix --save-dev then press enter
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+after that open your package.json delete its content and paste this
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "npm run development",
+        "development": "mix",
+        "watch": "mix watch",
+        "watch-poll": "mix watch -- --watch-options-poll=1000",
+        "hot": "mix watch --hot",
+        "prod": "npm run production",
+        "production": "mix --production",
+        "build": "webpack --config webpack.prod.js"
+    },
+    "devDependencies": {
+        "@popperjs/core": "^2.11.6",
+        "@vitejs/plugin-vue": "^4.5.0",
+        "@vue/cli-plugin-typescript": "^5.0.8",
+        "@vue/compiler-sfc": "^3.2.37",
+        "@vue/eslint-config-typescript": "^12.0.0",
+        "axios": "^1.6.4",
+        "bootstrap": "^5.2.0",
+        "laravel-mix": "^6.0.49",
+        "laravel-vite-plugin": "^1.0.0",
+        "sass": "^1.56.1",
+        "typescript": "^5.3.3",
+        "vite": "^5.0.0",
+        "vue": "^3.4.21",
+        "vue-loader": "^17.4.2",
+        "webpack": "^5.0.0",
+        "webpack-cli": "^4.0.0"
+    },
+    "dependencies": {
+        "v-calendar": "^3.1.2",
+        "vue-router": "^4.3.0",
+        "vuex": "^4.1.0",
+        "webpack": "^5.90.3"
+    }
+}
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+create a file name webpack.mix.cjs and then paste this on that file
 
-## Learning Laravel
+const mix = require('laravel-mix');
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+mix.js('resources/js/app.js', 'public/js').vue({ version: 3 })
+    .postCss('resources/css/app.css', 'public/css', [
+        //
+    ]);
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+on your terminal enter this npm add vue-loader@^16.2.0 --dev then click enter
 
-## Laravel Sponsors
+on your terminalnpm update vue-loader webpack laravel-mix then enter
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+go to resources/js/app.js open the file at the very top you will see import './bootstrap';edit that to import './bootstrap.js';
 
-### Premium Partners
+after that open your phpMyAdmin or any database create a database named hikeseo
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+the on the terminal enter composer install then enter
 
-## Contributing
+on the terminal enter php artisan key:generate then enter
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+on terminal enter php artisan migrate
+the php artisan db:seed
 
-## Code of Conduct
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
