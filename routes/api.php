@@ -5,6 +5,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\VehicleMakeModelController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\TimeAvailableController;
+use App\Http\Controllers\PreventDateTimeController;
+use App\Http\Controllers\EmailController;
 // Ensure you have included UserController and UserDataController if you're using them
 
 /*
@@ -37,3 +40,18 @@ Route::get('/send-mail-test', function () {
 
     return 'Test email sent.';
 });
+
+
+
+Route::get('/available-times', [TimeAvailableController::class, 'index']);
+
+
+
+Route::post('/prevent-date-time', [PreventDateTimeController::class, 'store']);
+
+
+Route::get('/booking', [BookingController::class, 'getBookings']);
+
+
+
+Route::post('/emails', [EmailController::class, 'store']);

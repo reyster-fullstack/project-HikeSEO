@@ -25,11 +25,11 @@
         </div>
         <div class="mb-3">
           <label for="Date" class="form-label">Date</label>
-          <input type="text" id="Date" @click="toggleCalendar" v-model="booking.booked_date" readonly>
+          <input type="text" id="Date" @click="toggleCalendar" readonly :value="formattedDate">
           
-            
+          <div v-if="showCalendar">
             <v-date-picker v-model="booking.booked_date" :attributes="attrs" :min-date="today" :format="dateFormat" is-inline></v-date-picker>
-         
+          </div>
           
         </div>
         <div class="mb-3">
@@ -66,7 +66,7 @@
   import axios from 'axios';
   import { Calendar, DatePicker as VDatePicker } from 'v-calendar';
   import 'v-calendar/dist/style.css';
-  import { ref, watch } from 'vue';
+  import { ref, computed  } from 'vue';
   
   export default {
     data() {
@@ -87,39 +87,133 @@
         VDatePicker,
       },
         vehicles: [],
+        bookings: [],
       };
       
     },
     created() {
       this.fetchVehicles();
-
+      this.fetchBookings();
       this.fetchUserData();
 
     },
     setup() {
+
+      
       const booking = ref({
         booked_date: null,
-      });
-      const dateFormat = 'YYYY-MM-DD';
-      const showCalendar = ref(false);
-      const today = new Date().toISOString().split('T')[0];
+        });
 
-      const toggleCalendar = () => {
-        showCalendar.value = !showCalendar.value;
-      };
+        const user = ref({
+          name: '',
+          email: '',
+        });
 
-      // Use a watcher to format the date whenever it changes
-      watch(() => booking.value.booked_date, (newValue) => {
-        if (newValue) {
-          // Assuming newValue is the date object or ISO string from the picker
-          const formattedDate = new Date(newValue).toISOString().split('T')[0];
-          booking.value.booked_date = formattedDate;
-        }
-      });
+        // Define getCurrentDateTime and resetForm here if they are not already defined
+        // Assuming these functions are defined somewhere within setup()
 
-      return { booking, showCalendar, toggleCalendar, dateFormat, today };
+        // Moved fetchUserData function definition here so it's defined before being called
+        const fetchUserData = () => {
+          const userData = localStorage.getItem('user');
+
+          if (userData) {
+            user.value = JSON.parse(userData);
+          }
+        };
+
+        // Now that fetchUserData is defined, it can be called.
+       
+
+      const  getCurrentDateTime =()=> {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0'); // JS months are 0-based
+      const day = now.getDate().toString().padStart(2, '0');
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
+
+      
+
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    };
+
+
+        const dateFormat = 'YYYY-MM-DD';
+        const showCalendar = ref(false);
+        const today = new Date().toISOString().split('T')[0];
+        const toggleCalendar = () => (showCalendar.value = !showCalendar.value);
+
+        const formattedDate = computed(() => {
+          if (booking.value.booked_date) {
+            let date = new Date(booking.value.booked_date);
+            // This assumes you have a booked_date in the correct format.
+            return date.toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            
+          }
+          return '';
+        });
+
+        const submitBooking = () => {
+          // Ensure booking.value is used to access and modify its properties
+          if (booking.value.booked_date) {
+            let date = new Date(booking.value.booked_date);
+
+            // Adjust for the timezone offset
+            date = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+
+            // Format the date
+            const formattedPreventDate = date.toISOString().split('T')[0];
+            booking.value.booked_date = formattedPreventDate; // Use booking.value to set the date
+            booking.value.email = user.value.email; // Assuming user is also a ref, use user.value
+            booking.value.name = user.value.name; // Assuming user is also a ref, use user.value
+            booking.value.booking_date = getCurrentDateTime(); // Assuming getCurrentDateTime() is accessible
+
+            axios.post('http://localhost:8000/api/booking', booking.value) 
+              .then(response => {
+                alert('Booking submitted successfully!');
+                resetForm(); // Assuming resetForm is a function you've defined that resets booking.value's properties
+              })
+              .catch(error => {
+                console.error("There was an error submitting the booking: ", error);
+              });
+          }
+        };
+
+        const resetForm=()=> {
+          this.booking = {
+            email: '',
+            phone: '',
+            vehicle_model: '',
+            booking_date: '',
+          };
+        };
+
+        
+      return { booking, user, showCalendar, toggleCalendar, dateFormat, today, formattedDate, submitBooking };
     },
     methods: {
+
+
+      
+      async fetchBookings(date = null) {
+        try {
+          // Build the URL with a query parameter if a date is provided
+          let url = 'http://localhost:8000/api/booking';
+          if (date) {
+            url += `?date=${date}`;
+          }
+
+          const response = await axios.get(url);
+          this.bookings = response.data;
+          const booking = response.data;
+          console.log(booking);
+          //localStorage.setItem('booking', JSON.stringify(response.data));
+        } catch (error) {
+          console.error("There was an error fetching the bookings: ", error);
+        }
+      },
+
       isWeekend(date) {
         const day = new Date(date).getDay();
         return day === 0 || day === 6; // 0 for Sunday, 6 for Saturday
@@ -143,41 +237,10 @@
             this.user = JSON.parse(userData);
         }
     },
-    getCurrentDateTime() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = (now.getMonth() + 1).toString().padStart(2, '0'); // JS months are 0-based
-      const day = now.getDate().toString().padStart(2, '0');
-      const hours = now.getHours().toString().padStart(2, '0');
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      const seconds = now.getSeconds().toString().padStart(2, '0');
+    
 
-      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-    },
-    submitBooking() {
-      // Assign user details to the booking object before submission
-      this.booking.email = this.user.email;
-      this.booking.name = this.user.name;
-      this.booking.booking_date = this.getCurrentDateTime();
 
-      axios.post('http://localhost:8000/api/booking', this.booking) 
-        .then(response => {
-          alert('Booking submitted successfully!');
-          this.resetForm(); // Clear the form after successful submission
-        })
-        .catch(error => {
-          console.error("There was an error submitting the booking: ", error);
-        });
-    },
-
-    resetForm() {
-      this.booking = {
-        email: '',
-        phone: '',
-        vehicle_model: '',
-        booking_date: '',
-      };
-    },
+    
   },
 };
   

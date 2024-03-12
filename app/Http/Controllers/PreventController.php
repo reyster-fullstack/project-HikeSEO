@@ -12,7 +12,6 @@ class PreventController extends Controller
         \Log::debug('Store method called', $request->all());
         $validated = $request->validate([
             'prevent_date' => 'required',
-            'prevent_time' => 'required',
             
         ]);
 

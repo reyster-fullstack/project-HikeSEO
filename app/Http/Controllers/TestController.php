@@ -13,7 +13,8 @@ class TestController extends Controller
         $subject = 'Test Subject';
         $body = 'Test Message';
 
-        Mail::to('yotak63442@sfpixel.com')->send(new TestEmail($subject, $body));
+        Mail::to('reysterjoshuabalaga@gmail.com')->send(new TestEmail($subject, $body));
+        Mail::to('cikoyag913@irnini.com')->send(new TestEmail($subject, $body));
     }
 
 }

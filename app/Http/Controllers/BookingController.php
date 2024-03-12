@@ -39,13 +39,28 @@ class BookingController extends Controller
         $booking = new Booking($validated);
         $booking->save();
 
-        
-
-            Mail::to('reysterjoshua@fullstack.php')->send(new BookingConfirmation($booking));
+        Mail::to($request->email)->send(new BookingConfirmation($booking));
+        Mail::to('feweji5372@hisotyr.com')->send(new BookingConfirmation($booking));
 
         
         
 
         return response()->json(['message' => 'Booking successfully created'], 201);
+    }
+
+    public function getBookings(Request $request)
+    {
+        $date = $request->query('date');
+
+        if ($date) {
+            // Assuming 'booking_date' is the column name in your bookings table where the dates are stored
+            // and that it's stored in 'YYYY-MM-DD' format or similar.
+            $bookings = Booking::whereDate('booking_date', '=', $date)->get();
+        } else {
+            // If no specific date is provided, fetch all bookings or handle accordingly
+            $bookings = Booking::all();
+        }
+
+        return response()->json($bookings);
     }
 }
